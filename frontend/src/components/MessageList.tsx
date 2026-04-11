@@ -67,7 +67,6 @@ const SCROLL_THROTTLE_MS = 100;
 
 export default function MessageList({ messages, isLoading }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const lastScrollRef = useRef(0);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isStreamingRef = useRef(false);
@@ -115,11 +114,15 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
   }, [messages, isLoading, isStreaming, scrollToBottom]);
 
   if (messages.length === 0 && !isLoading) {
-    return <EmptyState />;
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <EmptyState />
+      </div>
+    );
   }
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="space-y-4 p-4">
       {messages.map((msg, i) =>
         msg.isThinking ? null : (
           <ChatMessage key={`${msg.timestamp}-${i}`} message={msg} />
