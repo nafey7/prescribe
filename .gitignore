@@ -16,6 +16,7 @@ venv/
 node_modules/
 dist/
 .cache/
+*.tsbuildinfo
 
 # Environment
 .env

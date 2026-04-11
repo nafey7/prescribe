@@ -1,5 +1,5 @@
 import { Stethoscope } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Message } from "../types/chat";
 import ChatMessage from "./ChatMessage";
 
@@ -8,17 +8,23 @@ interface MessageListProps {
   isLoading: boolean;
 }
 
-function TypingIndicator() {
+function ThinkingIndicator({ status }: { status?: string }) {
   return (
-    <div className="flex gap-3 animate-fade-in">
+    <div className="flex gap-3 thinking-enter">
       <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-emerald-100 text-emerald-700">
         <Stethoscope size={16} />
       </div>
       <div className="bg-white shadow-sm border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3">
-        <div className="flex gap-1.5 items-center h-5">
-          <span className="typing-dot w-2 h-2 bg-gray-400 rounded-full inline-block" />
-          <span className="typing-dot w-2 h-2 bg-gray-400 rounded-full inline-block" />
-          <span className="typing-dot w-2 h-2 bg-gray-400 rounded-full inline-block" />
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full thinking-dot" />
+            <span className="text-sm font-medium text-gray-700">
+              Thinking...
+            </span>
+          </div>
+          {status && status !== "Thinking..." && (
+            <p className="text-xs text-gray-500 ml-4">{status}</p>
+          )}
         </div>
       </div>
     </div>
@@ -57,23 +63,71 @@ function EmptyState() {
   );
 }
 
+const SCROLL_THROTTLE_MS = 100;
+
 export default function MessageList({ messages, isLoading }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastScrollRef = useRef(0);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isStreamingRef = useRef(false);
+
+  const lastMessage = messages[messages.length - 1];
+  const isStreaming = !!lastMessage?.isStreaming;
+  const showThinking = !!lastMessage?.isThinking;
+
+  isStreamingRef.current = isStreaming;
+
+  const scrollToBottom = useCallback((instant?: boolean) => {
+    if (!bottomRef.current) return;
+    bottomRef.current.scrollIntoView({
+      behavior: instant ? "instant" : "smooth",
+    });
+  }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
+    if (!isStreaming) {
+      scrollToBottom(false);
+      return;
+    }
+
+    const now = Date.now();
+    const elapsed = now - lastScrollRef.current;
+
+    if (elapsed >= SCROLL_THROTTLE_MS) {
+      lastScrollRef.current = now;
+      scrollToBottom(true);
+    } else if (scrollTimeoutRef.current === null) {
+      const delay = SCROLL_THROTTLE_MS - elapsed;
+      scrollTimeoutRef.current = setTimeout(() => {
+        scrollTimeoutRef.current = null;
+        lastScrollRef.current = Date.now();
+        scrollToBottom(true);
+      }, delay);
+    }
+
+    return () => {
+      if (scrollTimeoutRef.current !== null) {
+        clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
+      }
+    };
+  }, [messages, isLoading, isStreaming, scrollToBottom]);
 
   if (messages.length === 0 && !isLoading) {
     return <EmptyState />;
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {messages.map((msg, i) => (
-        <ChatMessage key={`${msg.timestamp}-${i}`} message={msg} />
-      ))}
-      {isLoading && <TypingIndicator />}
+    <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+      {messages.map((msg, i) =>
+        msg.isThinking ? null : (
+          <ChatMessage key={`${msg.timestamp}-${i}`} message={msg} />
+        )
+      )}
+      {showThinking && (
+        <ThinkingIndicator status={lastMessage.thinkingStatus} />
+      )}
       <div ref={bottomRef} />
     </div>
   );

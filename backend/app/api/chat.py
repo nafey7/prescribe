@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.database.connection import get_database
 from app.schemas.chat import (
@@ -9,7 +10,12 @@ from app.schemas.chat import (
     ChatResponse,
     PatientInfo,
 )
-from app.service.chat import get_chat_history, list_patients, process_message
+from app.service.chat import (
+    get_chat_history,
+    list_patients,
+    process_message,
+    process_message_stream,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +39,24 @@ async def chat_message(request: ChatRequest) -> ChatResponse:
             status_code=503,
             detail=f"AI service error: {str(e)}",
         )
+
+
+@router.post("/message/stream")
+async def chat_message_stream(request: ChatRequest):
+    db = get_database()
+    return StreamingResponse(
+        process_message_stream(
+            message=request.message,
+            chat_id=request.chat_id,
+            patient_id=request.patient_id,
+            db=db,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/history/{chat_id}", response_model=ChatHistoryResponse)
