@@ -69,7 +69,7 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastScrollRef = useRef(0);
-  const scrollRafRef = useRef<number | null>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isStreamingRef = useRef(false);
 
   const lastMessage = messages[messages.length - 1];
@@ -97,20 +97,19 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
     if (elapsed >= SCROLL_THROTTLE_MS) {
       lastScrollRef.current = now;
       scrollToBottom(true);
-    } else if (scrollRafRef.current === null) {
+    } else if (scrollTimeoutRef.current === null) {
       const delay = SCROLL_THROTTLE_MS - elapsed;
-      const timeoutId = window.setTimeout(() => {
-        scrollRafRef.current = null;
+      scrollTimeoutRef.current = setTimeout(() => {
+        scrollTimeoutRef.current = null;
         lastScrollRef.current = Date.now();
         scrollToBottom(true);
       }, delay);
-      scrollRafRef.current = timeoutId as unknown as number;
     }
 
     return () => {
-      if (scrollRafRef.current !== null) {
-        window.clearTimeout(scrollRafRef.current);
-        scrollRafRef.current = null;
+      if (scrollTimeoutRef.current !== null) {
+        clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
       }
     };
   }, [messages, isLoading, isStreaming, scrollToBottom]);

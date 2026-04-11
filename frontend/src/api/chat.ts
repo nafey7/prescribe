@@ -72,7 +72,9 @@ export async function sendMessageStream(
     buffer = lines.pop() || "";
 
     for (const line of lines) {
-      if (line.startsWith("event: ")) {
+      if (line === "") {
+        currentEvent = "";
+      } else if (line.startsWith("event: ")) {
         currentEvent = line.slice(7).trim();
       } else if (line.startsWith("data: ") && currentEvent) {
         try {
