@@ -59,10 +59,11 @@ export function useChat(patientId: string) {
               content: msg.content + token,
             }));
           },
-          onDone: (newChatId) => {
+          onDone: (newChatId, messageId) => {
             setChatId(newChatId);
             updateLast((msg) => ({
               ...msg,
+              messageId,
               isStreaming: false,
               isThinking: false,
             }));

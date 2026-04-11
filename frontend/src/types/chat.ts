@@ -2,6 +2,7 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  messageId?: string;
   isStreaming?: boolean;
   isThinking?: boolean;
   thinkingStatus?: string;
