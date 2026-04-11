@@ -1,0 +1,49 @@
+import logging
+
+from fastapi import APIRouter, HTTPException
+
+from app.database.connection import get_database
+from app.schemas.chat import (
+    ChatHistoryResponse,
+    ChatRequest,
+    ChatResponse,
+    PatientInfo,
+)
+from app.service.chat import get_chat_history, list_patients, process_message
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+
+@router.post("/message", response_model=ChatResponse)
+async def chat_message(request: ChatRequest) -> ChatResponse:
+    db = get_database()
+    try:
+        response = await process_message(
+            message=request.message,
+            chat_id=request.chat_id,
+            patient_id=request.patient_id,
+            db=db,
+        )
+        return response
+    except Exception as e:
+        logger.exception("Error processing chat message")
+        raise HTTPException(
+            status_code=503,
+            detail=f"AI service error: {str(e)}",
+        )
+
+
+@router.get("/history/{chat_id}", response_model=ChatHistoryResponse)
+async def chat_history(chat_id: str) -> ChatHistoryResponse:
+    db = get_database()
+    history = await get_chat_history(chat_id=chat_id, db=db)
+    if history is None:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    return history
+
+
+@router.get("/patients", response_model=list[PatientInfo])
+async def patients() -> list[PatientInfo]:
+    return list_patients()

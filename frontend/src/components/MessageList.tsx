@@ -1,0 +1,80 @@
+import { Stethoscope } from "lucide-react";
+import { useEffect, useRef } from "react";
+import type { Message } from "../types/chat";
+import ChatMessage from "./ChatMessage";
+
+interface MessageListProps {
+  messages: Message[];
+  isLoading: boolean;
+}
+
+function TypingIndicator() {
+  return (
+    <div className="flex gap-3 animate-fade-in">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-emerald-100 text-emerald-700">
+        <Stethoscope size={16} />
+      </div>
+      <div className="bg-white shadow-sm border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3">
+        <div className="flex gap-1.5 items-center h-5">
+          <span className="typing-dot w-2 h-2 bg-gray-400 rounded-full inline-block" />
+          <span className="typing-dot w-2 h-2 bg-gray-400 rounded-full inline-block" />
+          <span className="typing-dot w-2 h-2 bg-gray-400 rounded-full inline-block" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+      <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
+        <Stethoscope size={32} className="text-emerald-600" />
+      </div>
+      <h3 className="text-lg font-semibold text-gray-700 mb-2">
+        Medical AI Assistant
+      </h3>
+      <p className="text-gray-500 max-w-md text-sm leading-relaxed">
+        Ask a question about your patient's health, symptoms, medications, or
+        medical history. The AI will reference their medical records to provide
+        informed responses.
+      </p>
+      <div className="mt-6 flex flex-wrap gap-2 justify-center">
+        {[
+          "What medications is this patient currently on?",
+          "Are there any drug interactions to worry about?",
+          "Summarize the patient's medical history",
+        ].map((suggestion) => (
+          <span
+            key={suggestion}
+            className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full"
+          >
+            {suggestion}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function MessageList({ messages, isLoading }: MessageListProps) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
+
+  if (messages.length === 0 && !isLoading) {
+    return <EmptyState />;
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {messages.map((msg, i) => (
+        <ChatMessage key={`${msg.timestamp}-${i}`} message={msg} />
+      ))}
+      {isLoading && <TypingIndicator />}
+      <div ref={bottomRef} />
+    </div>
+  );
+}
