@@ -1,4 +1,5 @@
 import { Bot, User } from "lucide-react";
+import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Message } from "../types/chat";
 
@@ -6,7 +7,7 @@ interface ChatMessageProps {
   message: Message;
 }
 
-export default function ChatMessage({ message }: ChatMessageProps) {
+function ChatMessageInner({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
 
   return (
@@ -38,7 +39,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
           <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0.5 prose-table:my-2">
             <ReactMarkdown>{message.content}</ReactMarkdown>
             {message.isStreaming && (
-              <span className="inline-block w-[2px] h-[1em] bg-gray-800 ml-0.5 align-middle animate-pulse" />
+              <span className="streaming-cursor" aria-hidden="true" />
             )}
           </div>
         )}
@@ -55,3 +56,18 @@ export default function ChatMessage({ message }: ChatMessageProps) {
     </div>
   );
 }
+
+const ChatMessage = memo(ChatMessageInner, (prev, next) => {
+  const p = prev.message;
+  const n = next.message;
+  return (
+    p.content === n.content &&
+    p.isStreaming === n.isStreaming &&
+    p.isThinking === n.isThinking &&
+    p.thinkingStatus === n.thinkingStatus
+  );
+});
+
+ChatMessage.displayName = "ChatMessage";
+
+export default ChatMessage;

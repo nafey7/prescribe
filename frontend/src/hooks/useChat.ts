@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { sendMessageStream } from "../api/chat";
 import type { Message } from "../types/chat";
 
@@ -8,11 +8,15 @@ export function useChat(patientId: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const tokenBufferRef = useRef("");
+  const rafIdRef = useRef<number | null>(null);
+
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || isLoading) return;
 
       setError(null);
+      tokenBufferRef.current = "";
 
       const userMessage: Message = {
         role: "user",
@@ -42,6 +46,26 @@ export function useChat(patientId: string) {
         });
       };
 
+      const flushTokenBuffer = () => {
+        const buffered = tokenBufferRef.current;
+        if (!buffered) return;
+        tokenBufferRef.current = "";
+        updateLast((msg) => ({
+          ...msg,
+          isThinking: false,
+          isStreaming: true,
+          content: msg.content + buffered,
+        }));
+      };
+
+      const scheduleFlush = () => {
+        if (rafIdRef.current !== null) return;
+        rafIdRef.current = requestAnimationFrame(() => {
+          rafIdRef.current = null;
+          flushTokenBuffer();
+        });
+      };
+
       try {
         await sendMessageStream(text, patientId, chatId, {
           onThinking: (status) => {
@@ -52,14 +76,15 @@ export function useChat(patientId: string) {
             }));
           },
           onToken: (token) => {
-            updateLast((msg) => ({
-              ...msg,
-              isThinking: false,
-              isStreaming: true,
-              content: msg.content + token,
-            }));
+            tokenBufferRef.current += token;
+            scheduleFlush();
           },
           onDone: (newChatId, messageId) => {
+            if (rafIdRef.current !== null) {
+              cancelAnimationFrame(rafIdRef.current);
+              rafIdRef.current = null;
+            }
+            flushTokenBuffer();
             setChatId(newChatId);
             updateLast((msg) => ({
               ...msg,
@@ -69,16 +94,26 @@ export function useChat(patientId: string) {
             }));
           },
           onError: (errMsg) => {
+            if (rafIdRef.current !== null) {
+              cancelAnimationFrame(rafIdRef.current);
+              rafIdRef.current = null;
+            }
+            tokenBufferRef.current = "";
             setError(errMsg);
             updateLast((msg) => ({
               ...msg,
               isThinking: false,
               isStreaming: false,
-              content: `\u26a0\ufe0f Error: ${errMsg}. Please try again.`,
+              content: `⚠️ Error: ${errMsg}. Please try again.`,
             }));
           },
         });
       } catch (err) {
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = null;
+        }
+        tokenBufferRef.current = "";
         const errMsg =
           err instanceof Error ? err.message : "Failed to get response";
         setError(errMsg);
@@ -86,7 +121,7 @@ export function useChat(patientId: string) {
           ...msg,
           isThinking: false,
           isStreaming: false,
-          content: `\u26a0\ufe0f Error: ${errMsg}. Please try again.`,
+          content: `⚠️ Error: ${errMsg}. Please try again.`,
         }));
       } finally {
         setIsLoading(false);
@@ -96,6 +131,11 @@ export function useChat(patientId: string) {
   );
 
   const clearChat = useCallback(() => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    tokenBufferRef.current = "";
     setMessages([]);
     setChatId(undefined);
     setError(null);
