@@ -2,6 +2,9 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  isStreaming?: boolean;
+  isThinking?: boolean;
+  thinkingStatus?: string;
 }
 
 export interface ChatResponse {

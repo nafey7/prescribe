@@ -37,6 +37,9 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         ) : (
           <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0.5 prose-table:my-2">
             <ReactMarkdown>{message.content}</ReactMarkdown>
+            {message.isStreaming && (
+              <span className="inline-block w-[2px] h-[1em] bg-gray-800 ml-0.5 align-middle animate-pulse" />
+            )}
           </div>
         )}
 

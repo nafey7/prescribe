@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -108,6 +109,70 @@ async def invoke_medical_agent(
         return ai_messages[-1].content
 
     return "I wasn't able to generate a response. Please try again."
+
+
+_TOOL_DISPLAY_NAMES = {
+    "search_patient_records": "Searching patient records...",
+}
+
+
+async def stream_medical_agent(
+    message: str,
+    patient_id: str,
+    chat_id: str,
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Async generator that yields streaming events from the medical agent.
+
+    Yields dicts with shape:
+        {"event": "thinking", "data": {"status": "..."}}
+        {"event": "token",    "data": {"content": "..."}}
+    """
+    graph = get_medical_graph()
+
+    input_state: MedicalChatState = {
+        "messages": [HumanMessage(content=message)],
+        "patient_id": patient_id,
+    }
+    config = {"configurable": {"thread_id": chat_id}}
+
+    try:
+        async for event in graph.astream_events(input_state, config, version="v2"):
+            kind = event["event"]
+
+            if kind == "on_tool_start":
+                name = event.get("name", "tool")
+                status = _TOOL_DISPLAY_NAMES.get(name, f"Running {name}...")
+                yield {"event": "thinking", "data": {"status": status}}
+
+            elif kind == "on_tool_end":
+                yield {"event": "thinking", "data": {"status": "Analyzing results..."}}
+
+            elif kind == "on_chat_model_stream":
+                chunk = event["data"].get("chunk")
+                if (
+                    chunk
+                    and hasattr(chunk, "content")
+                    and isinstance(chunk.content, str)
+                    and chunk.content
+                    and not getattr(chunk, "tool_calls", None)
+                    and not getattr(chunk, "tool_call_chunks", None)
+                ):
+                    yield {"event": "token", "data": {"content": chunk.content}}
+
+    except Exception as e:
+        logger.warning("astream_events failed (%s), falling back to astream", e)
+        async for chunk in graph.astream(
+            input_state, config, stream_mode="messages"
+        ):
+            msg = chunk[0] if isinstance(chunk, tuple) else chunk
+            if (
+                hasattr(msg, "content")
+                and isinstance(msg.content, str)
+                and msg.content
+                and not getattr(msg, "tool_calls", None)
+                and not getattr(msg, "tool_call_chunks", None)
+            ):
+                yield {"event": "token", "data": {"content": msg.content}}
 
 
 def cleanup_graph() -> None:

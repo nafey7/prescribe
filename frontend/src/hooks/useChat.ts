@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { sendMessage as apiSendMessage } from "../api/chat";
+import { sendMessageStream } from "../api/chat";
 import type { Message } from "../types/chat";
 
 export function useChat(patientId: string) {
@@ -19,30 +19,74 @@ export function useChat(patientId: string) {
         content: text,
         timestamp: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, userMessage]);
+
+      const placeholder: Message = {
+        role: "assistant",
+        content: "",
+        timestamp: new Date().toISOString(),
+        isThinking: true,
+        thinkingStatus: "Thinking...",
+      };
+
+      setMessages((prev) => [...prev, userMessage, placeholder]);
       setIsLoading(true);
 
-      try {
-        const response = await apiSendMessage(text, patientId, chatId);
-        setChatId(response.chat_id);
+      const updateLast = (updater: (msg: Message) => Message) => {
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last?.role === "assistant") {
+            updated[updated.length - 1] = updater(last);
+          }
+          return updated;
+        });
+      };
 
-        const assistantMessage: Message = {
-          role: "assistant",
-          content: response.message,
-          timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
+      try {
+        await sendMessageStream(text, patientId, chatId, {
+          onThinking: (status) => {
+            updateLast((msg) => ({
+              ...msg,
+              isThinking: true,
+              thinkingStatus: status,
+            }));
+          },
+          onToken: (token) => {
+            updateLast((msg) => ({
+              ...msg,
+              isThinking: false,
+              isStreaming: true,
+              content: msg.content + token,
+            }));
+          },
+          onDone: (newChatId) => {
+            setChatId(newChatId);
+            updateLast((msg) => ({
+              ...msg,
+              isStreaming: false,
+              isThinking: false,
+            }));
+          },
+          onError: (errMsg) => {
+            setError(errMsg);
+            updateLast((msg) => ({
+              ...msg,
+              isThinking: false,
+              isStreaming: false,
+              content: `\u26a0\ufe0f Error: ${errMsg}. Please try again.`,
+            }));
+          },
+        });
       } catch (err) {
         const errMsg =
           err instanceof Error ? err.message : "Failed to get response";
         setError(errMsg);
-
-        const errorMessage: Message = {
-          role: "assistant",
-          content: `⚠️ Error: ${errMsg}. Please try again.`,
-          timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, errorMessage]);
+        updateLast((msg) => ({
+          ...msg,
+          isThinking: false,
+          isStreaming: false,
+          content: `\u26a0\ufe0f Error: ${errMsg}. Please try again.`,
+        }));
       } finally {
         setIsLoading(false);
       }

@@ -8,17 +8,23 @@ interface MessageListProps {
   isLoading: boolean;
 }
 
-function TypingIndicator() {
+function ThinkingIndicator({ status }: { status?: string }) {
   return (
     <div className="flex gap-3 animate-fade-in">
       <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-emerald-100 text-emerald-700">
         <Stethoscope size={16} />
       </div>
       <div className="bg-white shadow-sm border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3">
-        <div className="flex gap-1.5 items-center h-5">
-          <span className="typing-dot w-2 h-2 bg-gray-400 rounded-full inline-block" />
-          <span className="typing-dot w-2 h-2 bg-gray-400 rounded-full inline-block" />
-          <span className="typing-dot w-2 h-2 bg-gray-400 rounded-full inline-block" />
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="text-sm font-medium text-gray-700">
+              Thinking...
+            </span>
+          </div>
+          {status && status !== "Thinking..." && (
+            <p className="text-xs text-gray-500 ml-4">{status}</p>
+          )}
         </div>
       </div>
     </div>
@@ -68,12 +74,19 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
     return <EmptyState />;
   }
 
+  const lastMessage = messages[messages.length - 1];
+  const showThinking = lastMessage?.isThinking;
+
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {messages.map((msg, i) => (
-        <ChatMessage key={`${msg.timestamp}-${i}`} message={msg} />
-      ))}
-      {isLoading && <TypingIndicator />}
+      {messages.map((msg, i) =>
+        msg.isThinking ? null : (
+          <ChatMessage key={`${msg.timestamp}-${i}`} message={msg} />
+        )
+      )}
+      {showThinking && (
+        <ThinkingIndicator status={lastMessage.thinkingStatus} />
+      )}
       <div ref={bottomRef} />
     </div>
   );
