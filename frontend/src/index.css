@@ -72,11 +72,20 @@
   animation: thinking-pulse 1.2s ease-in-out infinite;
 }
 
-/* --- Prose content during streaming: smooth content flow --- */
-.prose-streaming > :last-child {
+/* --- Chat markdown: first/last child spacing cleanup --- */
+.chat-markdown > :first-child {
+  margin-top: 0;
+}
+
+.chat-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+/* Inline streaming cursor with the last element */
+.chat-markdown > :last-child {
   display: inline;
 }
 
-.prose-streaming > :last-child + .streaming-cursor {
+.chat-markdown > :last-child + .streaming-cursor {
   display: inline;
 }

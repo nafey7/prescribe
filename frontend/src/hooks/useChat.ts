@@ -69,11 +69,15 @@ export function useChat(patientId: string) {
       try {
         await sendMessageStream(text, patientId, chatId, {
           onThinking: (status) => {
-            updateLast((msg) => ({
-              ...msg,
-              isThinking: true,
-              thinkingStatus: status,
-            }));
+            updateLast((msg) => {
+              if (msg.isStreaming || msg.content || tokenBufferRef.current)
+                return msg;
+              return {
+                ...msg,
+                isThinking: true,
+                thinkingStatus: status,
+              };
+            });
           },
           onToken: (token) => {
             tokenBufferRef.current += token;
