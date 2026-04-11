@@ -5,6 +5,7 @@ uvicorn[standard]>=0.37.0
 # Data validation & config
 pydantic>=2.10.3
 pydantic-settings>=2.6.1
+email-validator>=2.1.0
 
 # Database
 motor>=3.7.0
