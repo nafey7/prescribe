@@ -20,9 +20,14 @@ def test_health(client):
 
 
 def test_list_patients(client):
-    with patch("app.api.chat.list_patients") as mock_list:
+    with patch("app.api.chat.list_patients", new_callable=AsyncMock) as mock_list:
         mock_list.return_value = [
-            {"id": "john_doe", "name": "John Doe", "file": "patient_john_doe.md"}
+            {
+                "id": "john_doe",
+                "name": "John Doe",
+                "file": "patient_john_doe.md",
+                "user_id": None,
+            }
         ]
         response = client.get("/api/chat/patients")
         assert response.status_code == 200
@@ -34,6 +39,36 @@ def test_list_patients(client):
 def test_empty_message_rejected(client):
     response = client.post(
         "/api/chat/message",
-        json={"message": "", "patient_id": "john_doe"},
+        json={"message": ""},
+        headers={"X-Patient-Id": "john_doe"},
     )
     assert response.status_code == 422
+
+
+def test_chat_requires_patient_header(client):
+    response = client.post(
+        "/api/chat/message",
+        json={"message": "hello"},
+    )
+    assert response.status_code == 400
+    assert "X-Patient-Id" in response.json().get("detail", "")
+
+
+def test_chat_message_with_header(client):
+    with patch("app.api.chat.process_message", new_callable=AsyncMock) as mock_proc:
+        mock_proc.return_value = ChatResponse(
+            message="ok",
+            chat_id="c1",
+            message_id="m1",
+        )
+        response = client.post(
+            "/api/chat/message",
+            json={"message": "hello"},
+            headers={"X-Patient-Id": "john_doe"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["message"] == "ok"
+        mock_proc.assert_called_once()
+        call_kw = mock_proc.call_args.kwargs
+        assert call_kw["patient_id"] == "john_doe"

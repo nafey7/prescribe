@@ -1,28 +1,43 @@
-import { RotateCcw, ShieldAlert } from "lucide-react";
-import { useCallback, useState } from "react";
+import { MessageSquare, RotateCcw, ShieldAlert, UserCircle } from "lucide-react";
+import { useCallback } from "react";
+import { Link } from "react-router-dom";
+import { usePatientContext } from "../contexts/PatientContext";
 import { useChat } from "../hooks/useChat";
 import ChatInput from "./ChatInput";
+import DevIdentityBanner from "./DevIdentityBanner";
 import MessageList from "./MessageList";
 import PatientSelector from "./PatientSelector";
 
 export default function ChatPage() {
-  const [patientId, setPatientId] = useState("john_doe");
-  const { messages, isLoading, sendMessage, clearChat } = useChat(patientId);
+  const { currentPatientId, setCurrentPatientId } = usePatientContext();
+  const { messages, isLoading, sendMessage, clearChat } =
+    useChat(currentPatientId);
+
+  const profileHref = "/profile";
 
   const handlePatientChange = useCallback(
-    (newPatientId: string) => {
-      setPatientId(newPatientId);
-      clearChat();
-    },
-    [clearChat]
+    (id: string) => setCurrentPatientId(id),
+    [setCurrentPatientId]
   );
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      {/* Disclaimer Banner */}
-      <div className="bg-amber-50 border-b border-amber-200 px-4 py-2">
-        <div className="max-w-3xl mx-auto flex items-center gap-2 text-amber-800">
-          <ShieldAlert size={16} className="flex-shrink-0" />
+    <div className="flex h-screen min-h-0 flex-col bg-gray-50">
+      {import.meta.env.DEV ? (
+        <DevIdentityBanner />
+      ) : (
+        <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-2">
+          <div className="mx-auto flex max-w-3xl justify-end">
+            <PatientSelector
+              selectedId={currentPatientId}
+              onChange={handlePatientChange}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2">
+        <div className="mx-auto flex max-w-3xl items-center gap-2 text-amber-800">
+          <ShieldAlert size={16} className="shrink-0" aria-hidden />
           <p className="text-xs">
             <strong>Prototype only.</strong> Not real medical advice. Always
             consult a qualified healthcare professional.
@@ -30,12 +45,11 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+      <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center">
-              <span className="text-white text-lg">🩺</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600">
+              <MessageSquare className="text-white" size={18} />
             </div>
             <div>
               <h1 className="text-base font-semibold text-gray-900">
@@ -47,15 +61,25 @@ export default function ChatPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <PatientSelector
-              selectedId={patientId}
-              onChange={handlePatientChange}
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Patient portal
+            </Link>
+            <Link
+              to={profileHref}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <UserCircle size={16} />
+              Profile
+            </Link>
             <button
+              type="button"
               onClick={clearChat}
               title="New conversation"
-              className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
             >
               <RotateCcw size={16} />
             </button>
@@ -63,12 +87,12 @@ export default function ChatPage() {
         </div>
       </header>
 
-      {/* Messages */}
-      <main className="flex-1 overflow-hidden flex flex-col max-w-3xl mx-auto w-full">
-        <MessageList messages={messages} isLoading={isLoading} />
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+          <MessageList messages={messages} isLoading={isLoading} />
+        </div>
       </main>
 
-      {/* Input */}
       <ChatInput onSend={sendMessage} isLoading={isLoading} />
     </div>
   );

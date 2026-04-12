@@ -20,9 +20,15 @@ The current app has a `PatientSelector` dropdown inside the chat page that sets 
 
 ### Backend
 
-**No new backend endpoints.** The existing `GET /api/patients` (currently `GET /api/chat/patients`) provides the patient list. All new Phase B APIs accept `patient_id` as a path parameter — the frontend is responsible for supplying the correct one from the dev picker context.
+**This feature adds no patient APIs beyond what Phase B already needs for listing and chat.** Other Phase B work adds `/api/patients` CRUD, documents, medical history, etc. For **identity only**, the important pieces are: (1) **`get_current_patient_id`** for chat, and (2) **two list semantics** documented in [`FRONTEND_BACKEND_COLLABORATION.md`](../../FRONTEND_BACKEND_COLLABORATION.md):
 
-**Header convention:** For future-proofing, the frontend will send `X-Patient-Id` as a request header on all API calls. This mirrors how `Authorization: Bearer <token>` would work in Phase E — the backend extracts identity from a header. During Phase B, the backend reads `X-Patient-Id` from the request; in Phase E, it reads from the JWT instead.
+| Endpoint | Response | Role |
+|----------|----------|------|
+| `GET /api/patients/for-chat` | `PatientInfo[]` | Same as legacy `GET /api/chat/patients` — slug + display name + file hint for picker / chat `patient_id` |
+| `GET /api/patients` | `PatientListResponse` | Paginated **profile** rows (`skip`, `limit`) when using DB-backed patients |
+| `GET /api/chat/patients` | `PatientInfo[]` | Legacy alias of `for-chat` |
+
+**Header convention:** The frontend sends **`X-Patient-Id`** on requests (active slug such as `john_doe`, aligned with chat and Markdown files). Chat **`POST /api/chat/message`** and **`.../stream`** require this header (`400` if missing). Other routes may use path `patient_id` while still sending the header for consistency. Phase E can swap to JWT — same extraction point as today’s header.
 
 #### Backend changes
 
@@ -34,7 +40,7 @@ The current app has a `PatientSelector` dropdown inside the chat page that sets 
 
 2. **Update existing chat endpoints** to use `get_current_patient_id` instead of reading `patient_id` from the request body. The `ChatRequest` schema drops its `patient_id` field; the patient context comes from the header/dependency.
 
-3. **Move patient list endpoint** from `/api/chat/patients` to `/api/patients` (general-purpose, not chat-specific). Keep the old path as a redirect or alias during transition.
+3. **Patient list for chat** — canonical **`GET /api/patients/for-chat`**; keep **`GET /api/chat/patients`** as an alias during transition.
 
 ### Frontend
 
@@ -42,7 +48,7 @@ The current app has a `PatientSelector` dropdown inside the chat page that sets 
 
 1. **`PatientContext`** — React context provider (`frontend/src/contexts/PatientContext.tsx`):
    - State: `currentPatientId`, `currentPatient` (full object), `patients` (list), `isLoading`
-   - Fetches patient list on mount from `GET /api/patients`
+   - **List loading:** Prefer paginated `GET /api/patients` when the database has patient rows; otherwise fall back to **`GET /api/patients/for-chat`** (same shape as legacy chat patients). The **`getPatients()`** helper used for the for-chat list calls **`apiRequest(..., { skipPatientHeader: true })`** so the fetch does not require `X-Patient-Id` before the user is selected.
    - Persists selected patient in `localStorage` for page refresh survival
    - Exposes `setCurrentPatientId(id)` to switch patients
 
@@ -51,13 +57,14 @@ The current app has a `PatientSelector` dropdown inside the chat page that sets 
    - Shows: "DEV MODE — Acting as: [Patient Name ▾]" with a dropdown to switch
    - Distinct styling (yellow/amber background) so it's obviously dev-only
    - Conditionally rendered only when `import.meta.env.DEV` is true (stripped in production builds)
+   - **`PatientLayout`** and **`ChatPage`** (`/public/chat`) each render it in dev — chat is not wrapped by `PatientLayout`, so the banner must appear on both entry points.
 
 3. **API client update** — `frontend/src/api/client.ts` (new base client):
    - Wraps `fetch` and automatically injects `X-Patient-Id` header from `PatientContext`
-   - All API modules (`chat.ts`, future `patients.ts`, `documents.ts`) use this client
+   - All API modules (`chat.ts`, `patients.ts`, `documents.ts`, etc.) use this client
    - Replaces the inline `request()` function in `api/chat.ts`
 
-4. **Remove `PatientSelector` from `ChatPage`** — patient selection moves to the global `DevIdentityBanner`. The chat page reads `patient_id` from context.
+4. **`ChatPage` patient switching** — In **dev**, patient selection is via **`DevIdentityBanner`** (and shared **`PatientSelector`** inside it). In **production** builds, **`ChatPage`** shows **`PatientSelector`** in a top bar (no banner). The page reads the active id from **`PatientContext`** everywhere.
 
 ---
 
@@ -80,10 +87,10 @@ The current app has a `PatientSelector` dropdown inside the chat page that sets 
 | `backend/app/api/router.py` | Mount patient list at `/patients` (in addition to or replacing `/chat/patients`) |
 | `backend/app/schemas/chat.py` | `ChatRequest.patient_id` becomes optional/removed (sourced from header) |
 | `frontend/src/api/chat.ts` | Use new `client.ts` base; stop passing `patient_id` in body |
-| `frontend/src/App.tsx` | Wrap app in `PatientProvider`; render `DevIdentityBanner` |
-| `frontend/src/components/ChatPage.tsx` | Remove inline patient selector; read from context |
-| `frontend/src/hooks/useChat.ts` | Read `patientId` from `PatientContext` instead of local state |
-| `frontend/src/components/PatientSelector.tsx` | Repurpose or remove (logic moves to `DevIdentityBanner`) |
+| `frontend/src/App.tsx` | Wrap app in `PatientProvider`; router only (banner lives in layouts / `ChatPage`) |
+| `frontend/src/components/ChatPage.tsx` | Use `PatientContext`; dev → `DevIdentityBanner`; prod → `PatientSelector` |
+| `frontend/src/hooks/useChat.ts` | Take `patientId` from parent/context; clear conversation when `patientId` changes |
+| `frontend/src/components/PatientSelector.tsx` | Driven by `PatientContext` (`usePatients`) — reused by `DevIdentityBanner` and prod chat chrome |
 
 ---
 
@@ -106,9 +113,9 @@ async def get_current_patient_id(
     return x_patient_id
 ```
 
-### Step 2 — Move patient list endpoint
+### Step 2 — Patient list endpoints
 
-Add a new router `backend/app/api/patients.py` with `GET /` (mounted at `/api/patients`). The handler calls the existing `list_patients()` service function. Keep `GET /api/chat/patients` working for backward compatibility during migration.
+Add `backend/app/api/patients.py` mounted at `/api/patients`: paginated profile list on `GET /`, **`GET /for-chat`** delegating to the same **`list_patients`** service used for chat (`PatientInfo[]`). Keep **`GET /api/chat/patients`** as an alias of **`for-chat`**. See [`FRONTEND_BACKEND_COLLABORATION.md`](../../FRONTEND_BACKEND_COLLABORATION.md).
 
 ### Step 3 — Update chat endpoints
 
@@ -126,9 +133,9 @@ Create `api/client.ts` that reads from `PatientContext` (or a module-level gette
 
 Build `DevIdentityBanner` component. Patient dropdown triggers `setCurrentPatientId`. Render conditionally on `import.meta.env.DEV`.
 
-### Step 7 — Clean up chat page
+### Step 7 — Chat page and header identity
 
-Remove `PatientSelector` from `ChatPage`. Update `useChat` to source `patientId` from context. Verify chat still works end-to-end with the new header-based identity.
+Wire `ChatPage` to `PatientContext` and `DevIdentityBanner` (dev) / `PatientSelector` (prod). Update `useChat` to source `patientId` from context and clear the thread when the patient changes. Verify chat works end-to-end with **`X-Patient-Id`** on message requests.
 
 ---
 
@@ -138,7 +145,8 @@ Remove `PatientSelector` from `ChatPage`. Update `useChat` to source `patientId`
 |------|------|-----------|
 | Chat endpoint without `X-Patient-Id` header | API | Returns 400 |
 | Chat endpoint with valid `X-Patient-Id` header | API | Returns 200, correct patient scoping |
-| `GET /api/patients` returns patient list | API | Backward compatibility |
+| `GET /api/patients/for-chat` (and legacy `/api/chat/patients`) | API | `PatientInfo[]` for picker |
+| `GET /api/patients?skip=&limit=` | API | Paginated `PatientListResponse` when DB has profiles |
 | Patient context provides ID to child components | Frontend unit | Context wiring |
 | Switching patient in banner updates all API calls | Frontend integration | End-to-end identity propagation |
 | localStorage persistence survives page refresh | Frontend | State survival |

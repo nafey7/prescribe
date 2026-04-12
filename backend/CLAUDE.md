@@ -57,6 +57,10 @@ HTTP request
 - **LangGraph checkpointing:** Graph state is checkpointed to MongoDB via `langgraph-checkpoint-mongodb`, keyed by `chat_id` as `thread_id`.
 - **Tool pattern:** Tools are LangChain `@tool`-decorated functions. Currently only `search_patient_records`.
 
+## Dependencies
+
+Prefer installing packages **inside the backend container** so they match the deployed image. Pin versions in **`requirements.txt`** and commit it. After edits: `docker compose exec backend pip install -r requirements.txt`. **`pip` does not remove packages** that were deleted from the file—use `pip uninstall` for removed deps or **rebuild the image**. See the root [`CLAUDE.md`](../CLAUDE.md) section *Dependency changes in Docker*.
+
 ## Testing
 
 ```bash

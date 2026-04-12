@@ -26,7 +26,7 @@ Three Docker Compose services: `frontend`, `backend`, `mongodb`.
 ## Request flow (non-streaming)
 
 1. User sends a message via the chat UI
-2. Frontend `POST /api/chat/message` with `{ message, patient_id, chat_id? }`
+2. Frontend `POST /api/chat/message` with JSON `{ message, chat_id? }` and header `X-Patient-Id` (dev identity)
 3. `api/chat.py` validates the request via `ChatRequest` Pydantic model
 4. `service/chat.py` `process_message()`:
    - Creates or retrieves the chat session (UUID-based `chat_id`)
@@ -39,7 +39,7 @@ Three Docker Compose services: `frontend`, `backend`, `mongodb`.
 
 ## Request flow (streaming)
 
-1. Frontend `POST /api/chat/message/stream` with the same payload
+1. Frontend `POST /api/chat/message/stream` with the same JSON body and `X-Patient-Id` header
 2. Returns `text/event-stream` (SSE)
 3. `service/chat.py` `process_message_stream()`:
    - Same session/message setup as non-streaming

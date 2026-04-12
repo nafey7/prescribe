@@ -1,8 +1,9 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.api.dependencies import get_current_patient_id
 from app.database.connection import get_database
 from app.schemas.chat import (
     ChatHistoryResponse,
@@ -23,13 +24,16 @@ router = APIRouter()
 
 
 @router.post("/message", response_model=ChatResponse)
-async def chat_message(request: ChatRequest) -> ChatResponse:
+async def chat_message(
+    request: ChatRequest,
+    patient_id: str = Depends(get_current_patient_id),
+) -> ChatResponse:
     db = get_database()
     try:
         response = await process_message(
             message=request.message,
             chat_id=request.chat_id,
-            patient_id=request.patient_id,
+            patient_id=patient_id,
             db=db,
         )
         return response
@@ -42,13 +46,16 @@ async def chat_message(request: ChatRequest) -> ChatResponse:
 
 
 @router.post("/message/stream")
-async def chat_message_stream(request: ChatRequest):
+async def chat_message_stream(
+    request: ChatRequest,
+    patient_id: str = Depends(get_current_patient_id),
+):
     db = get_database()
     return StreamingResponse(
         process_message_stream(
             message=request.message,
             chat_id=request.chat_id,
-            patient_id=request.patient_id,
+            patient_id=patient_id,
             db=db,
         ),
         media_type="text/event-stream",
@@ -70,4 +77,5 @@ async def chat_history(chat_id: str) -> ChatHistoryResponse:
 
 @router.get("/patients", response_model=list[PatientInfo])
 async def patients() -> list[PatientInfo]:
-    return list_patients()
+    db = get_database()
+    return await list_patients(db)

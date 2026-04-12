@@ -1,31 +1,14 @@
+import { apiFetch, apiRequest } from "./client";
 import type { ChatHistoryResponse, ChatResponse, Patient } from "../types/chat";
-
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
-
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${url}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail || `Request failed (${res.status})`);
-  }
-
-  return res.json();
-}
 
 export async function sendMessage(
   message: string,
-  patientId: string,
   chatId?: string
 ): Promise<ChatResponse> {
-  return request<ChatResponse>("/chat/message", {
+  return apiRequest<ChatResponse>("/chat/message", {
     method: "POST",
     body: JSON.stringify({
       message,
-      patient_id: patientId,
       chat_id: chatId,
     }),
   });
@@ -33,7 +16,6 @@ export async function sendMessage(
 
 export async function sendMessageStream(
   message: string,
-  patientId: string,
   chatId: string | undefined,
   callbacks: {
     onThinking: (status: string) => void;
@@ -42,18 +24,16 @@ export async function sendMessageStream(
     onError: (error: string) => void;
   }
 ): Promise<void> {
-  const res = await fetch(`${API_BASE}/chat/message/stream`, {
+  const res = await apiFetch("/chat/message/stream", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message,
-      patient_id: patientId,
       chat_id: chatId,
     }),
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
+    const body = (await res.json().catch(() => ({}))) as { detail?: string };
     callbacks.onError(body.detail || `Request failed (${res.status})`);
     return;
   }
@@ -105,9 +85,12 @@ export async function sendMessageStream(
 export async function getChatHistory(
   chatId: string
 ): Promise<ChatHistoryResponse> {
-  return request<ChatHistoryResponse>(`/chat/history/${chatId}`);
+  return apiRequest<ChatHistoryResponse>(`/chat/history/${chatId}`);
 }
 
+/** Chat-oriented list (same data as legacy GET /chat/patients). */
 export async function getPatients(): Promise<Patient[]> {
-  return request<Patient[]>("/chat/patients");
+  return apiRequest<Patient[]>("/patients/for-chat", {
+    skipPatientHeader: true,
+  });
 }
