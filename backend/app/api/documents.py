@@ -1,6 +1,7 @@
-from fastapi import APIRouter, File, Form, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
+from app.config import get_settings
 from app.database.connection import get_database
 from app.schemas.document import (
     DocumentListResponse,
@@ -9,6 +10,7 @@ from app.schemas.document import (
     DocumentUploadResponse,
 )
 from app.service import document as document_service
+from app.service.ai_suggestions import process_document_for_suggestions
 
 router = APIRouter()
 
@@ -20,14 +22,24 @@ router = APIRouter()
 )
 async def upload_document(
     patient_id: str,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     category: str = Form("other"),
     description: str = Form(""),
 ):
     db = get_database()
-    return await document_service.upload_document(
+    result = await document_service.upload_document(
         db, patient_id, file, category, description
     )
+
+    settings = get_settings()
+    if settings.AI_SUGGESTIONS_ENABLED:
+        background_tasks.add_task(
+            process_document_for_suggestions,
+            db, patient_id, result.document_id, category,
+        )
+
+    return result
 
 
 @router.get("/{patient_id}/documents", response_model=DocumentListResponse)

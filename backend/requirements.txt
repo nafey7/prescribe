@@ -19,6 +19,11 @@ langchain-core>=0.3.0
 langchain-google-genai>=2.0.0
 langchain-openai>=1.0.0
 
+# Document text extraction
+PyPDF2>=3.0.0
+pytesseract>=0.3.10
+Pillow>=10.0.0
+
 # HTTP
 httpx>=0.28.1
 

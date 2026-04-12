@@ -31,6 +31,7 @@ from app.schemas.patient import (  # noqa: E402
     EmergencyContact,
     FamilyHistoryEntry,
     Lifestyle,
+    Medication,
     PatientProfileCreate,
 )
 from app.service import patient as patient_service  # noqa: E402
@@ -120,6 +121,29 @@ def _parse_family_history(section: str) -> list[FamilyHistoryEntry]:
     return entries
 
 
+def _parse_medications_table(section: str) -> list[Medication]:
+    import re as _re
+    rows: list[Medication] = []
+    for line in section.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        if _re.match(r"^\|[\s\-:|]+\|$", line):
+            continue
+        parts = [p.strip() for p in line.split("|")]
+        parts = [p for p in parts if p]
+        if len(parts) < 4:
+            continue
+        med, dosage, freq, since = parts[0], parts[1], parts[2], parts[3]
+        if med.lower() in ("medication", "none currently", "none"):
+            continue
+        if med in ("—", "–", "-"):
+            continue
+        since_clean = since if since not in ("—", "–", "-", "") else None
+        rows.append(Medication(name=med, dosage=dosage, frequency=freq, since=since_clean))
+    return rows
+
+
 def _parse_lifestyle(section: str) -> Lifestyle:
     text = section.strip()
     smoking = "unknown"
@@ -199,6 +223,9 @@ def parse_patient_markdown(path: Path, slug: str) -> PatientProfileCreate:
     allergy_section = _extract_section(content, "Allergies")
     allergies = _parse_allergies(allergy_section)
 
+    med_section = _extract_section(content, "Current Medications")
+    medications = _parse_medications_table(med_section)
+
     fh_section = _extract_section(content, "Family History")
     family_history = _parse_family_history(fh_section)
 
@@ -222,6 +249,7 @@ def parse_patient_markdown(path: Path, slug: str) -> PatientProfileCreate:
         emergency_contact=EmergencyContact(),
         allergies=allergies,
         conditions=conditions,
+        medications=medications,
         family_history=family_history,
         lifestyle=lifestyle,
     )

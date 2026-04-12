@@ -52,6 +52,7 @@ async def create_patient(db: AsyncIOMotorDatabase, data: PatientProfileCreate) -
         or {},
         "allergies": [a.model_dump() for a in data.allergies],
         "conditions": [c.model_dump() for c in data.conditions],
+        "medications": [m.model_dump() for m in data.medications],
         "family_history": [f.model_dump() for f in data.family_history],
         "lifestyle": lifestyle,
     }
@@ -126,7 +127,7 @@ async def update_patient(
                 current_profile[key] = value.model_dump()
             elif isinstance(value, dict):
                 current_profile[key] = value
-        elif key in ("allergies", "conditions", "family_history"):
+        elif key in ("allergies", "conditions", "medications", "family_history"):
             current_profile[key] = [
                 item.model_dump() if hasattr(item, "model_dump") else item
                 for item in value

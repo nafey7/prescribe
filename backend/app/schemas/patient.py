@@ -26,7 +26,14 @@ class Condition(BaseModel):
     name: str
     diagnosed_year: int | None = None
     status: str = "active"
-    notes: str = ""
+    notes: str | None = ""
+
+
+class Medication(BaseModel):
+    name: str
+    dosage: str
+    frequency: str
+    since: str | None = None
 
 
 class FamilyHistoryEntry(BaseModel):
@@ -61,6 +68,7 @@ class PatientProfileCreate(BaseModel):
     emergency_contact: EmergencyContact | None = None
     allergies: list[Allergy] = []
     conditions: list[Condition] = []
+    medications: list[Medication] = []
     family_history: list[FamilyHistoryEntry] = []
     lifestyle: Lifestyle | None = None
 
@@ -80,6 +88,7 @@ class PatientProfileUpdate(BaseModel):
     emergency_contact: EmergencyContact | None = None
     allergies: list[Allergy] | None = None
     conditions: list[Condition] | None = None
+    medications: list[Medication] | None = None
     family_history: list[FamilyHistoryEntry] | None = None
     lifestyle: Lifestyle | None = None
 
@@ -100,6 +109,7 @@ class PatientProfileResponse(BaseModel):
     emergency_contact: EmergencyContact | None
     allergies: list[Allergy]
     conditions: list[Condition]
+    medications: list[Medication]
     family_history: list[FamilyHistoryEntry]
     lifestyle: Lifestyle | None
     created_at: str
@@ -133,6 +143,7 @@ def document_to_profile_response(doc: dict) -> PatientProfileResponse:
 
     allergies = [Allergy.model_validate(a) for a in profile.get("allergies") or []]
     conditions = [Condition.model_validate(c) for c in profile.get("conditions") or []]
+    medications = [Medication.model_validate(m) for m in profile.get("medications") or []]
     family_history = [
         FamilyHistoryEntry.model_validate(f) for f in profile.get("family_history") or []
     ]
@@ -156,6 +167,7 @@ def document_to_profile_response(doc: dict) -> PatientProfileResponse:
         emergency_contact=emergency_contact,
         allergies=allergies,
         conditions=conditions,
+        medications=medications,
         family_history=family_history,
         lifestyle=lifestyle,
         created_at=_dt_to_iso(doc.get("created_at")),

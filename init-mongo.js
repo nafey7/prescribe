@@ -20,4 +20,9 @@ db.documents.createIndex({ document_id: 1 }, { unique: true });
 db.documents.createIndex({ patient_id: 1, uploaded_at: -1 });
 db.documents.createIndex({ patient_id: 1, category: 1 });
 
-print("MongoDB initialized: medical_chat database with chat_sessions, chat_messages, users, and documents collections");
+db.createCollection("suggestions");
+db.suggestions.createIndex({ suggestion_id: 1 }, { unique: true });
+db.suggestions.createIndex({ patient_id: 1, status: 1, created_at: -1 });
+db.suggestions.createIndex({ document_id: 1 });
+
+print("MongoDB initialized: medical_chat database with chat_sessions, chat_messages, users, documents, and suggestions collections");

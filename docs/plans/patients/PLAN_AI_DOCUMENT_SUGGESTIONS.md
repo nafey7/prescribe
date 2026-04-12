@@ -32,7 +32,7 @@ Based on health tech industry best practices:
 
 4. **Suggestions are ephemeral until accepted.** They live in a `suggestions` collection with a lifecycle (pending → accepted/rejected/expired). Rejected suggestions are never re-proposed for the same document.
 
-5. **Extraction is bounded and async.** One LLM call per document upload, triggered as a background task. The patient sees suggestions appear on their next page load or via a notification badge — not as a blocking upload step.
+5. **Extraction is bounded and inline.** One LLM call per document upload, triggered as a background task. The patient sees suggestions appear in the upload modal via polling — the modal stays open with a "analyzing..." state while extraction runs, and the patient can skip if they don't want to wait.
 
 6. **Feature flag gates the entire pipeline.** When `AI_SUGGESTIONS_ENABLED=false`, the upload endpoint skips extraction, the suggestions API returns empty results, and the frontend hides the suggestions UI.
 
@@ -42,55 +42,66 @@ Based on health tech industry best practices:
 
 ### User flow
 
+Suggestions are reviewed **inline within the Upload Document modal** as part of a stepper flow. There is no separate dashboard banner, sidebar badge, or slide-over panel. The patient stays in the upload modal until they finish reviewing (or skip).
+
 ```
-Patient uploads document
+Patient clicks "Upload" → Upload Modal opens (Step 1: Select file)
         │
         ▼
-Upload completes → success toast (immediate)
-        │
-        ▼ (background, non-blocking)
-AI extraction runs on document text
+Patient selects file, category, notes → clicks "Continue"
         │
         ▼
-Suggestions stored in DB (status: pending)
+Modal moves to Step 2: Upload + Review
+        │
+        ├── Upload runs → progress bar
         │
         ▼
-Patient navigates to Dashboard or Profile
+Upload completes → success confirmation shown in modal
         │
-        ▼
-Notification badge: "3 new suggestions from your uploaded document"
+        ▼ (if AI_SUGGESTIONS_ENABLED)
+Modal shows "AI is analyzing your document..." with spinner
+Patient can click "Skip — I'll review later" to close
         │
-        ▼
-Patient opens Suggestions Panel
+        ▼ (polling for suggestions, ~3s intervals, max 60s)
+Suggestions arrive
         │
         ▼
 ┌───────────────────────────────────────────────────┐
-│  Suggestions from "Blood Test Results Jan 2025"   │
+│  Upload document                              [X] │
 │                                                   │
+│  (1) Select file ──── (2) Review ✓                │
+│                                                   │
+│  ✅ Document uploaded successfully                 │
+│     blood_test_results_2025.pdf                   │
+│                                                   │
+│  ✨ 3 suggestions found       Dismiss all  Accept │
+│                                              all  │
 │  ┌─────────────────────────────────────────────┐  │
-│  │ 🔬 New Lab Result                           │  │
+│  │ 🔬 New Lab Result          Confidence: High │  │
 │  │ Fasting Glucose: 138 mg/dL (elevated)       │  │
-│  │ Confidence: High                            │  │
+│  │ Source: "...fasting glucose 138 mg/dL..."    │  │
 │  │                        [Accept] [Reject]    │  │
 │  └─────────────────────────────────────────────┘  │
 │                                                   │
 │  ┌─────────────────────────────────────────────┐  │
-│  │ 💊 New Medication                           │  │
+│  │ 💊 New Medication          Confidence: High │  │
 │  │ Metformin 1000mg — Twice daily              │  │
-│  │ ⚠ Already in profile (dosage matches)       │  │
-│  │ Confidence: High                            │  │
+│  │ ℹ Already in your profile (dosage matches)  │  │
 │  │                  [Already Added] [Dismiss]  │  │
 │  └─────────────────────────────────────────────┘  │
 │                                                   │
 │  ┌─────────────────────────────────────────────┐  │
-│  │ ⚠️ New Allergy                              │  │
+│  │ ⚠️ New Allergy        Confidence: Medium    │  │
 │  │ Contrast dye — Mild reaction noted          │  │
-│  │ Confidence: Medium                          │  │
 │  │                        [Accept] [Reject]    │  │
 │  └─────────────────────────────────────────────┘  │
 │                                                   │
-│         [Accept All]  [Dismiss All]               │
+│                                        [Done]     │
 └───────────────────────────────────────────────────┘
+
+        │ (after all reviewed or "Done" clicked)
+        ▼
+Modal closes → document list refreshes
 ```
 
 ### Suggestion categories
@@ -459,38 +470,23 @@ interface FeatureFlags {
 
 A `FeatureFlagContext` provides `aiSuggestionsEnabled` to all components. When `false`, suggestion-related UI is not rendered.
 
-### Suggestions notification badge
+### Upload modal stepper (primary suggestion UI)
 
-A small badge on the Dashboard sidebar item and/or a banner on the Dashboard page showing the count of pending suggestions:
+All suggestion review happens **inside the Upload Document modal**. There is no dashboard banner, sidebar badge, or slide-over panel. The modal uses a two-step stepper:
 
-```
-┌────────────────────────────────────┐
-│ 📋 Dashboard                  (3) │  ← badge count
-│ 👤 Profile                        │
-│ 📄 Documents                      │
-└────────────────────────────────────┘
-```
+- **Step 1: Select file** — file picker, category dropdown, optional notes
+- **Step 2: Upload + Review** — upload progress, success confirmation, then AI analysis and suggestion review
 
-Uses `GET /api/patients/{patient_id}/suggestions?status=pending` (count only) polled on navigation or after upload.
-
-### Suggestions panel
-
-A dedicated panel/section accessible from:
-1. **Dashboard page** — "Review Suggestions" banner card at the top when pending suggestions exist
-2. **After upload** — toast notification with link: "AI found 3 items in your document. [Review]"
-
-The panel is **not** a separate page — it's a slide-over panel (drawer) or an expandable section on the Dashboard, keeping the patient in context.
-
-#### Panel components
+#### Components
 
 | Component | Purpose |
 |-----------|---------|
-| `SuggestionsPanel` | Container: fetches suggestions, renders list, handles bulk actions |
+| `UploadModal` | Container: stepper, upload logic, polling for suggestions, bulk actions |
 | `SuggestionCard` | Individual suggestion with category icon, extracted data, confidence badge, source snippet, accept/reject buttons |
-| `SuggestionsBanner` | Dashboard banner showing pending count + "Review" CTA |
-| `SuggestionsBadge` | Small count badge for sidebar navigation |
 | `ConfidenceBadge` | Visual indicator: green (high), yellow (medium), red (low) |
 | `DuplicateIndicator` | "Already in your profile" label with match details |
+
+**Removed (not used):** `SuggestionsPanel`, `SuggestionsBanner`, `SuggestionsBadge`, `useSuggestions` hook. These dashboard/sidebar components were removed because all suggestion review now happens within the upload modal stepper.
 
 #### SuggestionCard layout
 
@@ -526,30 +522,25 @@ For duplicates:
 
 | Action | Result |
 |--------|--------|
-| Accept | `PUT .../suggestions/{id}/accept` → card animates out, count decrements, success toast: "Added to your profile" (for conditions/allergies) or "Noted" (for meds/labs) |
-| Reject | `PUT .../suggestions/{id}/reject` → card animates out, count decrements |
-| Accept All | `POST .../suggestions/accept-all` → all cards clear, success toast |
+| Accept | `PUT .../suggestions/{id}/accept` → card removed from list in modal, profile updated (for conditions/allergies) |
+| Reject | `PUT .../suggestions/{id}/reject` → card removed from list in modal |
+| Accept All | `POST .../suggestions/accept-all` → all cards clear |
 | Dismiss All | `POST .../suggestions/reject-all` → all cards clear |
 | Dismiss duplicate | Same as reject — marks it resolved so it won't reappear |
+| Skip | Stops polling, hides analysis UI — patient can close modal |
+| Done | Closes modal, refreshes document list |
 
-#### After upload integration
+#### Step 2 states (after upload succeeds)
 
-Modify the existing upload success flow in `UploadModal` / `DocumentsPage`:
+1. **AI analyzing** — spinner + "AI is analyzing your document..." message with a "Skip" button
+2. **Suggestions found** — list of `SuggestionCard` components with Accept/Reject + bulk actions + "Done" button
+3. **All suggestions reviewed** — check icon + "All suggestions reviewed" + "Done" button
+4. **No suggestions** — "No suggestions were found in this document" + "Done" button
+5. **AI disabled** — "Upload complete" + "Done" button (when `AI_SUGGESTIONS_ENABLED=false`)
 
-```
-Upload succeeds
-    │
-    ├── Show success toast: "Document uploaded successfully"
-    │
-    └── If AI_SUGGESTIONS_ENABLED:
-            Show secondary toast (after 2s delay, giving extraction time):
-            "AI is analyzing your document for profile suggestions..."
-            
-            After ~5-10 seconds (or on next Dashboard visit):
-            Badge updates with new pending count
-```
+#### Polling strategy
 
-The delay between upload and suggestions appearing is **expected and acceptable** — extraction takes a few seconds. The UI does not block or show a spinner for extraction. The patient discovers suggestions organically when they next visit the Dashboard or check the notification badge.
+After upload completes and AI suggestions are enabled, the modal polls `GET /api/patients/{patient_id}/suggestions?document_id={id}` every 3 seconds for up to 60 seconds (20 attempts). As soon as suggestions appear, polling stops and the suggestion list renders. If no suggestions arrive within the timeout, the "no suggestions" state is shown.
 
 ### API client (`frontend/src/api/suggestions.ts`)
 
@@ -611,23 +602,14 @@ export interface SuggestionListResponse {
 }
 ```
 
-### Custom hook (`frontend/src/hooks/useSuggestions.ts`)
+### Suggestion state management
 
-```typescript
-export function useSuggestions() {
-  const { currentPatientId } = usePatientContext();
-  const { aiSuggestionsEnabled } = useFeatureFlags();
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+The `UploadModal` manages suggestion state locally (no custom hook needed), since suggestions are only relevant during the upload flow. It uses:
+- `useState` for `suggestions`, `analyzing`, `suggestionsLoaded`, `allResolved`
+- Direct calls to `listSuggestions`, `acceptSuggestion`, `rejectSuggestion`, `acceptAllSuggestions`, `rejectAllSuggestions` from `api/suggestions.ts`
+- Polling via `setTimeout` with a ref to track the polling timer
 
-  // Fetch pending suggestions
-  // Accept/reject handlers that optimistically update local state
-  // Re-fetch after bulk operations
-
-  return { suggestions, pendingCount, isLoading, accept, reject, acceptAll, rejectAll, refresh };
-}
-```
+**Removed:** The `useSuggestions` hook is no longer needed since there is no dashboard-level suggestion UI that fetches pending suggestions globally.
 
 ---
 
@@ -649,11 +631,7 @@ export function useSuggestions() {
 | `frontend/src/api/suggestions.ts` | Suggestion API client |
 | `frontend/src/api/config.ts` | Feature flag API client |
 | `frontend/src/contexts/FeatureFlagContext.tsx` | Feature flag React context + provider |
-| `frontend/src/hooks/useSuggestions.ts` | Suggestion data fetching + action hook |
-| `frontend/src/components/suggestions/SuggestionsPanel.tsx` | Slide-over panel container |
-| `frontend/src/components/suggestions/SuggestionCard.tsx` | Individual suggestion card |
-| `frontend/src/components/suggestions/SuggestionsBanner.tsx` | Dashboard banner CTA |
-| `frontend/src/components/suggestions/SuggestionsBadge.tsx` | Sidebar count badge |
+| `frontend/src/components/suggestions/SuggestionCard.tsx` | Individual suggestion card (used inside UploadModal) |
 | `frontend/src/components/suggestions/ConfidenceBadge.tsx` | High/medium/low indicator |
 | `frontend/src/components/suggestions/DuplicateIndicator.tsx` | "Already in profile" label |
 
@@ -668,10 +646,8 @@ export function useSuggestions() {
 | `backend/Dockerfile` | Add `tesseract-ocr` apt package |
 | `docker-compose.yml` | Add `AI_SUGGESTIONS_ENABLED` env var |
 | `init-mongo.js` | Add `suggestions` collection + indexes |
-| `frontend/src/pages/DashboardPage.tsx` | Add `SuggestionsBanner` at top |
-| `frontend/src/components/documents/UploadModal.tsx` | Add post-upload toast about AI analysis |
+| `frontend/src/components/documents/UploadModal.tsx` | Add stepper Step 2 with AI analysis polling, suggestion list, accept/reject within modal |
 | `frontend/src/App.tsx` (or root layout) | Wrap with `FeatureFlagProvider` |
-| Sidebar/navigation component | Add `SuggestionsBadge` to Dashboard nav item |
 
 ---
 
@@ -708,24 +684,20 @@ export function useSuggestions() {
 18. **Wrap app with `FeatureFlagProvider`**
 19. **Create suggestion TypeScript types** (`types/suggestion.ts`)
 20. **Create suggestion API client** (`api/suggestions.ts`)
-21. **Create `useSuggestions` hook**
 
-### Phase 5: Frontend suggestion UI
+### Phase 5: Frontend suggestion UI (inside Upload Modal)
 
-22. **Build `ConfidenceBadge`** and **`DuplicateIndicator`** components
-23. **Build `SuggestionCard`** component with accept/reject buttons
-24. **Build `SuggestionsPanel`** with list + bulk actions
-25. **Build `SuggestionsBanner`** for Dashboard top section
-26. **Build `SuggestionsBadge`** for sidebar
-27. **Integrate banner into DashboardPage**
-28. **Add post-upload toast** to `UploadModal`
+21. **Build `ConfidenceBadge`** and **`DuplicateIndicator`** components
+22. **Build `SuggestionCard`** component with accept/reject buttons
+23. **Add Step 2 to `UploadModal`** with AI analysis polling, suggestion list, accept/reject/bulk actions, skip, and done states
 
 ### Phase 6: Integration testing
 
-29. **End-to-end test:** upload PDF → extraction runs → suggestions appear → accept → profile updated
-30. **Test feature flag off:** upload → no extraction → no suggestions UI
-31. **Test duplicate detection:** upload document with data already in profile → duplicates flagged
-32. **Test error handling:** upload image with no text → graceful fallback, no suggestions
+24. **End-to-end test:** upload PDF → extraction runs → suggestions appear in modal → accept → profile updated → close modal
+25. **Test feature flag off:** upload → no extraction → modal shows "Upload complete" and Done button
+26. **Test duplicate detection:** upload document with data already in profile → duplicates flagged in modal
+27. **Test error handling:** upload image with no text → graceful fallback, "No suggestions found" in modal
+28. **Test skip flow:** upload → AI analyzing → click Skip → modal shows Done, no suggestions shown
 
 ---
 
@@ -782,11 +754,13 @@ export function useSuggestions() {
 | Bulk accept/reject works | API | All matching suggestions resolved |
 | Feature flag off → extraction skipped | API | No suggestions created on upload |
 | Feature flag off → API returns empty | API | Empty response, not 404 |
-| SuggestionCard renders all fields | Frontend | Visual completeness |
-| Accept button calls API and removes card | Frontend | Optimistic UI |
-| Badge shows correct pending count | Frontend | Count updates after accept/reject |
-| Suggestions hidden when feature flag off | Frontend | Conditional rendering |
-| End-to-end: upload → suggestions → accept → profile | Integration | Full pipeline |
+| SuggestionCard renders all fields in modal | Frontend | Visual completeness |
+| Accept button calls API and removes card from modal | Frontend | Optimistic UI |
+| Modal shows "no suggestions" when none found | Frontend | Empty state handling |
+| Modal shows "Upload complete" when feature flag off | Frontend | Conditional rendering |
+| Skip button stops polling and hides analysis UI | Frontend | Skip flow |
+| Done button closes modal after review | Frontend | Modal lifecycle |
+| End-to-end: upload → modal shows suggestions → accept → profile → close | Integration | Full pipeline |
 
 ---
 

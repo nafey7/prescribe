@@ -1,13 +1,6 @@
 from pydantic import BaseModel, Field
 
-from app.schemas.patient import Allergy, Condition, FamilyHistoryEntry, Lifestyle
-
-
-class Medication(BaseModel):
-    name: str
-    dosage: str
-    frequency: str
-    since: str | None = None
+from app.schemas.patient import Allergy, Condition, FamilyHistoryEntry, Lifestyle, Medication
 
 
 class LabResult(BaseModel):

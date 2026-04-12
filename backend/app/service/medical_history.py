@@ -19,6 +19,7 @@ from app.schemas.patient import (
     Condition,
     FamilyHistoryEntry,
     Lifestyle,
+    Medication as PatientMedication,
     document_to_profile_response,
 )
 from app.utils.markdown_parser import parse_patient_markdown
@@ -71,7 +72,11 @@ async def get_medical_history(
         DocumentSummary(**document_to_summary(d)) for d in raw_docs
     ]
 
-    medications = [
+    db_meds = [
+        Medication.model_validate(m)
+        for m in profile.get("medications") or []
+    ]
+    md_meds = [
         Medication(
             name=m.name,
             dosage=m.dosage,
@@ -80,6 +85,8 @@ async def get_medical_history(
         )
         for m in md.medications
     ]
+    db_med_names = {m.name.lower() for m in db_meds}
+    medications = db_meds + [m for m in md_meds if m.name.lower() not in db_med_names]
 
     lab_reports = [
         LabReport(

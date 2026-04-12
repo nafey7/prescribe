@@ -37,6 +37,13 @@ export interface Lifestyle {
   diet_notes: string;
 }
 
+export interface Medication {
+  name: string;
+  dosage: string;
+  frequency: string;
+  since: string | null;
+}
+
 export interface PatientProfile {
   user_id: string;
   patient_slug: string;
@@ -53,6 +60,7 @@ export interface PatientProfile {
   emergency_contact: EmergencyContact | null;
   allergies: Allergy[];
   conditions: Condition[];
+  medications: Medication[];
   family_history: FamilyHistoryEntry[];
   lifestyle: Lifestyle | null;
   created_at: string;
@@ -74,6 +82,7 @@ export interface PatientCreateRequest {
   emergency_contact?: EmergencyContact | null;
   allergies?: Allergy[];
   conditions?: Condition[];
+  medications?: Medication[];
   family_history?: FamilyHistoryEntry[];
   lifestyle?: Lifestyle | null;
 }
