@@ -56,6 +56,8 @@ docker compose down -v
 
 The backend mounts `./backend` and `./data` as volumes for live reload. The frontend mounts `./frontend` with a separate `node_modules` volume.
 
+**Changing dependencies (add/remove packages):** Containers do not use your host installs. Follow the **Dependency changes in Docker** section in the root [`CLAUDE.md`](../CLAUDE.md) (lockfile + `npm ci` for frontend; `requirements.txt` + pip/rebuild for backend).
+
 ## Local development (without Docker)
 
 Useful for faster iteration when you only need one layer.

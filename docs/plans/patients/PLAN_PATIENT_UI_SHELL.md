@@ -33,10 +33,16 @@ The current frontend is a single component tree: `App → ChatPage`. There is no
 | `/profile` | `ProfilePage` | `PatientLayout` | Patient profile view/edit (Feature 1) |
 | `/documents` | `DocumentsPage` | `PatientLayout` | Document management (Feature 3) |
 | `/public/chat` | `ChatPage` | **None (public)** | Existing AI chat — **public route**, not nested under the patient shell |
+| `/dashboard` | `Navigate` → `/` | — | Optional shortcut; same as [`FRONTEND_BACKEND_COLLABORATION.md`](../../FRONTEND_BACKEND_COLLABORATION.md) |
+| `/profile/:userId` | `ProfileLegacyRedirect` → `/profile` | `PatientLayout` | Legacy bookmark: sync picker to `userId`, then replace with `/profile` |
 
 Do **not** mount chat at `/chat` under `PatientLayout` if the goal is a stable **public** URL namespace; use **`/public/chat`** as the canonical chat path for Phase B and beyond.
 
+**`DevIdentityBanner` placement:** The portal uses the banner inside **`PatientLayout`**. **`/public/chat`** is **not** inside that layout, so in **dev** the same banner (or an equivalent strip) is rendered **inside `ChatPage`** at the top. Otherwise the public chat route would have no patient switcher.
+
 ### Layout architecture
+
+Portal routes only ( **`/`**, **`/profile`**, **`/documents`** ):
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -53,6 +59,8 @@ Do **not** mount chat at `/chat` under `PatientLayout` if the goal is a stable *
 │  Footer (disclaimer, educational notice)        │
 └─────────────────────────────────────────────────┘
 ```
+
+**`/public/chat`:** No `PatientLayout` — in dev, `ChatPage` renders **`DevIdentityBanner`** above the disclaimer + chat chrome (see [Dev Identity Picker](./PLAN_DEV_IDENTITY_PICKER.md)).
 
 ### Sidebar navigation
 
@@ -101,13 +109,14 @@ cd frontend && npm install react-router-dom
 | `frontend/src/pages/ProfilePage.tsx` | Already planned in Feature 1 |
 | `frontend/src/pages/DocumentsPage.tsx` | Placeholder (built out in Feature 3) |
 | `frontend/src/router.tsx` | Route definitions with `createBrowserRouter` |
+| `frontend/src/components/ProfileLegacyRedirect.tsx` | Legacy `/profile/:userId` → sync picker, redirect to `/profile` |
 
 ### Modified files
 
 | File | Change |
 |------|--------|
 | `frontend/src/App.tsx` | Replace direct `<ChatPage>` with `<RouterProvider>` wrapped in `<PatientProvider>` |
-| `frontend/src/components/ChatPage.tsx` | Remove standalone layout concerns (disclaimer header, patient selector); becomes a pure chat content component within the layout |
+| `frontend/src/components/ChatPage.tsx` | Public chat only: disclaimer + header + messages; **`DevIdentityBanner`** in dev / **`PatientSelector`** in prod at top; links to portal (`/`, `/profile`) |
 | `frontend/src/index.css` | Add layout utility classes, sidebar transitions |
 | `frontend/vite.config.ts` | Possibly add SPA fallback for dev server if not already configured |
 
@@ -118,27 +127,31 @@ cd frontend && npm install react-router-dom
 Top-level routes: **`/public/chat`** is a sibling of the portal layout, not a child — so chat is never wrapped by `PatientLayout` and stays a **public** path by structure. `PatientProvider` still wraps `<RouterProvider>` in `App.tsx` so `ChatPage` can read `PatientContext` and send `X-Patient-Id` (see [Dev Identity Picker](./PLAN_DEV_IDENTITY_PICKER.md)).
 
 ```tsx
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import ChatPage from "./components/ChatPage";
+import ProfileLegacyRedirect from "./components/ProfileLegacyRedirect";
 import PatientLayout from "./layouts/PatientLayout";
 import DashboardPage from "./pages/DashboardPage";
-import ProfilePage from "./pages/ProfilePage";
 import DocumentsPage from "./pages/DocumentsPage";
-import ChatPage from "./components/ChatPage";
+import ProfilePage from "./pages/ProfilePage";
 
 export const router = createBrowserRouter([
   { path: "/public/chat", element: <ChatPage /> },
+  { path: "/dashboard", element: <Navigate to="/" replace /> },
   {
+    path: "/",
     element: <PatientLayout />,
     children: [
-      { path: "/", element: <DashboardPage /> },
-      { path: "/profile", element: <ProfilePage /> },
-      { path: "/documents", element: <DocumentsPage /> },
+      { index: true, element: <DashboardPage /> },
+      { path: "profile", element: <ProfilePage /> },
+      { path: "profile/:userId", element: <ProfileLegacyRedirect /> },
+      { path: "documents", element: <DocumentsPage /> },
     ],
   },
 ]);
 ```
 
-Optional: redirect legacy `/` chat-only bookmarks from `/` to `/public/chat` during transition, or make `/` the dashboard only (per product choice).
+Use `Navigate` / `ProfileLegacyRedirect` from `react-router-dom` and a small component that updates `PatientContext` then redirects — match `frontend/src/router.tsx` and [`FRONTEND_BACKEND_COLLABORATION.md`](../../FRONTEND_BACKEND_COLLABORATION.md).
 
 ### Layout component (`frontend/src/layouts/PatientLayout.tsx`)
 
@@ -206,12 +219,13 @@ Active state detection via `useLocation()`: for **`/public/chat`**, treat `pathn
 ## ChatPage migration (`/public/chat`)
 
 The existing `ChatPage` currently handles:
-- Disclaimer banner → on **`/public/chat`**, keep a **compact** disclaimer bar on the chat route itself, **or** reuse `Footer` via a thin `PublicChatLayout` wrapper — do **not** pull in the full `PatientLayout` sidebar (that would stop being a public route)
-- Patient selector → removed from the page body (handled globally by `DevIdentityBanner` in dev, or context)
+- **`DevIdentityBanner`** (dev only) → render **at the top of `ChatPage`**, not only in `PatientLayout`, because this route is outside the portal shell
+- Disclaimer banner → keep a **compact** disclaimer bar on the chat route — do **not** pull in the full `PatientLayout` sidebar (that would stop being a public route)
+- Patient switching → in **dev**, banner + shared `PatientSelector`; in **production**, a top bar with `PatientSelector` only ([Dev Identity Picker](./PLAN_DEV_IDENTITY_PICKER.md))
 - Header with title and "New Chat" → keep an **in-page** title row on `/public/chat` (portal `Header` does not wrap this route)
 - Chat content (message list + input) → stays
 
-After migration, **`ChatPage` at `/public/chat`** is a self-contained chat view (minimal chrome) so the route stays **public** and distinct from the portal. Optional: add a small link “Patient portal →” to `/` for users who land on chat first.
+After migration, **`ChatPage` at `/public/chat`** is a self-contained chat view (minimal chrome) so the route stays **public** and distinct from the portal. Add links **“Patient portal”** → `/` and **“Profile”** → `/profile` so users who land on chat first can reach the shell.
 
 ---
 
@@ -268,9 +282,10 @@ They are fully built out in Features 2 and 3 respectively.
 | Navigate to each route | Manual/E2E | Pages render correctly |
 | Sidebar active state reflects current route | Frontend | Visual correctness |
 | Responsive sidebar collapse at breakpoints | Manual | Layout adapts |
-| Public chat at `/public/chat` loads and sends chat API requests | Integration | No regression; patient context still applies |
+| Public chat at `/public/chat` loads and sends chat API requests | Integration | No regression; `X-Patient-Id` + patient context still apply |
 | Browser refresh on `/profile` loads correct page | Manual | SPA fallback configured |
-| DevIdentityBanner only shows in dev mode | Frontend | Conditional rendering |
+| `DevIdentityBanner` only in dev; appears on portal **and** on `/public/chat` | Frontend | Conditional rendering + both entry points |
+| `/dashboard` redirects to `/`; `/profile/:userId` resolves to `/profile` | Manual | Legacy routes |
 
 ---
 

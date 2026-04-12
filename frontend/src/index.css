@@ -8,6 +8,40 @@
   }
 }
 
+/* Patient shell: sidebar slide + tablet (md–lg) icon rail */
+.sidebar-shell {
+  will-change: transform, width;
+}
+
+/* Tablet 768–1023px: collapsed 64px rail; labels + brand show on sidebar hover */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .sidebar-shell:not(:hover) .sidebar-label {
+    width: 0;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+
+  .sidebar-shell:not(:hover) .sidebar-brand {
+    width: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+
+  .sidebar-shell:not(:hover) .sidebar-brand-row {
+    justify-content: center;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .sidebar-shell:not(:hover) .sidebar-nav-link {
+    justify-content: center;
+    gap: 0;
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+  }
+}
+
 /* --- Message entrance --- */
 @keyframes fade-in {
   from {

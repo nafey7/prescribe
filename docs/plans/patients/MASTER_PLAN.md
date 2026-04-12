@@ -27,6 +27,7 @@ Since authentication ships in Phase E, Phase B uses a **dev identity picker** to
 | 3 | Document Upload & Storage | Upload, store, list, view, and delete medical documents (PDF, images). Backend storage via MongoDB GridFS, processing hooks for future AI context | [`PLAN_DOCUMENT_UPLOAD_STORAGE.md`](./PLAN_DOCUMENT_UPLOAD_STORAGE.md) |
 | 4 | Patient UI Shell & Navigation | App-wide layout, routing (React Router), sidebar/header, role-aware navigation, responsive design. Patient portal pages under a shared shell; **chat remains on a separate public route** (e.g. `/public/chat`) | [`PLAN_PATIENT_UI_SHELL.md`](./PLAN_PATIENT_UI_SHELL.md) |
 | 5 | Dev Identity Picker | Development-only mechanism to simulate "current patient" without auth. Header component + context provider that sets `patient_id` for all API calls, replaceable by JWT in Phase E | [`PLAN_DEV_IDENTITY_PICKER.md`](./PLAN_DEV_IDENTITY_PICKER.md) |
+| 6 | AI Document Suggestions | AI-powered extraction from uploaded documents that proposes profile updates (conditions, allergies, medications, lab results) for patient accept/reject. Feature-flagged via `AI_SUGGESTIONS_ENABLED` (default `true` for dev, flipped to `false` for production). Human-in-the-loop: nothing auto-commits | [`PLAN_AI_DOCUMENT_SUGGESTIONS.md`](./PLAN_AI_DOCUMENT_SUGGESTIONS.md) |
 
 ---
 
@@ -40,8 +41,8 @@ Since authentication ships in Phase E, Phase B uses a **dev identity picker** to
 - Supported document types: PDF, JPEG, PNG (extensible to DICOM/other formats later)
 - Multi-page frontend with React Router: patient portal (`/`, `/profile`, `/documents`) plus **public** AI chat at **`/public/chat`** (see UI shell plan)
 - Dev-mode patient picker (no auth required)
-- Backend API design that accepts `patient_id` as a path/query param now, swappable to JWT-derived identity in Phase E
-- AI context source migration: `search_patient_records` tool updated to pull from both Markdown files and DB-stored documents
+- Backend API design that accepts **path `patient_id` segments** resolved to a profile by **`user_id` (UUID) or `patient_slug`** (Markdown stem, e.g. `john_doe`), swappable to JWT-derived identity in Phase E — see [`FRONTEND_BACKEND_COLLABORATION.md`](../../FRONTEND_BACKEND_COLLABORATION.md)
+- AI context source migration: `search_patient_records` tool updated to pull from both Markdown files and DB-stored documents (tracked work; may land after core Phase B APIs)
 
 ### Out of scope (deferred)
 
@@ -67,11 +68,13 @@ Feature 4: Patient UI Shell & Navigation
 Feature 2: Medical History Dashboard
     ↓ (dashboard provides the context for document viewing)
 Feature 3: Document Upload & Storage
+    ↓ (uploaded documents are the input for AI extraction)
+Feature 6: AI Document Suggestions
 ```
 
-**Recommended build order:** 5 → 1 → 4 → 2 → 3
+**Recommended build order:** 5 → 1 → 4 → 2 → 3 → 6
 
-Features 4 and 1 can partially overlap since the UI shell is independent of profile API logic. Feature 3 (uploads) depends on the dashboard existing to display documents within.
+Features 4 and 1 can partially overlap since the UI shell is independent of profile API logic. Feature 3 (uploads) depends on the dashboard existing to display documents within. Feature 6 (AI suggestions) depends on both document upload infrastructure (Feature 3) and the patient profile schema (Feature 1) since accepted suggestions write to profile fields.
 
 ---
 
@@ -82,6 +85,7 @@ Features 4 and 1 can partially overlap since the UI shell is independent of prof
 | `users` | **New** | Patient profile documents (`role: "patient"`, demographics, allergies, conditions, contact info) |
 | `documents` | **New** | Document metadata (patient_id, filename, content_type, gridfs_file_id, upload timestamp, category) |
 | `fs.files` / `fs.chunks` | **New** (GridFS) | Actual file binary storage |
+| `suggestions` | **New** | AI-extracted profile update proposals (patient_id, document_id, category, status, extracted_data) |
 | `chat_sessions` | Existing | No structural changes; will reference `patient_id` from `users` |
 | `chat_messages` | Existing | No structural changes |
 
@@ -89,39 +93,55 @@ Features 4 and 1 can partially overlap since the UI shell is independent of prof
 
 ## API surface (Phase B additions)
 
+Path segment `{patient_id}` means **either** the profile’s `user_id` **(UUID)** **or** `patient_slug` (e.g. `john_doe`) where the backend resolves the same `users` document — same rules as [`FRONTEND_BACKEND_COLLABORATION.md`](../../FRONTEND_BACKEND_COLLABORATION.md).
+
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/patients` | Register new patient |
+| `GET` | `/api/patients` | Paginated profile list — query `skip`, `limit`; response `PatientListResponse` |
+| `GET` | `/api/patients/for-chat` | Chat-oriented list: `PatientInfo[]` (Markdown / DB-backed slugs) for the dev identity picker |
+| `GET` | `/api/chat/patients` | Legacy alias; same payload as `/api/patients/for-chat` |
 | `GET` | `/api/patients/{patient_id}` | Get patient profile |
 | `PUT` | `/api/patients/{patient_id}` | Update patient profile |
-| `GET` | `/api/patients` | List all patients (dev mode) |
 | `POST` | `/api/patients/{patient_id}/documents` | Upload document |
-| `GET` | `/api/patients/{patient_id}/documents` | List patient documents |
+| `GET` | `/api/patients/{patient_id}/documents` | List patient documents (paginated; optional `category`) |
 | `GET` | `/api/patients/{patient_id}/documents/{document_id}` | Download/view document |
+| `GET` | `/api/patients/{patient_id}/documents/{document_id}/metadata` | JSON metadata only |
+| `PUT` | `/api/patients/{patient_id}/documents/{document_id}` | Update document metadata (category, description, tags) |
 | `DELETE` | `/api/patients/{patient_id}/documents/{document_id}` | Delete document |
 | `GET` | `/api/patients/{patient_id}/medical-history` | Aggregated medical history (DB + Markdown) |
+| `GET` | `/api/patients/{patient_id}/suggestions` | List AI-extracted suggestions (filter by `status`, `document_id`, `category`) |
+| `PUT` | `/api/patients/{patient_id}/suggestions/{suggestion_id}/accept` | Accept a suggestion (applies to profile for conditions/allergies) |
+| `PUT` | `/api/patients/{patient_id}/suggestions/{suggestion_id}/reject` | Reject a suggestion |
+| `POST` | `/api/patients/{patient_id}/suggestions/accept-all` | Batch accept pending suggestions |
+| `POST` | `/api/patients/{patient_id}/suggestions/reject-all` | Batch reject pending suggestions |
+| `GET` | `/api/config/features` | Feature flags (currently: `ai_suggestions_enabled`) |
 
-Existing chat endpoints remain unchanged; `patient_id` continues to work as-is.
+**Chat:** `POST /api/chat/message` and `POST /api/chat/message/stream` take JSON `ChatRequest` **`message` / optional `chat_id` only**. Active patient is **not** in the body — clients send header **`X-Patient-Id`** (required; 400 if missing). This matches the dev identity picker and Phase E header-shaped identity.
 
 ---
 
 ## Frontend routes (Phase B)
 
-**Patient portal** (shared `PatientLayout`: sidebar, header, footer, dev identity banner in dev):
+Canonical detail: [`FRONTEND_BACKEND_COLLABORATION.md`](../../FRONTEND_BACKEND_COLLABORATION.md) (deep links, QA).
+
+**Patient portal** (shared `PatientLayout`: sidebar, header, footer; **`DevIdentityBanner`** in dev — see [UI shell](./PLAN_PATIENT_UI_SHELL.md)):
 
 | Route | Page | Description |
 |-------|------|-------------|
 | `/` | Dashboard | Medical history overview, recent documents, quick stats |
 | `/profile` | Patient Profile | View/edit demographics, allergies, conditions |
 | `/documents` | Documents | Upload, browse, preview medical documents |
+| `/dashboard` | — | Redirects to `/` |
+| `/profile/:userId` | — | Legacy bookmark: sync picker to `userId`, redirect to `/profile` |
 
-**Public chat** (outside the portal layout — same behavior as the current prototype chat; URL reserved for “always reachable without portal auth” when Phase E lands):
+**Public chat** (outside the portal layout — URL reserved for “always reachable without portal auth” when Phase E lands):
 
 | Route | Page | Description |
 |-------|------|-------------|
-| `/public/chat` | AI Chat | Existing chat UI; **public route** (not under `PatientLayout`). Sidebar/nav links here from the portal. |
+| `/public/chat` | AI Chat | Same `ChatPage`; **not** under `PatientLayout`. In **dev**, `DevIdentityBanner` is rendered **on this route** (inside `ChatPage`), since the portal shell is not mounted here. |
 
-Root `/` should redirect to the dashboard (or `/public/chat` if you keep a marketing choice — default: dashboard as home for Phase B).
+Root `/` is the dashboard home for Phase B (not a redirect to chat).
 
 ---
 
@@ -142,7 +162,7 @@ Root `/` should redirect to the dashboard (or `/public/chat` if you keep a marke
 3. Documents (PDF, images) can be uploaded, listed, viewed, and deleted
 4. The app navigates between dashboard, profile, and documents within the portal, and the AI chat remains usable at **`/public/chat`** (public route)
 5. All features work with the dev identity picker (no login required)
-6. Existing chat functionality continues to work unchanged at **`/public/chat`** (public route)
+6. Chat at **`/public/chat`** works with **`X-Patient-Id`** (and the same streaming / history behavior as before aside from the moved patient context)
 7. Backend APIs are designed for future `user_id` injection from JWT (Phase E ready)
 
 ---

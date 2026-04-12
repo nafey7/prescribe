@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { sendMessageStream } from "../api/chat";
 import type { Message } from "../types/chat";
 
@@ -67,7 +67,7 @@ export function useChat(patientId: string) {
       };
 
       try {
-        await sendMessageStream(text, patientId, chatId, {
+        await sendMessageStream(text, chatId, {
           onThinking: (status) => {
             updateLast((msg) => {
               if (msg.isStreaming || msg.content || tokenBufferRef.current)
@@ -144,6 +144,15 @@ export function useChat(patientId: string) {
     setChatId(undefined);
     setError(null);
   }, []);
+
+  const patientIdReady = useRef(false);
+  useEffect(() => {
+    if (!patientIdReady.current) {
+      patientIdReady.current = true;
+      return;
+    }
+    clearChat();
+  }, [patientId, clearChat]);
 
   return { messages, chatId, isLoading, error, sendMessage, clearChat };
 }

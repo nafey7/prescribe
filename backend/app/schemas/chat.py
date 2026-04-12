@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=5000)
     chat_id: str | None = None
-    patient_id: str = "john_doe"
 
 
 class ChatResponse(BaseModel):
@@ -30,3 +29,4 @@ class PatientInfo(BaseModel):
     id: str
     name: str
     file: str
+    user_id: str | None = None
