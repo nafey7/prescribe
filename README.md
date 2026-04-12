@@ -6,6 +6,8 @@ A standalone medical AI chat application that reads patient prescription/medical
 
 > **Disclaimer:** This is an educational prototype. It does not provide real medical advice. Always consult a qualified healthcare professional.
 
+> **For AI agents:** Start with [`CLAUDE.md`](CLAUDE.md) for navigation. For detailed reference docs, see [`docs/`](docs/README.md).
+
 ---
 
 ## Architecture
