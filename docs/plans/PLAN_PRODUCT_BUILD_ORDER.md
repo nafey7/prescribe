@@ -70,6 +70,7 @@ flowchart TD
 
 - **Goal:** Complete doctor experience — **write prescriptions only for linked/assigned patients**, patient selection, chat or clinical workflows scoped to allowed patients, and doctor UI.
 - **Touch:** Authorization logic in services (doctor–patient link checks); doctor dashboards and APIs; tests for forbidden access between doctors’ patients.
+- **Detailed plans:** [`docs/plans/doctors/MASTER_PLAN.md`](./doctors/MASTER_PLAN.md) — 8 features covering dev identity extension, doctor profiles, connection system, doctor UI shell, patient list/view, doctor dashboard, AI chat migration (doctor-only), and prescription management.
 
 ### Phase D — Admin: all features (frontend + backend)
 
@@ -120,4 +121,4 @@ flowchart TD
 
 ---
 
-*Last updated: 2026-04-12 — role-first build order (patient → doctor → admin), auth last; Phase A marked complete.*
+*Last updated: 2026-04-12 — role-first build order (patient → doctor → admin), auth last; Phase A marked complete; Phase C detailed plans added.*
