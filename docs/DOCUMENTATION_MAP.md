@@ -20,15 +20,17 @@ Master index for all `prescribe-v2` documentation. Use the reading paths below t
 
 ### Full-stack / cross-cutting work
 1. [`CLAUDE.md`](../CLAUDE.md) — orientation
-2. [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — system overview
-3. [`docs/FRONTEND_BACKEND_COLLABORATION.md`](FRONTEND_BACKEND_COLLABORATION.md) — API boundary
-4. Both area guides as needed
+2. [`docs/PRODUCT.md`](PRODUCT.md) — business context, roles, domain rules
+3. [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — system overview
+4. [`docs/FRONTEND_BACKEND_COLLABORATION.md`](FRONTEND_BACKEND_COLLABORATION.md) — API boundary
+5. Both area guides as needed
 
 ### Planning a new feature
 1. [`CLAUDE.md`](../CLAUDE.md) — orientation
-2. [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — understand current design
-3. [`docs/plans/`](plans/) — review existing plans for patterns
-4. Use `/create-plan` Cursor command
+2. [`docs/PRODUCT.md`](PRODUCT.md) — business rules and constraints
+3. [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — understand current design
+4. [`docs/plans/`](plans/) — review existing plans for patterns
+5. Use `/create-plan` Cursor command
 
 ### Data / patient records
 1. [`data/CLAUDE.md`](../data/CLAUDE.md) — purpose and rules
@@ -38,6 +40,8 @@ Master index for all `prescribe-v2` documentation. Use the reading paths below t
 
 | Topic | Canonical doc | Also mentioned in |
 |-------|--------------|-------------------|
+| Product vision & business rules | [`docs/PRODUCT.md`](PRODUCT.md) | `CLAUDE.md`, `README.md` |
+| User roles & domain concepts | [`docs/PRODUCT.md`](PRODUCT.md) | `plans/PLAN_PRODUCT_BUILD_ORDER.md` |
 | System architecture | [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) | `backend/CLAUDE.md`, `README.md` |
 | API endpoints & contract | [`docs/FRONTEND_BACKEND_COLLABORATION.md`](FRONTEND_BACKEND_COLLABORATION.md) | `README.md`, `frontend/CLAUDE.md` |
 | LangGraph agent flow | [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) | `backend/CLAUDE.md` |
@@ -52,6 +56,7 @@ Master index for all `prescribe-v2` documentation. Use the reading paths below t
 
 ## Single source of truth rules
 
+- **Product vision, roles, and business rules** → `docs/PRODUCT.md`
 - **Architecture and data flow** → `docs/ARCHITECTURE.md` (not README)
 - **API shapes and streaming behavior** → `docs/FRONTEND_BACKEND_COLLABORATION.md`
 - **Patient file schema** → `docs/PATIENT_DATA.md`

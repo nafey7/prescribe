@@ -14,6 +14,7 @@ A medical AI chat prototype: React + Vite frontend, FastAPI + LangGraph backend,
    - [`frontend/CLAUDE.md`](frontend/CLAUDE.md) — React, Vite, Tailwind chat UI
    - [`data/CLAUDE.md`](data/CLAUDE.md) — patient record files
 3. **Deep docs** — consult as needed:
+   - [`docs/PRODUCT.md`](docs/PRODUCT.md) — business context, user roles, domain rules
    - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system design and request flow
    - [`docs/FRONTEND_BACKEND_COLLABORATION.md`](docs/FRONTEND_BACKEND_COLLABORATION.md) — API contract, casing, ownership
    - [`docs/LOCAL_DEVELOPMENT.md`](docs/LOCAL_DEVELOPMENT.md) — setup, Docker, env vars
@@ -29,6 +30,7 @@ A medical AI chat prototype: React + Vite frontend, FastAPI + LangGraph backend,
 | Backend bug or feature | `backend/CLAUDE.md` → `docs/ARCHITECTURE.md` |
 | Frontend bug or feature | `frontend/CLAUDE.md` → `docs/FRONTEND_BACKEND_COLLABORATION.md` |
 | Patient data change | `data/CLAUDE.md` → `docs/PATIENT_DATA.md` |
+| Product / business rules | `docs/PRODUCT.md` |
 | Cross-stack feature | `docs/ARCHITECTURE.md` + `docs/FRONTEND_BACKEND_COLLABORATION.md` |
 | New implementation plan | `docs/plans/` — use `/create-plan` command |
 | Setup / onboarding | `docs/LOCAL_DEVELOPMENT.md` |

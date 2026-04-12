@@ -7,6 +7,7 @@ This directory contains the reference documentation for `prescribe-v2`. For AI a
 | Doc | Purpose |
 |-----|---------|
 | [DOCUMENTATION_MAP.md](DOCUMENTATION_MAP.md) | Master index with role-based reading paths |
+| [PRODUCT.md](PRODUCT.md) | Business context, user roles, domain rules, constraints |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, request flow, LangGraph pipeline |
 | [FRONTEND_BACKEND_COLLABORATION.md](FRONTEND_BACKEND_COLLABORATION.md) | API contract, casing conventions, ownership |
 | [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) | Docker setup, local dev, env vars, troubleshooting |
