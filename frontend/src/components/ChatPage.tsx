@@ -87,9 +87,12 @@ export default function ChatPage() {
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
-          <MessageList messages={messages} isLoading={isLoading} />
+      {/* Full-width scroll surface so wheel/trackpad works on side margins; content stays max-w-3xl */}
+      <main className="flex-1 flex min-h-0 w-full flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col">
+            <MessageList messages={messages} isLoading={isLoading} />
+          </div>
         </div>
       </main>
 

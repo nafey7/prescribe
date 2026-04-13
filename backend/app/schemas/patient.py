@@ -1,6 +1,118 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.schemas.enums import Gender
+from app.utils import patient_id, utcnow
+
+
+# ---------------------------------------------------------------------------
+# Phase A internal document models (patient_profiles collection)
+# ---------------------------------------------------------------------------
+
+
+class PhaseAAddress(BaseModel):
+    line1: str = ""
+    city: str = ""
+    country: str = "PK"
+
+
+class PhaseAEmergencyContact(BaseModel):
+    name: str = ""
+    phone: str = ""
+    relation: str = ""
+
+
+class MedicalSummary(BaseModel):
+    allergies: list[str] = Field(default_factory=list)
+    chronic_conditions: list[str] = Field(default_factory=list)
+    notes: str = ""
+
+
+def _coerce_date_of_birth(v: date | datetime | str | None) -> date | None:
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    if isinstance(v, str):
+        return date.fromisoformat(v[:10])
+    raise TypeError("date_of_birth must be a date, datetime, or ISO date string")
+
+
+class PatientProfileDocument(BaseModel):
+    """MongoDB document shape for the `patient_profiles` collection."""
+
+    patient_id: str = Field(default_factory=patient_id)
+    user_id: str
+    full_name: str
+    date_of_birth: date | None = None
+    gender: Gender | None = None
+    blood_group: str | None = None
+    phone: str | None = None
+    address: PhaseAAddress = Field(default_factory=PhaseAAddress)
+    emergency_contact: PhaseAEmergencyContact = Field(default_factory=PhaseAEmergencyContact)
+    medical_summary: MedicalSummary = Field(default_factory=MedicalSummary)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+    @field_validator("date_of_birth", mode="before")
+    @classmethod
+    def document_dob(cls, v: date | datetime | str | None) -> date | None:
+        return _coerce_date_of_birth(v)
+
+
+class PhaseAPatientProfileCreate(BaseModel):
+    """Payload for creating a patient profile (Phase A patient_profiles collection)."""
+
+    user_id: str
+    full_name: str
+    date_of_birth: date | None = None
+    gender: Gender | None = None
+    blood_group: str | None = None
+    phone: str | None = None
+    address: PhaseAAddress | None = None
+    emergency_contact: PhaseAEmergencyContact | None = None
+    medical_summary: MedicalSummary | None = None
+
+    @field_validator("date_of_birth", mode="before")
+    @classmethod
+    def parse_date_of_birth(cls, v: date | str | None) -> date | None:
+        if v is None:
+            return None
+        if isinstance(v, date):
+            return v
+        if isinstance(v, str):
+            return date.fromisoformat(v[:10])
+        raise TypeError("date_of_birth must be a date or ISO date string (YYYY-MM-DD)")
+
+
+class PhaseAPatientProfileRead(BaseModel):
+    """Response DTO for patient profiles (Phase A patient_profiles collection)."""
+
+    patient_id: str
+    user_id: str
+    full_name: str
+    date_of_birth: date | None = None
+    gender: Gender | None = None
+    blood_group: str | None = None
+    phone: str | None = None
+    address: PhaseAAddress
+    emergency_contact: PhaseAEmergencyContact
+    medical_summary: MedicalSummary
+    created_at: datetime
+    updated_at: datetime
+
+    @field_validator("date_of_birth", mode="before")
+    @classmethod
+    def read_dob(cls, v: date | datetime | str | None) -> date | None:
+        return _coerce_date_of_birth(v)
+
+
+# ---------------------------------------------------------------------------
+# Active API models (users collection, patient profile CRUD)
+# ---------------------------------------------------------------------------
 
 
 class Address(BaseModel):
