@@ -30,6 +30,7 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017
       - DATABASE_NAME=medical_chat
       - PATIENT_DATA_DIR=data/patients
+      - AI_SUGGESTIONS_ENABLED=true
     env_file:
       - .env
     depends_on:

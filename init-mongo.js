@@ -10,6 +10,8 @@ db.createCollection("prescriptions");
 db.createCollection("patient_documents");
 db.createCollection("chat_sessions");
 db.createCollection("chat_messages");
+db.createCollection("documents");
+db.createCollection("suggestions");
 
 // ── users ───────────────────────────────────────────────────────────────────
 
@@ -17,6 +19,7 @@ db.users.createIndex({ user_id: 1 }, { unique: true });
 db.users.createIndex({ email: 1 }, { unique: true });
 db.users.createIndex({ role: 1 });
 db.users.createIndex({ status: 1 });
+db.users.createIndex({ patient_slug: 1 }, { unique: true, sparse: true });
 
 // ── patient_profiles ────────────────────────────────────────────────────────
 
@@ -78,6 +81,18 @@ db.chat_messages.createIndex({ message_id: 1 }, { unique: true });
 db.chat_messages.createIndex({ chat_id: 1, timestamp: 1 });
 db.chat_messages.createIndex({ patient_id: 1, timestamp: 1 });
 
+// ── documents (GridFS-backed upload metadata) ───────────────────────────────
+
+db.documents.createIndex({ document_id: 1 }, { unique: true });
+db.documents.createIndex({ patient_id: 1, uploaded_at: -1 });
+db.documents.createIndex({ patient_id: 1, category: 1 });
+
+// ── suggestions ─────────────────────────────────────────────────────────────
+
+db.suggestions.createIndex({ suggestion_id: 1 }, { unique: true });
+db.suggestions.createIndex({ patient_id: 1, status: 1, created_at: -1 });
+db.suggestions.createIndex({ document_id: 1 });
+
 print(
-  "MongoDB initialized: medical_chat database with all Phase A collections and indexes"
+  "MongoDB initialized: medical_chat database with all collections and indexes"
 );

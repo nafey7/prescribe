@@ -23,4 +23,5 @@ export interface Patient {
   id: string;
   name: string;
   file: string;
+  user_id?: string | null;
 }

@@ -15,6 +15,7 @@ from app.schemas.chat import (
     MessageSchema,
     PatientInfo,
 )
+from app.schemas.patient import document_to_profile_response
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ async def get_chat_history(
     return ChatHistoryResponse(chat_id=chat_id, messages=messages)
 
 
-def list_patients() -> list[PatientInfo]:
+def _filesystem_patients() -> list[PatientInfo]:
     settings = get_settings()
     data_dir = Path(settings.PATIENT_DATA_DIR)
 
@@ -127,8 +128,34 @@ def list_patients() -> list[PatientInfo]:
     for f in sorted(data_dir.glob("patient_*.md")):
         patient_id = f.stem.replace("patient_", "")
         name = _id_to_display_name(patient_id)
-        patients.append(PatientInfo(id=patient_id, name=name, file=f.name))
+        patients.append(
+            PatientInfo(id=patient_id, name=name, file=f.name, user_id=None)
+        )
     return patients
+
+
+async def list_patients(db: AsyncIOMotorDatabase) -> list[PatientInfo]:
+    """Prefer MongoDB patient users; fall back to Markdown files if none."""
+    from app.repository import patient as patient_repo
+
+    items, _ = await patient_repo.list_patients(db, skip=0, limit=500)
+    if not items:
+        return _filesystem_patients()
+
+    out: list[PatientInfo] = []
+    for doc in items:
+        profile = document_to_profile_response(doc)
+        slug = profile.patient_slug or profile.user_id
+        name = f"{profile.first_name} {profile.last_name}".strip() or slug
+        out.append(
+            PatientInfo(
+                id=slug,
+                name=name,
+                file=f"patient_{slug}.md",
+                user_id=profile.user_id,
+            )
+        )
+    return out
 
 
 def _id_to_display_name(patient_id: str) -> str:

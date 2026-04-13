@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.enums import Gender, LinkRequestedBy, UserRole, UserStatus
-from app.schemas.patient import PatientProfileCreate, PatientProfileDocument
+from app.schemas.patient import PhaseAPatientProfileCreate, PatientProfileDocument
 from app.schemas.prescription import Medication, PrescriptionCreate
 from app.schemas.user import UserCreate, UserDocument
 
@@ -28,7 +28,7 @@ def test_user_create_minimal():
 
 
 def test_patient_profile_create_accepts_iso_date_string():
-    p = PatientProfileCreate(
+    p = PhaseAPatientProfileCreate(
         user_id="usr_x",
         full_name="Test",
         date_of_birth="1990-05-15",
@@ -39,7 +39,7 @@ def test_patient_profile_create_accepts_iso_date_string():
 
 def test_patient_profile_create_rejects_invalid_date_string():
     with pytest.raises(ValidationError):
-        PatientProfileCreate(
+        PhaseAPatientProfileCreate(
             user_id="usr_x",
             full_name="Test",
             date_of_birth="not-a-date",

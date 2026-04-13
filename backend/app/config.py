@@ -15,6 +15,8 @@ class Settings(BaseSettings):
 
     PATIENT_DATA_DIR: str = "data/patients"
 
+    AI_SUGGESTIONS_ENABLED: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

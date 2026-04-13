@@ -1,30 +1,19 @@
 import { ChevronDown, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
-import { getPatients } from "../api/chat";
-import type { Patient } from "../types/chat";
+import { usePatients } from "../contexts/PatientContext";
 
 interface PatientSelectorProps {
   selectedId: string;
   onChange: (patientId: string) => void;
+  /** Accessible label for the select (defaults to hidden “Active patient”). */
+  ariaLabel?: string;
 }
 
 export default function PatientSelector({
   selectedId,
   onChange,
+  ariaLabel = "Active patient",
 }: PatientSelectorProps) {
-  const [patients, setPatients] = useState<Patient[]>([]);
-
-  useEffect(() => {
-    getPatients()
-      .then(setPatients)
-      .catch(() => {
-        setPatients([
-          { id: "john_doe", name: "John Doe", file: "patient_john_doe.md" },
-          { id: "jane_smith", name: "Jane Smith", file: "patient_jane_smith.md" },
-          { id: "alex_kumar", name: "Alex Kumar", file: "patient_alex_kumar.md" },
-        ]);
-      });
-  }, []);
+  const { patients, isLoading } = usePatients();
 
   const selected = patients.find((p) => p.id === selectedId);
 
@@ -35,10 +24,13 @@ export default function PatientSelector({
         <select
           value={selectedId}
           onChange={(e) => onChange(e.target.value)}
+          disabled={isLoading || patients.length === 0}
+          aria-label={ariaLabel}
           className="appearance-none bg-white border border-gray-300 rounded-lg pl-3 pr-8 py-1.5 
                      text-sm font-medium text-gray-700 cursor-pointer
                      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-                     hover:border-gray-400 transition-colors"
+                     hover:border-gray-400 transition-colors
+                     disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {patients.map((p) => (
             <option key={p.id} value={p.id}>
@@ -51,6 +43,12 @@ export default function PatientSelector({
           className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
         />
       </div>
+      {isLoading && (
+        <span className="text-xs text-gray-400">Loading…</span>
+      )}
+      {!isLoading && !selected && patients.length > 0 && (
+        <span className="text-xs text-amber-600">Unknown patient</span>
+      )}
     </div>
   );
 }

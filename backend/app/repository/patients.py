@@ -1,12 +1,12 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
-from app.schemas.patient import PatientProfileCreate, PatientProfileDocument
+from app.schemas.patient import PhaseAPatientProfileCreate, PatientProfileDocument
 from app.utils import utcnow
 
 
 async def create_profile(
-    db: AsyncIOMotorDatabase, payload: PatientProfileCreate
+    db: AsyncIOMotorDatabase, payload: PhaseAPatientProfileCreate
 ) -> dict:
     create_data = payload.model_dump(exclude_none=True)
     doc = PatientProfileDocument(**create_data)

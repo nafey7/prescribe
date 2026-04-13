@@ -8,7 +8,7 @@ from pymongo import ReturnDocument
 
 from app.repository import documents, doctors, patients, prescriptions, relationships, users
 from app.schemas.enums import LinkRequestedBy, LinkStatus, PrescriptionStatus, UserRole
-from app.schemas.patient import PatientProfileCreate
+from app.schemas.patient import PhaseAPatientProfileCreate
 from app.schemas.prescription import Medication, PrescriptionCreate
 from app.schemas.relationship import DoctorPatientLinkCreate
 from app.schemas.user import UserCreate
@@ -90,7 +90,7 @@ async def test_create_patient_profile_uses_exclude_none():
 
     coll.insert_one = AsyncMock(side_effect=insert_one)
     db = _fake_db(coll)
-    payload = PatientProfileCreate(
+    payload = PhaseAPatientProfileCreate(
         user_id="usr_1",
         full_name="Jane",
         gender=None,
