@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from app.database.connection import get_database
+from app.schemas.connection import ConnectionListResponse
 from app.schemas.chat import PatientInfo
 from app.schemas.medical_history import MedicalHistoryResponse
 from app.schemas.patient import (
@@ -9,6 +10,7 @@ from app.schemas.patient import (
     PatientProfileResponse,
     PatientProfileUpdate,
 )
+from app.service import connection as connection_service
 from app.service import medical_history as medical_history_service
 from app.service import patient as patient_service
 from app.service.chat import list_patients as list_chat_patients
@@ -26,9 +28,12 @@ async def register_patient(body: PatientProfileCreate) -> PatientProfileResponse
 async def list_patients(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    search: str | None = Query(None, description="Filter by name, email, or patient slug"),
 ) -> PatientListResponse:
     db = get_database()
-    return await patient_service.list_all_patients(db, skip=skip, limit=limit)
+    return await patient_service.list_all_patients(
+        db, skip=skip, limit=limit, search=search
+    )
 
 
 @router.get("/for-chat", response_model=list[PatientInfo])
@@ -36,6 +41,19 @@ async def patients_for_chat() -> list[PatientInfo]:
     """Chat-oriented patient list (Markdown / DB-backed); use for dev identity picker."""
     db = get_database()
     return await list_chat_patients(db)
+
+
+@router.get("/{patient_id}/connections", response_model=ConnectionListResponse)
+async def list_patient_connections(
+    patient_id: str,
+    status: str | None = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+) -> ConnectionListResponse:
+    db = get_database()
+    return await connection_service.get_patient_connections(
+        db, patient_id, status=status, skip=skip, limit=limit
+    )
 
 
 @router.get("/{patient_id}/medical-history", response_model=MedicalHistoryResponse)

@@ -144,10 +144,35 @@ async def update_patient(
     return await get_patient(db, user_id)
 
 
+def _patient_list_query(search: str | None) -> dict:
+    base = {"role": "patient"}
+    if not search or not search.strip():
+        return base
+    q = search.strip()
+    rx = {"$regex": re.escape(q), "$options": "i"}
+    return {
+        "$and": [
+            base,
+            {
+                "$or": [
+                    {"email": rx},
+                    {"patient_slug": rx},
+                    {"patient_profile.first_name": rx},
+                    {"patient_profile.last_name": rx},
+                ]
+            },
+        ]
+    }
+
+
 async def list_patients(
-    db: AsyncIOMotorDatabase, skip: int = 0, limit: int = 50
+    db: AsyncIOMotorDatabase,
+    skip: int = 0,
+    limit: int = 50,
+    *,
+    search: str | None = None,
 ) -> tuple[list[dict], int]:
-    query = {"role": "patient"}
+    query = _patient_list_query(search)
     total = await db.users.count_documents(query)
     cursor = (
         db.users.find(query).sort("created_at", -1).skip(skip).limit(limit)

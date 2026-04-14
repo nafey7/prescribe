@@ -6,7 +6,7 @@ import pytest
 from bson import ObjectId
 from pymongo import ReturnDocument
 
-from app.repository import documents, doctors, patients, prescriptions, relationships, users
+from app.repository import doctor, documents, patients, prescriptions, relationships, users
 from app.schemas.enums import LinkRequestedBy, LinkStatus, PrescriptionStatus, UserRole
 from app.schemas.patient import PhaseAPatientProfileCreate
 from app.schemas.prescription import Medication, PrescriptionCreate
@@ -150,13 +150,15 @@ async def test_update_prescription_status_uses_return_document_after():
 
 
 @pytest.mark.asyncio
-async def test_doctor_update_profile_does_not_mutate_updates():
+async def test_doctor_update_does_not_mutate_profile_dict():
     coll = AsyncMock()
-    coll.find_one_and_update = AsyncMock(return_value={"doctor_id": "dr_1"})
+    coll.find_one_and_update = AsyncMock(
+        return_value={"user_id": "u1", "role": "doctor"}
+    )
     db = _fake_db(coll)
-    u = {"bio": "x"}
-    await doctors.update_profile(db, "dr_1", u)
-    assert "updated_at" not in u
+    prof = {"bio": "x"}
+    await doctor.update_doctor(db, "u1", prof, None)
+    assert "updated_at" not in prof
 
 
 @pytest.mark.asyncio

@@ -35,6 +35,14 @@ class ChatHistoryResponse(BaseModel):
     messages: list[MessageSchema]
 
 
+class ChatSessionSummary(BaseModel):
+    chat_id: str
+    patient_id: str
+    doctor_id: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class PatientInfo(BaseModel):
     id: str
     name: str

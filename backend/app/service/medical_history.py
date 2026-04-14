@@ -22,7 +22,7 @@ from app.schemas.patient import (
     Medication as PatientMedication,
     document_to_profile_response,
 )
-from app.utils.markdown_parser import parse_patient_markdown
+from app.markdown_parser import parse_patient_markdown
 
 
 def _age_from_dob(date_of_birth: str | None) -> int | None:

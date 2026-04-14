@@ -1,17 +1,10 @@
-import {
-  FileText,
-  LayoutDashboard,
-  MessageSquare,
-  User,
-  X,
-} from "lucide-react";
+import { FileText, LayoutDashboard, User, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 export type SidebarNavItem = {
   path: string;
   label: string;
   icon: typeof LayoutDashboard;
-  publicRoute?: boolean;
   end?: boolean;
 };
 
@@ -19,12 +12,6 @@ export const patientNavItems: SidebarNavItem[] = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { path: "/profile", label: "My Profile", icon: User },
   { path: "/documents", label: "Documents", icon: FileText },
-  {
-    path: "/public/chat",
-    label: "AI Chat",
-    icon: MessageSquare,
-    publicRoute: true,
-  },
 ];
 
 function linkClass(active: boolean): string {
@@ -45,22 +32,6 @@ export default function Sidebar({
 }) {
   const items = patientNavItems.map((item) => {
     const Icon = item.icon;
-
-    if (item.publicRoute) {
-      return (
-        <NavLink
-          key={item.path}
-          to={item.path}
-          end
-          className={({ isActive }) => linkClass(isActive)}
-          onClick={onClose}
-        >
-          <Icon size={20} className="shrink-0" aria-hidden />
-          <span className="sidebar-label min-w-0 truncate">{item.label}</span>
-        </NavLink>
-      );
-    }
-
     return (
       <NavLink
         key={item.path}

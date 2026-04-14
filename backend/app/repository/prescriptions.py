@@ -49,6 +49,10 @@ async def list_prescriptions_for_patient(
     return await cursor.to_list(length=limit)
 
 
+async def count_by_doctor(db: AsyncIOMotorDatabase, doctor_id: str) -> int:
+    return await db.prescriptions.count_documents({"doctor_id": doctor_id})
+
+
 async def list_prescriptions_for_doctor(
     db: AsyncIOMotorDatabase,
     doctor_id: str,

@@ -2,16 +2,17 @@
 
 API contract, casing conventions, ownership boundaries, and streaming behavior between the React frontend and FastAPI backend.
 
-## Frontend routes (patient portal shell)
+## Frontend routes (patient + doctor portals)
 
-Client-side routes (`react-router-dom`, `createBrowserRouter` in `frontend/src/router.tsx`). REST paths below are unchanged; this table is for deep links and QA.
+Client-side routes (`react-router-dom`, `createBrowserRouter` in `frontend/src/router.tsx`). `RootLayout` wraps `IdentityProvider` → `PatientProvider` → role redirect + `Outlet`. REST paths below are unchanged; this table is for deep links and QA.
 
 | Path | Layout | Purpose |
 |------|--------|---------|
 | `/` | `PatientLayout` | Medical history dashboard |
 | `/profile` | `PatientLayout` | Profile (current patient from `PatientContext`) |
 | `/documents` | `PatientLayout` | Documents |
-| `/public/chat` | *(none)* | Public AI chat (not nested under portal shell) |
+| `/doctor`, `/doctor/...` | `DoctorLayout` | Doctor portal (Phase C): `/doctor/profile`, `/doctor/patients`, `/doctor/patients/:patientId`, `/doctor/patients/:patientId/documents`, `/doctor/patients/:patientId/chat` (doctor–AI, connection-gated), `/doctor/patients/:patientId/prescriptions`, `/doctor/connections` |
+| `/public/chat` | — | Redirects to `/doctor` (legacy public chat path retired per Phase C) |
 | `/dashboard` | — | Redirects to `/` |
 | `/profile/:userId` | `PatientLayout` | Legacy bookmark: syncs picker, redirects to `/profile` |
 
@@ -35,11 +36,33 @@ Client-side routes (`react-router-dom`, `createBrowserRouter` in `frontend/src/r
 | `GET` | `/api/patients/{patient_id}/documents/{document_id}/metadata` | — | `DocumentMetadata` | JSON metadata only |
 | `PUT` | `/api/patients/{patient_id}/documents/{document_id}` | `DocumentUpdateRequest` (JSON) | `DocumentMetadata` | Update category, description, tags |
 | `DELETE` | `/api/patients/{patient_id}/documents/{document_id}` | — | 204 | Delete GridFS file and metadata |
+| `POST` | `/api/doctors` | `DoctorProfileCreate` (JSON) | `DoctorProfileResponse` (201) | Register doctor profile in `users` (`role: doctor`); 409 if email exists |
+| `GET` | `/api/doctors` | Query: `skip`, `limit` | `DoctorListResponse` | Paginated doctor profiles |
+| `GET` | `/api/doctors/for-dev` | — | `DoctorInfo[]` | Doctor list for dev identity picker (`users` with `role: doctor`) |
+| `GET` | `/api/doctors/{doctor_id}` | — | `DoctorProfileResponse` | Full doctor profile by `user_id` |
+| `GET` | `/api/doctors/{doctor_id}/dashboard` | — | `DoctorDashboardResponse` | Aggregated home: stats, pending connection requests (patient-initiated, up to 3), recent patients, merged chat/prescription activity; **404** if doctor not found |
+| `PUT` | `/api/doctors/{doctor_id}` | `DoctorProfileUpdate` (JSON) | `DoctorProfileResponse` | Update profile (409 if email taken by another user) |
+| `GET` | `/api/doctors/dev/echo` | Header `X-Doctor-Id` | `{ doctor_id }` | Confirms doctor header present (400 if missing); tests / manual checks |
+| `GET` | `/api/doctors/{doctor_id}/patients` | Query: `search`, `sort` (`recent` \| `name` \| `last_visit`), `skip`, `limit` | `DoctorPatientListResponse` | Active connections only; 404 if doctor not found |
+| `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/profile` | — | `PatientProfileResponse` | **403** if no active connection |
+| `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/medical-history` | — | `MedicalHistoryResponse` | Same aggregation as patient dashboard; **403** if not connected |
+| `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/documents` | Query: `category`, `page`, `page_size` | `DocumentListResponse` | **403** if not connected |
+| `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/documents/{document_id}` | — | Binary stream | Download/view; **403** if not connected |
+| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/chat/message` | `ChatRequest` (JSON) | `ChatResponse` | Doctor AI chat (non-streaming); **403** without active connection; session/messages store `doctor_id` |
+| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/chat/message/stream` | `ChatRequest` (JSON) | SSE (`text/event-stream`) | Same as above; connection checked before stream starts |
+| `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/chat/sessions` | — | `ChatSessionSummary[]` | Chat sessions for this doctor–patient pair; **403** if not connected |
+| `GET` | `/api/doctors/{doctor_id}/chat/sessions` | Query: optional `patient_id` | `ChatSessionSummary[]` | All chat sessions for this doctor; optional `patient_id` filter (connection required when filter set) |
+| `GET` | `/api/doctors/{doctor_id}/chat/history/{chat_id}` | — | `ChatHistoryResponse` | **403** if session is legacy (no `doctor_id`) or belongs to another doctor; **404** if chat missing |
 | `GET` | `/health` | — | `{ status: "ok" }` | Health check |
 
-## Dev identity header (Phase B)
+## Dev identity headers (Phase B + Phase C dev picker)
 
-Until authentication (Phase E), the frontend sends **`X-Patient-Id`** on API requests (via `frontend/src/api/client.ts`) so the active patient matches the dev identity picker. Chat message endpoints **require** this header; other routes may use path-based `patient_id` while still receiving the header for consistency.
+Until authentication (Phase E), the frontend sends identity via headers (see `frontend/src/api/client.ts`):
+
+- **`X-Patient-Id`** — set from `PatientContext` when a patient id is available (existing Phase B behavior).
+- **`X-Doctor-Id`** — set from `IdentityContext` when dev **role** is **doctor** and a doctor is selected (Phase C).
+
+Legacy **`/api/chat/*`** message endpoints **require** `X-Patient-Id`. Doctor chat under **`/api/doctors/.../chat/...`** uses **`patient_id` in the path**; the frontend calls these with **`skipPatientHeader: true`** so a stale `X-Patient-Id` from the patient dev picker does not override the URL. **`X-Doctor-Id`** is still sent when the dev role is doctor (see `get_current_doctor_id` in `backend/app/api/dependencies.py` for echo/tests). Other routes may ignore unused headers.
 
 ## Request/response shapes
 
@@ -70,6 +93,17 @@ class ChatHistoryResponse(BaseModel):
     messages: list[MessageSchema]  # role, content, timestamp
 ```
 
+### `ChatSessionSummary`
+
+```python
+class ChatSessionSummary(BaseModel):
+    chat_id: str
+    patient_id: str
+    doctor_id: str | None = None
+    created_at: datetime
+    updated_at: datetime
+```
+
 ### `PatientInfo`
 
 ```python
@@ -79,6 +113,24 @@ class PatientInfo(BaseModel):
     file: str  # e.g. "patient_john_doe.md"
     user_id: str | None = None  # UUID when row exists in `users`
 ```
+
+### `DoctorInfo`
+
+```python
+class DoctorInfo(BaseModel):
+    id: str                      # doctor `user_id` (UUID)
+    name: str                    # e.g. "Dr. Sarah Chen"
+    specialization: str = ""   # e.g. "Internal Medicine"
+    institution: str | None = None
+```
+
+### `DoctorProfileResponse` (summary)
+
+Full professional profile for a doctor (`users.doctor_profile` nested fields flattened in JSON). Key fields: `user_id`, `email`, `first_name`, `last_name`, `title`, `specialization`, `sub_specializations`, license/NPI, institution, `education[]`, `office_address`, `accepting_new_patients`, `bio`, `created_at`, `updated_at`. See `backend/app/schemas/doctor.py`.
+
+### `DoctorDashboardResponse` (summary)
+
+Doctor portal home payload: `doctor_id`, `doctor_name`, `specialization`, `institution`, `stats` (`connected_patients`, `pending_requests` = patient-initiated pendings, `total_prescriptions`), `pending_requests[]`, `recent_patients[]`, `recent_activity[]` (`type`: `chat` \| `prescription`, `timestamp`, `patient_id`, `patient_name`, `summary`). See `backend/app/schemas/doctor.py`.
 
 ### Frontend TypeScript mirrors
 

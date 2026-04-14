@@ -13,6 +13,39 @@
   will-change: transform, width;
 }
 
+/* Doctor portal: same rail behavior with teal shell */
+.doctor-sidebar-shell {
+  will-change: transform, width;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .doctor-sidebar-shell:not(:hover) .doctor-sidebar-label {
+    width: 0;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+
+  .doctor-sidebar-shell:not(:hover) .doctor-sidebar-brand {
+    width: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+
+  .doctor-sidebar-shell:not(:hover) .doctor-sidebar-brand-row {
+    justify-content: center;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .doctor-sidebar-shell:not(:hover) .doctor-sidebar-nav-link {
+    justify-content: center;
+    gap: 0;
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+  }
+}
+
 /* Tablet 768–1023px: collapsed 64px rail; labels + brand show on sidebar hover */
 @media (min-width: 768px) and (max-width: 1023px) {
   .sidebar-shell:not(:hover) .sidebar-label {

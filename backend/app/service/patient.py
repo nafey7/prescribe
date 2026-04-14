@@ -84,9 +84,15 @@ async def update_patient_profile(
 
 
 async def list_all_patients(
-    db: AsyncIOMotorDatabase, skip: int = 0, limit: int = 50
+    db: AsyncIOMotorDatabase,
+    skip: int = 0,
+    limit: int = 50,
+    *,
+    search: str | None = None,
 ) -> PatientListResponse:
-    items, total = await patient_repo.list_patients(db, skip=skip, limit=limit)
+    items, total = await patient_repo.list_patients(
+        db, skip=skip, limit=limit, search=search
+    )
     return PatientListResponse(
         items=[document_to_profile_response(d) for d in items],
         total=total,
