@@ -8,17 +8,33 @@ React + Vite + Tailwind chat UI for the medical AI chat. Start at the root [`CLA
 frontend/src/
 ├── App.tsx                  # PatientProvider + RouterProvider
 ├── router.tsx               # createBrowserRouter (portal + /public/chat + legacy redirects)
-├── main.tsx                 # React DOM mount
+├── main.tsx                 # Redux Provider + React DOM mount
 ├── index.css                # Tailwind + patient shell sidebar (tablet rail) utilities
+├── store/
+│   ├── index.ts             # configureStore, baseApi middleware, setupListeners
+│   └── hooks.ts             # useAppDispatch, useAppSelector
 ├── layouts/
 │   └── PatientLayout.tsx    # DevIdentityBanner (dev) + Sidebar + Header + Outlet + Footer
 ├── api/
-│   ├── client.ts            # apiFetch / apiRequest + X-Patient-Id from PatientContext
-│   ├── chat.ts              # Chat API (uses client; getPatients → GET /patients/for-chat)
-│   ├── patients.ts          # Patient profile CRUD + list
-│   └── documents.ts         # Document uploads / list (uses client)
+│   ├── index.ts             # Barrel: re-exports baseApi, *Api slices/hooks, client, legacy helpers
+│   ├── baseApi.ts           # createApi + fetchBaseQuery wrapper (identity headers, skipPatientHeader)
+│   ├── client.ts            # apiFetch / apiRequest, applyPrescribeHeaders, register* getters
+│   ├── config.ts            # FeatureFlags type (wire DTO)
+│   ├── configApi.ts         # getFeatureFlags query
+│   ├── patientsApi.ts       # Patients + medical history (RTK Query)
+│   ├── doctorsApi.ts        # Doctor profile, dashboard, connected patient profile/history (RTK Query)
+│   ├── connectionsApi.ts    # accept/reject connection mutations
+│   ├── documentsApi.ts      # Document list/metadata mutations (RTK Query)
+│   ├── documents.ts         # XHR upload, blob download, public URLs (non-RTK)
+│   ├── doctors.ts           # Imperative helpers still on apiRequest (dev doctor list, blobs, …)
+│   ├── chatApi.ts           # Chat REST (history, send message, doctor chat)
+│   ├── chat.ts              # Re-exports streaming helpers
+│   ├── chatStream.ts        # SSE streams (shared header rules via client)
+│   └── suggestionsApi.ts    # Suggestions list + mutations
 ├── contexts/
-│   └── PatientContext.tsx   # Active patient + localStorage; prefers GET /api/patients, fallback for-chat
+│   ├── PatientContext.tsx   # Active patient + localStorage; RTK listPatients / getPatientsForChat
+│   ├── IdentityContext.tsx  # Doctor dev identity; registerDoctorIdGetter
+│   └── FeatureFlagContext.tsx # useGetFeatureFlagsQuery (or thin wrapper)
 ├── pages/
 │   ├── DashboardPage.tsx    # Medical history (under PatientLayout)
 │   ├── DocumentsPage.tsx    # Documents (under PatientLayout)
@@ -34,8 +50,9 @@ frontend/src/
 │   ├── documents/           # UploadModal, DocumentCard, DocumentPreview, CategoryFilter, etc.
 │   └── patient/             # Profile form sections (demographics, lists, lifestyle, etc.)
 ├── hooks/
-│   ├── useChat.ts
-│   └── useDocuments.ts      # Document list + refresh (DocumentsPage)
+│   ├── useChat.ts           # Streaming + RTK invalidation where needed
+│   ├── useDocuments.ts      # RTK list + XHR upload refresh
+│   └── …                    # Other feature hooks
 └── types/
     ├── chat.ts
     ├── patient.ts           # Profile DTOs (snake_case)
@@ -44,32 +61,28 @@ frontend/src/
 
 ## State and data flow
 
+**Server state (REST JSON)** is loaded and cached with **RTK Query**: one `baseApi` in `api/baseApi.ts`, domain endpoints injected from `api/*Api.ts`, store wired in `store/index.ts`. Lists and detail views use **tag-based invalidation** (`providesTags` / `invalidatesTags`) so mutations refresh related queries.
+
+**Dev identity headers** (`X-Patient-Id`, `X-Doctor-Id`) still come from module getters in `api/client.ts`, registered by `PatientContext` / `IdentityContext`. `prepareHeaders` behavior is centralized in `applyPrescribeHeaders`, used by the RTK `baseQuery` wrapper and by SSE / legacy `apiFetch` paths. Routes that encode `patient_id` in the path and must not send `X-Patient-Id` pass **`skipPatientHeader`** on the request (e.g. doctor chat, `GET /patients/for-chat`, feature flags).
+
+**Local UI state** (chat messages, streaming tokens, upload progress) stays in hooks and components. **SSE streaming** and **multipart upload** stay outside the RTK cache; on success they may `dispatch(baseApi.util.invalidateTags(...))` so RTK-backed lists stay consistent.
+
 ```
-PatientContext (picker + localStorage) → currentPatientId → X-Patient-Id on API calls
+PatientContext → registerPatientIdGetter → client.applyPrescribeHeaders / baseQuery
                       ↓
-ChatInput → user text → useChat.sendMessage()
-                          ↓
-                  api/chat.ts sendMessageStream() via api/client (SSE)
-                          ↓
-                  useChat callbacks:
-                    onThinking → update placeholder message
-                    onToken    → append to content (RAF-buffered)
-                    onDone     → finalize, store chatId
-                    onError    → display error in message bubble
-                          ↓
-                  messages state → MessageList → ChatMessage
+Pages / hooks → useXxxQuery / useXxxMutation (from *Api.ts or api barrel)
+                      ↓
+Redux store → baseApi middleware → fetch (JSON)
 ```
 
 ## Key patterns
 
-- **Single hook for chat state:** `useChat(patientId)` owns messages, chatId, loading, and error state. Components consume its return value.
-- **SSE streaming by default:** `sendMessageStream` uses native `fetch` + `ReadableStream` to parse SSE events. No EventSource library needed.
-- **RAF token buffering:** Tokens are batched in a `requestAnimationFrame` buffer to avoid excessive React re-renders during fast streaming.
-- **Markdown rendering:** `ChatMessage` uses `react-markdown` + `remark-gfm` + `@tailwindcss/typography` for rich message display.
-- **Streaming cursor:** A blinking `▍` cursor appears while `isStreaming` is true on the latest assistant message.
-- **Thinking indicator:** While `isThinking` is true, a "Thinking..." status block is shown before tokens arrive.
-- **Patient list and profile:** `PatientProvider` loads the picker list from paginated `GET /api/patients` when rows exist, otherwise `GET /api/patients/for-chat`. `ProfilePage` loads and saves via `GET`/`PUT /api/patients/{id}` (UUID or slug). Chat posts require `X-Patient-Id` (injected by `api/client.ts`).
-- **No global state library beyond patient list:** Chat state stays in `useChat`; patient list is shared through context only.
+- **RTK Query for REST:** Prefer generated hooks from `patientsApi`, `doctorsApi`, `chatApi`, etc., or import from `api/index.ts` when you want a single entry point.
+- **Single hook for chat UX:** `useChat(patientId)` owns messages, chatId, loading, and error; it uses streaming helpers and may invalidate chat tags when a turn completes.
+- **SSE streaming:** `sendMessageStream` / doctor variants in `chatStream.ts` use `fetch` + `ReadableStream`. No EventSource library.
+- **RAF token buffering:** Tokens are batched in a `requestAnimationFrame` buffer to limit re-renders during fast streaming.
+- **Markdown rendering:** `ChatMessage` uses `react-markdown` + `remark-gfm` + `@tailwindcss/typography`.
+- **Tests:** `npm run test` / `npm run test:run` (Vitest + jsdom). API tests live next to modules (e.g. `api/client.test.ts`, `api/baseApi.test.ts`).
 
 ## Dependencies
 
@@ -87,3 +100,4 @@ ChatInput → user text → useChat.sendMessage()
 - [API contract and streaming protocol](../docs/FRONTEND_BACKEND_COLLABORATION.md)
 - [Testing strategy](../docs/TESTING.md)
 - [Code quality conventions](../docs/CODE_QUALITY.md)
+- [Redux / RTK Query plan](../docs/plans/PLAN_redux-rtk-query.md)

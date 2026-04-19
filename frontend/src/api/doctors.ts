@@ -1,8 +1,6 @@
 import type { DocumentListResponse } from "../types/document";
 import type { MedicalHistory, PatientProfile } from "../types/patient";
-import type { ChatHistoryResponse, ChatResponse } from "../types/chat";
 import type {
-  ChatSessionSummary,
   ConnectedPatientListResponse,
   DoctorCreateRequest,
   DoctorDashboardResponse,
@@ -142,109 +140,4 @@ export async function fetchConnectedPatientDocumentBlob(
     throw new Error(body.detail || `Request failed (${res.status})`);
   }
   return res.blob();
-}
-
-export async function sendDoctorChatMessage(
-  doctorId: string,
-  patientId: string,
-  message: string,
-  chatId?: string
-): Promise<ChatResponse> {
-  return apiRequest<ChatResponse>(
-    `/doctors/${encodeURIComponent(doctorId)}/patients/${encodeURIComponent(patientId)}/chat/message`,
-    {
-      method: "POST",
-      body: JSON.stringify({ message, chat_id: chatId ?? null }),
-      skipPatientHeader: true,
-    }
-  );
-}
-
-export function sendDoctorChatMessageStream(
-  doctorId: string,
-  patientId: string,
-  message: string,
-  chatId: string | undefined,
-  callbacks: {
-    onThinking: (status: string) => void;
-    onToken: (token: string) => void;
-    onDone: (chatId: string, messageId: string) => void;
-    onError: (error: string) => void;
-  }
-): Promise<void> {
-  const path = `/doctors/${encodeURIComponent(doctorId)}/patients/${encodeURIComponent(patientId)}/chat/message/stream`;
-  return (async () => {
-    const res = await apiFetch(path, {
-      method: "POST",
-      body: JSON.stringify({ message, chat_id: chatId ?? null }),
-      skipPatientHeader: true,
-    });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { detail?: string };
-      callbacks.onError(body.detail || `Request failed (${res.status})`);
-      return;
-    }
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let currentEvent = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        if (line === "") {
-          currentEvent = "";
-        } else if (line.startsWith("event: ")) {
-          currentEvent = line.slice(7).trim();
-        } else if (line.startsWith("data: ") && currentEvent) {
-          try {
-            const data = JSON.parse(line.slice(6)) as Record<string, unknown>;
-            switch (currentEvent) {
-              case "thinking":
-                callbacks.onThinking(String(data.status ?? ""));
-                break;
-              case "token":
-                callbacks.onToken(String(data.content ?? ""));
-                break;
-              case "done":
-                callbacks.onDone(
-                  String(data.chat_id ?? ""),
-                  String(data.message_id ?? "")
-                );
-                break;
-              case "error":
-                callbacks.onError(String(data.detail ?? "Error"));
-                break;
-            }
-          } catch {
-            /* skip */
-          }
-          currentEvent = "";
-        }
-      }
-    }
-  })();
-}
-
-export async function getDoctorChatSessions(
-  doctorId: string,
-  patientId: string
-): Promise<ChatSessionSummary[]> {
-  return apiRequest<ChatSessionSummary[]>(
-    `/doctors/${encodeURIComponent(doctorId)}/patients/${encodeURIComponent(patientId)}/chat/sessions`,
-    { skipPatientHeader: true }
-  );
-}
-
-export async function getDoctorChatHistory(
-  doctorId: string,
-  chatId: string
-): Promise<ChatHistoryResponse> {
-  return apiRequest<ChatHistoryResponse>(
-    `/doctors/${encodeURIComponent(doctorId)}/chat/history/${encodeURIComponent(chatId)}`,
-    { skipPatientHeader: true }
-  );
 }

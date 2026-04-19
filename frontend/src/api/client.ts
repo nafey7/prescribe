@@ -22,12 +22,21 @@ export type ApiFetchOptions = RequestInit & {
   skipPatientHeader?: boolean;
 };
 
-export async function apiFetch(
-  path: string,
-  init?: ApiFetchOptions
-): Promise<Response> {
-  const { skipPatientHeader, ...rest } = init ?? {};
-  const headers = new Headers(rest.headers);
+export type ApplyPrescribeHeadersOptions = {
+  skipPatientHeader?: boolean;
+  /** When body is a string and Content-Type is unset, set application/json (matches apiFetch). */
+  body?: BodyInit | null;
+};
+
+/**
+ * Mutates and returns `headers` with dev identity and JSON Content-Type rules
+ * aligned with `apiFetch`. Use from RTK `fetchBaseQuery` wrappers and SSE helpers.
+ */
+export function applyPrescribeHeaders(
+  headers: Headers,
+  options?: ApplyPrescribeHeadersOptions
+): Headers {
+  const skipPatientHeader = options?.skipPatientHeader ?? false;
   if (!skipPatientHeader) {
     const id = getPatientId();
     if (id) {
@@ -38,13 +47,24 @@ export async function apiFetch(
   if (doctorId) {
     headers.set("X-Doctor-Id", doctorId);
   }
+  const body = options?.body;
   if (
-    rest.body != null &&
-    typeof rest.body === "string" &&
+    body != null &&
+    typeof body === "string" &&
     !headers.has("Content-Type")
   ) {
     headers.set("Content-Type", "application/json");
   }
+  return headers;
+}
+
+export async function apiFetch(
+  path: string,
+  init?: ApiFetchOptions
+): Promise<Response> {
+  const { skipPatientHeader, ...rest } = init ?? {};
+  const headers = new Headers(rest.headers);
+  applyPrescribeHeaders(headers, { skipPatientHeader, body: rest.body });
   return fetch(`${API_BASE}${path}`, { ...rest, headers });
 }
 

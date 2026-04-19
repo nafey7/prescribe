@@ -10,13 +10,16 @@ import {
 } from "lucide-react";
 import { uploadDocument } from "../../api/documents";
 import {
-  acceptAllSuggestions,
-  acceptSuggestion,
-  listSuggestions,
-  rejectAllSuggestions,
-  rejectSuggestion,
-} from "../../api/suggestions";
+  useAcceptAllSuggestionsMutation,
+  useAcceptSuggestionMutation,
+  useLazyListSuggestionsQuery,
+  useRejectAllSuggestionsMutation,
+  useRejectSuggestionMutation,
+} from "../../api/suggestionsApi";
+import { baseApi } from "../../api/baseApi";
 import { useFeatureFlags } from "../../contexts/FeatureFlagContext";
+import { rtkErrorMessage } from "../../lib/rtkErrorMessage";
+import { useAppDispatch } from "../../store/hooks";
 import type { DocumentCategory } from "../../types/document";
 import { DOCUMENT_CATEGORY_LABELS } from "../../types/document";
 import type { Suggestion } from "../../types/suggestion";
@@ -41,7 +44,8 @@ interface Props {
   patientId: string;
   open: boolean;
   onClose: () => void;
-  onUploaded: () => void;
+  /** Optional; document list usually refreshes via RTK tag invalidation after upload. */
+  onUploaded?: () => void;
 }
 
 export default function UploadModal({
@@ -65,8 +69,15 @@ export default function UploadModal({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [suggestionsLoaded, setSuggestionsLoaded] = useState(false);
   const [allResolved, setAllResolved] = useState(false);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
   const { aiSuggestionsEnabled } = useFeatureFlags();
+  const dispatch = useAppDispatch();
+  const [triggerListSuggestions] = useLazyListSuggestionsQuery();
+  const [acceptSuggestionMut] = useAcceptSuggestionMutation();
+  const [rejectSuggestionMut] = useRejectSuggestionMutation();
+  const [acceptAllMut] = useAcceptAllSuggestionsMutation();
+  const [rejectAllMut] = useRejectAllSuggestionsMutation();
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollCountRef = useRef(0);
   const cancelledRef = useRef(false);
@@ -94,6 +105,7 @@ export default function UploadModal({
       setSuggestions([]);
       setSuggestionsLoaded(false);
       setAllResolved(false);
+      setSuggestionError(null);
       pollCountRef.current = 0;
     }
   }, [open, clearPolling]);
@@ -123,9 +135,10 @@ export default function UploadModal({
         pollCountRef.current += 1;
 
         try {
-          const data = await listSuggestions(patientId, {
+          const data = await triggerListSuggestions({
+            patientId,
             documentId: docId,
-          });
+          }).unwrap();
           if (cancelledRef.current) return;
 
           if (data.suggestions.length > 0) {
@@ -151,7 +164,7 @@ export default function UploadModal({
 
       pollRef.current = setTimeout(() => void tick(), POLL_INTERVAL_MS);
     },
-    [patientId]
+    [patientId, triggerListSuggestions]
   );
 
   if (!open) return null;
@@ -178,7 +191,10 @@ export default function UploadModal({
       );
       setUploadDone(true);
       setDocumentId(result.document_id);
-      onUploaded();
+      dispatch(
+        baseApi.util.invalidateTags([{ type: "Documents", id: patientId }])
+      );
+      onUploaded?.();
 
       if (aiSuggestionsEnabled) {
         pollForSuggestions(result.document_id);
@@ -199,6 +215,7 @@ export default function UploadModal({
     clearPolling();
     setStep(1);
     setError(null);
+    setSuggestionError(null);
     setUploadDone(false);
     setDocumentId(null);
     setAnalyzing(false);
@@ -210,7 +227,13 @@ export default function UploadModal({
   };
 
   const handleAccept = async (suggestionId: string) => {
-    await acceptSuggestion(patientId, suggestionId);
+    setSuggestionError(null);
+    try {
+      await acceptSuggestionMut({ patientId, suggestionId }).unwrap();
+    } catch (e) {
+      setSuggestionError(rtkErrorMessage(e));
+      return;
+    }
     setSuggestions((prev) => {
       const next = prev.filter((s) => s.suggestion_id !== suggestionId);
       if (next.length === 0) setAllResolved(true);
@@ -219,7 +242,13 @@ export default function UploadModal({
   };
 
   const handleReject = async (suggestionId: string) => {
-    await rejectSuggestion(patientId, suggestionId);
+    setSuggestionError(null);
+    try {
+      await rejectSuggestionMut({ patientId, suggestionId }).unwrap();
+    } catch (e) {
+      setSuggestionError(rtkErrorMessage(e));
+      return;
+    }
     setSuggestions((prev) => {
       const next = prev.filter((s) => s.suggestion_id !== suggestionId);
       if (next.length === 0) setAllResolved(true);
@@ -229,14 +258,26 @@ export default function UploadModal({
 
   const handleAcceptAll = async () => {
     if (!documentId) return;
-    await acceptAllSuggestions(patientId, documentId);
+    setSuggestionError(null);
+    try {
+      await acceptAllMut({ patientId, documentId }).unwrap();
+    } catch (e) {
+      setSuggestionError(rtkErrorMessage(e));
+      return;
+    }
     setSuggestions([]);
     setAllResolved(true);
   };
 
   const handleRejectAll = async () => {
     if (!documentId) return;
-    await rejectAllSuggestions(patientId, documentId);
+    setSuggestionError(null);
+    try {
+      await rejectAllMut({ patientId, documentId }).unwrap();
+    } catch (e) {
+      setSuggestionError(rtkErrorMessage(e));
+      return;
+    }
     setSuggestions([]);
     setAllResolved(true);
   };
@@ -506,6 +547,14 @@ export default function UploadModal({
                     !allResolved &&
                     suggestions.length > 0 && (
                       <div className="space-y-3">
+                        {suggestionError && (
+                          <p
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+                            role="alert"
+                          >
+                            {suggestionError}
+                          </p>
+                        )}
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-semibold text-gray-900">
                             <Sparkles

@@ -1,7 +1,8 @@
 import { FileQuestion, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { deleteDocument, fetchDocumentBlob } from "../api/documents";
+import { useDeleteDocumentMutation } from "../api/documentsApi";
+import { fetchDocumentBlob } from "../api/documents";
 import CategoryFilter from "../components/documents/CategoryFilter";
 import DocumentCard from "../components/documents/DocumentCard";
 import DocumentPagination from "../components/documents/DocumentPagination";
@@ -20,11 +21,12 @@ export default function DocumentsPage() {
   const [previewDoc, setPreviewDoc] = useState<DocumentMetadata | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const { data, isLoading, error, refresh } = useDocuments(currentPatientId, {
+  const { data, isLoading, error } = useDocuments(currentPatientId, {
     category,
     page,
     pageSize: 20,
   });
+  const [deleteDocument] = useDeleteDocumentMutation();
 
   const docParam = searchParams.get("doc");
 
@@ -84,17 +86,19 @@ export default function DocumentsPage() {
         return;
       }
       try {
-        await deleteDocument(currentPatientId, d.document_id);
+        await deleteDocument({
+          patientId: currentPatientId,
+          documentId: d.document_id,
+        }).unwrap();
         if (previewDoc?.document_id === d.document_id) closePreview();
         setToast("Document deleted.");
         window.setTimeout(() => setToast(null), 4000);
-        void refresh();
       } catch {
         setToast("Delete failed.");
         window.setTimeout(() => setToast(null), 4000);
       }
     },
-    [currentPatientId, previewDoc, closePreview, refresh]
+    [currentPatientId, previewDoc, closePreview, deleteDocument]
   );
 
   const totalPages = useMemo(() => {
@@ -199,7 +203,6 @@ export default function DocumentsPage() {
         patientId={currentPatientId}
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
-        onUploaded={() => void refresh()}
       />
 
       {previewDoc && (

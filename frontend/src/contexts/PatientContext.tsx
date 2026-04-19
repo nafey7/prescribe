@@ -8,8 +8,10 @@ import {
   type ReactNode,
 } from "react";
 import { registerPatientIdGetter } from "../api/client";
-import { getPatients } from "../api/chat";
-import { listPatients } from "../api/patients";
+import {
+  useLazyGetPatientsForChatQuery,
+  useLazyListPatientsQuery,
+} from "../api/patientsApi";
 import type { Patient } from "../types/chat";
 
 const STORAGE_KEY = "prescribe_dev_patient_id";
@@ -65,6 +67,9 @@ export function PatientProvider({ children }: { children: ReactNode }) {
     return readStoredPatientId() ?? "john_doe";
   });
 
+  const [triggerList] = useLazyListPatientsQuery();
+  const [triggerForChat] = useLazyGetPatientsForChatQuery();
+
   registerPatientIdGetter(() => currentPatientId);
 
   const setCurrentPatientId = useCallback((id: string) => {
@@ -76,16 +81,16 @@ export function PatientProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await listPatients(0, 200);
+      const res = await triggerList({ skip: 0, limit: 200 }).unwrap();
       if (res.items.length > 0) {
         setPatients(mapProfilesToPatients(res.items));
         return;
       }
-      const fallback = await getPatients();
+      const fallback = await triggerForChat().unwrap();
       setPatients(fallback);
     } catch (e) {
       try {
-        const fallback = await getPatients();
+        const fallback = await triggerForChat().unwrap();
         setPatients(fallback);
         setError(null);
       } catch {
@@ -95,7 +100,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [triggerList, triggerForChat]);
 
   useEffect(() => {
     void refreshPatients();

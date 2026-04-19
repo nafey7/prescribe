@@ -1,12 +1,10 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
-import { getFeatureFlags, type FeatureFlags } from "../api/config";
+import { useGetFeatureFlagsQuery } from "../api/configApi";
 
 interface FeatureFlagContextValue {
   aiSuggestionsEnabled: boolean;
@@ -19,22 +17,16 @@ const FeatureFlagContext = createContext<FeatureFlagContextValue>({
 });
 
 export function FeatureFlagProvider({ children }: { children: ReactNode }) {
-  const [flags, setFlags] = useState<FeatureFlags | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    getFeatureFlags()
-      .then(setFlags)
-      .catch(() => setFlags({ ai_suggestions_enabled: false }))
-      .finally(() => setIsLoading(false));
-  }, []);
+  const { data, isLoading, isError } = useGetFeatureFlagsQuery();
 
   const value = useMemo(
     () => ({
-      aiSuggestionsEnabled: flags?.ai_suggestions_enabled ?? false,
+      aiSuggestionsEnabled: isError
+        ? false
+        : (data?.ai_suggestions_enabled ?? false),
       isLoading,
     }),
-    [flags, isLoading]
+    [data?.ai_suggestions_enabled, isError, isLoading]
   );
 
   return (

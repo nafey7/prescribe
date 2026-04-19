@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { sendDoctorChatMessageStream } from "../api/chatStream";
 import {
-  getDoctorChatHistory,
-  getDoctorChatSessions,
-  sendDoctorChatMessageStream,
-} from "../api/doctors";
-import type { ChatSessionSummary } from "../types/doctor";
+  useGetDoctorChatSessionsQuery,
+  useLazyGetDoctorChatHistoryQuery,
+} from "../api/chatApi";
+import { baseApi } from "../api/baseApi";
+import { useAppDispatch } from "../store/hooks";
 import type { Message } from "../types/chat";
 
 function normalizeTimestamp(ts: string | Date): string {
@@ -13,36 +14,26 @@ function normalizeTimestamp(ts: string | Date): string {
 }
 
 export function useDoctorChat(doctorId: string | null, patientId: string | null) {
+  const dispatch = useAppDispatch();
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatId, setChatId] = useState<string | undefined>();
-  const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  const {
+    data: sessions = [],
+    isLoading: sessionsLoading,
+    refetch: refetchSessions,
+  } = useGetDoctorChatSessionsQuery(
+    { doctorId: doctorId!, patientId: patientId! },
+    { skip: !doctorId || !patientId }
+  );
+
+  const [triggerHistory] = useLazyGetDoctorChatHistoryQuery();
+
   const tokenBufferRef = useRef("");
   const rafIdRef = useRef<number | null>(null);
-
-  const refreshSessions = useCallback(async () => {
-    if (!doctorId || !patientId) {
-      setSessions([]);
-      return;
-    }
-    setSessionsLoading(true);
-    try {
-      const list = await getDoctorChatSessions(doctorId, patientId);
-      setSessions(list);
-    } catch {
-      setSessions([]);
-    } finally {
-      setSessionsLoading(false);
-    }
-  }, [doctorId, patientId]);
-
-  useEffect(() => {
-    refreshSessions();
-  }, [refreshSessions]);
 
   const loadHistory = useCallback(
     async (cid: string) => {
@@ -50,7 +41,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
       setHistoryLoading(true);
       setError(null);
       try {
-        const data = await getDoctorChatHistory(doctorId, cid);
+        const data = await triggerHistory({ doctorId, chatId: cid }).unwrap();
         setChatId(data.chat_id);
         setMessages(
           data.messages.map((m) => ({
@@ -67,7 +58,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
         setHistoryLoading(false);
       }
     },
-    [doctorId, patientId]
+    [doctorId, patientId, triggerHistory]
   );
 
   const selectSession = useCallback(
@@ -167,12 +158,20 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
             }
             flushTokenBuffer();
             setChatId(newChatId);
+            dispatch(
+              baseApi.util.invalidateTags([
+                { type: "Chat", id: newChatId },
+                {
+                  type: "ChatSessions",
+                  id: `${doctorId}-${patientId}`,
+                },
+              ])
+            );
             updateLast((msg) => ({
               ...msg,
               isStreaming: false,
               isThinking: false,
             }));
-            void refreshSessions();
           },
           onError: (errMsg) => {
             if (rafIdRef.current !== null) {
@@ -208,7 +207,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
         setIsLoading(false);
       }
     },
-    [doctorId, patientId, chatId, isLoading, refreshSessions]
+    [doctorId, patientId, chatId, isLoading, dispatch]
   );
 
   const pairReady = useRef(false);
@@ -231,6 +230,6 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
     sendMessage,
     newChat,
     selectSession,
-    refreshSessions,
+    refreshSessions: refetchSessions,
   };
 }
