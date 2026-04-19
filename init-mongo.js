@@ -12,6 +12,7 @@ db.createCollection("chat_sessions");
 db.createCollection("chat_messages");
 db.createCollection("documents");
 db.createCollection("suggestions");
+db.createCollection("connections");
 
 // ── users ───────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,10 @@ db.users.createIndex({ email: 1 }, { unique: true });
 db.users.createIndex({ role: 1 });
 db.users.createIndex({ status: 1 });
 db.users.createIndex({ patient_slug: 1 }, { unique: true, sparse: true });
+db.users.createIndex(
+  { "doctor_profile.specialization": 1 },
+  { sparse: true }
+);
 
 // ── patient_profiles ────────────────────────────────────────────────────────
 
@@ -73,6 +78,7 @@ db.chat_sessions.createIndex({ chat_id: 1 }, { unique: true });
 db.chat_sessions.createIndex({ owner_user_id: 1, updated_at: -1 });
 db.chat_sessions.createIndex({ patient_id: 1, updated_at: -1 });
 db.chat_sessions.createIndex({ doctor_id: 1, updated_at: -1 });
+db.chat_sessions.createIndex({ doctor_id: 1, patient_id: 1, updated_at: -1 });
 db.chat_sessions.createIndex({ created_at: 1 });
 
 // ── chat_messages ───────────────────────────────────────────────────────────
@@ -86,6 +92,21 @@ db.chat_messages.createIndex({ patient_id: 1, timestamp: 1 });
 db.documents.createIndex({ document_id: 1 }, { unique: true });
 db.documents.createIndex({ patient_id: 1, uploaded_at: -1 });
 db.documents.createIndex({ patient_id: 1, category: 1 });
+
+// ── connections (doctor–patient links) ─────────────────────────────────────
+
+db.connections.createIndex({ connection_id: 1 }, { unique: true });
+db.connections.createIndex({ doctor_id: 1, status: 1 });
+db.connections.createIndex({ patient_id: 1, status: 1 });
+db.connections.createIndex(
+  { doctor_id: 1, patient_id: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["pending", "active"] },
+    },
+  }
+);
 
 // ── suggestions ─────────────────────────────────────────────────────────────
 

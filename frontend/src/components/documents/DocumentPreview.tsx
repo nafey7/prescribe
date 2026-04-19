@@ -7,12 +7,21 @@ interface Props {
   patientId: string;
   doc: DocumentMetadata;
   onClose: () => void;
+  /** When set (e.g. doctor connection-gated URL), used instead of patient document path. */
+  fileUrlOverride?: string;
 }
 
-export default function DocumentPreview({ patientId, doc, onClose }: Props) {
+export default function DocumentPreview({
+  patientId,
+  doc,
+  onClose,
+  fileUrlOverride,
+}: Props) {
   const url = useMemo(
-    () => getDocumentDownloadUrl(patientId, doc.document_id),
-    [patientId, doc.document_id]
+    () =>
+      fileUrlOverride?.trim() ||
+      getDocumentDownloadUrl(patientId, doc.document_id),
+    [patientId, doc.document_id, fileUrlOverride]
   );
 
   const isPdf = doc.content_type.includes("pdf");

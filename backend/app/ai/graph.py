@@ -50,7 +50,9 @@ def _agent_node(state: MedicalChatState) -> dict[str, Any]:
     llm_with_tools = llm.bind_tools(TOOLS)
 
     patient_id = state.get("patient_id", "unknown")
-    system_prompt = MEDICAL_SYSTEM_PROMPT_TEMPLATE.format(patient_id=patient_id)
+    system_prompt = state.get("system_prompt")
+    if not system_prompt:
+        system_prompt = MEDICAL_SYSTEM_PROMPT_TEMPLATE.format(patient_id=patient_id)
 
     messages = state["messages"]
     has_system = any(
@@ -88,6 +90,8 @@ async def invoke_medical_agent(
     message: str,
     patient_id: str,
     chat_id: str,
+    *,
+    system_prompt: str | None = None,
 ) -> str:
     graph = get_medical_graph()
 
@@ -95,6 +99,8 @@ async def invoke_medical_agent(
         "messages": [HumanMessage(content=message)],
         "patient_id": patient_id,
     }
+    if system_prompt:
+        input_state["system_prompt"] = system_prompt
 
     config = {"configurable": {"thread_id": chat_id}}
 
@@ -120,6 +126,8 @@ async def stream_medical_agent(
     message: str,
     patient_id: str,
     chat_id: str,
+    *,
+    system_prompt: str | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Async generator that yields streaming events from the medical agent.
 
@@ -133,6 +141,8 @@ async def stream_medical_agent(
         "messages": [HumanMessage(content=message)],
         "patient_id": patient_id,
     }
+    if system_prompt:
+        input_state["system_prompt"] = system_prompt
     config = {"configurable": {"thread_id": chat_id}}
 
     try:

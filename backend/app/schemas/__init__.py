@@ -9,7 +9,17 @@ from app.schemas.document import (
     PatientDocumentDocument,
     PatientDocumentRead,
 )
-from app.schemas.doctor import DoctorProfileCreate, DoctorProfileDocument, DoctorProfileRead
+from app.schemas.doctor import (
+    DoctorInfo,
+    DoctorListResponse,
+    DoctorPatientListItem,
+    DoctorPatientListResponse,
+    DoctorProfileCreate,
+    DoctorProfileResponse,
+    DoctorProfileUpdate,
+    Education,
+    OfficeAddress,
+)
 from app.schemas.enums import (
     ChatType,
     DocumentSource,
@@ -59,9 +69,15 @@ __all__ = [
     "DoctorPatientLinkCreate",
     "DoctorPatientLinkDocument",
     "DoctorPatientLinkRead",
+    "DoctorInfo",
+    "DoctorListResponse",
+    "DoctorPatientListItem",
+    "DoctorPatientListResponse",
     "DoctorProfileCreate",
-    "DoctorProfileDocument",
-    "DoctorProfileRead",
+    "DoctorProfileResponse",
+    "DoctorProfileUpdate",
+    "Education",
+    "OfficeAddress",
     "DocumentSource",
     "DocumentType",
     "DocumentVisibility",

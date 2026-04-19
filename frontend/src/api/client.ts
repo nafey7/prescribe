@@ -1,10 +1,16 @@
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 let getPatientId: () => string = () => "";
+let getDoctorId: () => string = () => "";
 
 /** Called from PatientProvider so API calls include the active dev identity. */
 export function registerPatientIdGetter(fn: () => string): void {
   getPatientId = fn;
+}
+
+/** Called from IdentityProvider — non-empty only in doctor dev mode. */
+export function registerDoctorIdGetter(fn: () => string): void {
+  getDoctorId = fn;
 }
 
 export function getApiBase(): string {
@@ -27,6 +33,10 @@ export async function apiFetch(
     if (id) {
       headers.set("X-Patient-Id", id);
     }
+  }
+  const doctorId = getDoctorId();
+  if (doctorId) {
+    headers.set("X-Doctor-Id", doctorId);
   }
   if (
     rest.body != null &&

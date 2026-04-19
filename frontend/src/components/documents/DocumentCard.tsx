@@ -6,7 +6,9 @@ interface Props {
   doc: DocumentMetadata;
   onView: () => void;
   onDownload: () => void;
-  onDelete: () => void;
+  /** Omit or set read-only to hide delete (e.g. doctor portal). */
+  onDelete?: () => void;
+  readOnly?: boolean;
 }
 
 function categoryLabel(cat: string): string {
@@ -27,6 +29,7 @@ export default function DocumentCard({
   onView,
   onDownload,
   onDelete,
+  readOnly = false,
 }: Props) {
   const isImage = doc.content_type.startsWith("image/");
   const title = doc.description.trim() || doc.filename;
@@ -88,6 +91,7 @@ export default function DocumentCard({
               <Download size={14} />
               Download
             </button>
+            {!readOnly && onDelete && (
             <button
               type="button"
               onClick={onDelete}
@@ -96,6 +100,7 @@ export default function DocumentCard({
               <Trash2 size={14} />
               Delete
             </button>
+            )}
           </div>
         </div>
       </div>

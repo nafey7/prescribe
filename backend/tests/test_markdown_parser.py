@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.utils.markdown_parser import (
+from app.markdown_parser import (
     parse_patient_markdown,
     parse_patient_markdown_file,
     resolve_patient_data_dir,

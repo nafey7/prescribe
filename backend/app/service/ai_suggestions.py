@@ -17,7 +17,7 @@ from app.ai.extraction_prompts import (
 from app.ai.llm import get_llm
 from app.config import get_settings
 from app.repository import suggestion as suggestion_repo
-from app.utils.document_text import extract_text_from_document
+from app.document_text import extract_text_from_document
 
 logger = logging.getLogger(__name__)
 

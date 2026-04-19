@@ -74,3 +74,16 @@ class SenderType(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
+
+
+class ConnectionStatus(StrEnum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+    REMOVED = "removed"
+
+
+class ConnectionRemovedBy(StrEnum):
+    DOCTOR = "doctor"
+    PATIENT = "patient"
