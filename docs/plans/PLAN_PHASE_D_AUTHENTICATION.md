@@ -4,12 +4,14 @@
 
 This plan implements **Phase D** from [PLAN_PRODUCT_BUILD_ORDER.md](./PLAN_PRODUCT_BUILD_ORDER.md): email/password **signup and login**, **JWT issuance** and verification, **`GET /auth/me`**, and **credential requirements** for patient and doctor surfaces. It **replaces dev-only trust** (`X-Patient-Id` / `X-Doctor-Id` as sole identity) with an authenticated **`user_id`** from JWT while preserving a **narrowly scoped dev bypass** for local testing.
 
+**Relationship to Redux / RTK Query (landed before Phase D frontend auth):** [PLAN_redux-rtk-query.md](./PLAN_redux-rtk-query.md) introduced **`@reduxjs/toolkit`**, **`react-redux`**, a single **`baseApi`** (`fetchBaseQuery` wrapper), and **`applyPrescribeHeaders`** in [`frontend/src/api/client.ts`](../../frontend/src/api/client.ts) shared by RTK and SSE. Phase D **does not** revert that stack; it **extends** the same header path with **`Authorization: Bearer`**, token lifecycle, and **401 → refresh → retry** behavior so **RTK Query, `apiFetch`, and streaming `fetch`** stay consistent. Dev identity headers remain subordinate to JWT when authenticated (see §4.5).
+
 **Success criteria (observable):**
 
 1. All patient/doctor portal APIs return **401** without a valid JWT when `AUTH_REQUIRED=true`.
 2. Cross-tenant access returns **403** (patient A cannot read patient B; doctor A cannot read doctor B’s dashboard / connections / chat history).
 3. `GET /api/chat/history/{chat_id}` no longer returns messages without **proven session ownership**.
-4. Frontend logs in, persists tokens across full page reload (session-scoped), attaches **`Authorization: Bearer`** to every API call, **silently refreshes** via `POST /api/auth/refresh` when the 15-minute access token expires, and **redirects unauthenticated users** to `/login` with a `returnUrl` when the refresh token is also invalid.
+4. Frontend logs in, persists tokens across full page reload (session-scoped), attaches **`Authorization: Bearer`** to **every** HTTP call (**RTK Query `baseApi`, `apiFetch`, and SSE `fetch`** via the same header helper), **silently refreshes** via `POST /api/auth/refresh` when the 15-minute access token expires, and **redirects unauthenticated users** to `/login` with a `returnUrl` when the refresh token is also invalid.
 5. Reusing an already-rotated refresh token revokes the caller's entire session family and forces re-login (reuse detection verified by automated test).
 6. Test suite includes an **automated route audit** that fails if any new route is added without explicit auth annotation.
 
@@ -41,8 +43,10 @@ This plan implements **Phase D** from [PLAN_PRODUCT_BUILD_ORDER.md](./PLAN_PRODU
 
 **Frontend**
 
-- [`frontend/src/api/client.ts`](../../frontend/src/api/client.ts) injects `X-Patient-Id` and optionally `X-Doctor-Id` from [`PatientContext`](../../frontend/src/contexts/PatientContext.tsx) and [`IdentityContext`](../../frontend/src/contexts/IdentityContext.tsx); **no Bearer token** today. SSE uses `fetch` (not `EventSource`), so `Authorization` headers work for streaming.
-- Routing: [`frontend/src/router.tsx`](../../frontend/src/router.tsx) + [`RootLayout`](../../frontend/src/layouts/RootLayout.tsx) — role switching is dev-only (localStorage), not login.
+- **Redux + RTK Query:** [`frontend/src/store/index.ts`](../../frontend/src/store/index.ts) wires **`baseApi`** middleware; REST JSON flows use injected endpoints under [`frontend/src/api/*Api.ts`](../../frontend/src/api/) (see [`frontend/src/api/index.ts`](../../frontend/src/api/index.ts)). [`frontend/src/main.tsx`](../../frontend/src/main.tsx) wraps the app with `<Provider store={store}>`.
+- **Shared headers:** [`frontend/src/api/client.ts`](../../frontend/src/api/client.ts) exposes **`applyPrescribeHeaders`** (dev `X-Patient-Id` / `X-Doctor-Id` via registered getters) and is invoked from [`frontend/src/api/baseApi.ts`](../../frontend/src/api/baseApi.ts)’s `baseQuery` **and** SSE / legacy `apiFetch` paths — **no `Authorization: Bearer` yet**.
+- **Contexts:** [`PatientContext`](../../frontend/src/contexts/PatientContext.tsx) and [`IdentityContext`](../../frontend/src/contexts/IdentityContext.tsx) still drive dev identity for header getters; routing uses portal layouts — **no login/session** today (role switching dev-only).
+- SSE uses `fetch` (not `EventSource`), so once Bearer attachment lands in `applyPrescribeHeaders`, streaming stays aligned with RTK.
 
 **Docs**
 
@@ -63,7 +67,7 @@ This plan implements **Phase D** from [PLAN_PRODUCT_BUILD_ORDER.md](./PLAN_PRODU
 | **Refresh model — rotating JWT + server-side `jti` ledger with reuse detection** | **Selected** — short access (15 min) + rotating refresh (7 days) with a `refresh_tokens` collection keyed by `jti` and grouped by `family_id`. Each refresh revokes the old `jti` and issues a new pair in the same family. A second use of an already-revoked `jti` revokes the **entire family** and bumps `users.token_version`, invalidating every live access token for that user. |
 | **Refresh token delivery** | **Phase D:** JSON response body + `sessionStorage` mirror, same pattern as the access token. **Phase D+1 follow-up:** move refresh token into `httpOnly; Secure; SameSite=Strict` cookie on `/api/auth/refresh` path only, keeping the access token in memory. Documented as the XSS-hardening migration. |
 
-**Comparison to existing code:** Extend [`app/repository/users.py`](../../backend/app/repository/users.py) and [`app/schemas/user.py`](../../backend/app/schemas/user.py). Implement **`app/service/auth.py`** (hashing, token build/verify, authenticate) and **`app/api/auth.py`** (HTTP boundary) to stay consistent with API → Service → Repository layering ([`backend/CLAUDE.md`](../../backend/CLAUDE.md)).
+**Comparison to existing code:** Extend [`app/repository/users.py`](../../backend/app/repository/users.py) and [`app/schemas/user.py`](../../backend/app/schemas/user.py). Implement **`app/service/auth.py`** (hashing, token build/verify, authenticate) and **`app/api/auth.py`** (HTTP boundary) to stay consistent with API → Service → Repository layering ([`backend/CLAUDE.md`](../../backend/CLAUDE.md)). **Frontend:** auth attaches to the **existing** [`applyPrescribeHeaders`](../../frontend/src/api/client.ts) + [`baseApi` `baseQuery`](../../frontend/src/api/baseApi.ts) — do not add a parallel HTTP stack.
 
 ## 4.5. Security decisions (locked)
 
@@ -81,7 +85,7 @@ This plan implements **Phase D** from [PLAN_PRODUCT_BUILD_ORDER.md](./PLAN_PRODU
 | **bcrypt rounds** | 12 (constant). |
 | **Timing-safe login** | If user absent, **still run a dummy bcrypt verify** to equalize response time. |
 | **Token storage (frontend)** | **Access token:** memory first, mirrored to `sessionStorage` key `prescribe_access_token`. **Refresh token:** mirrored to `sessionStorage` key `prescribe_refresh_token`. Never `localStorage`. Documented as XSS tradeoff; `httpOnly` cookie for refresh is the Phase D+1 follow-up tracked in § 10. |
-| **Silent renewal (frontend)** | `AuthProvider` schedules a proactive refresh at `access.exp − 60s` (clamped, never negative). On any `401` from `apiFetch`, a **single-flight** refresh Promise is created; all other in-flight 401s await the same Promise and then retry their original request **once**. If refresh fails, tokens are cleared and the user is redirected to `/login?returnUrl=...`. |
+| **Silent renewal (frontend)** | `AuthProvider` schedules a proactive refresh at `access.exp − 60s` (clamped, never negative). On any **`401`** from **`apiFetch` or the RTK `baseQuery` wrapper**, a **single-flight** refresh Promise is created; all other in-flight 401s await the same Promise and then retry the original request **once** (RTK: retry the inner `fetchBaseQuery` call with a fresh `Authorization` header). Paths under `/api/auth/refresh` (and the refresh helper itself) **must not** re-enter the 401 handler. If refresh fails, tokens are cleared and the user is redirected to `/login?returnUrl=...`. |
 | **Revocation** | Two-layer. (1) Per-session: the `refresh_tokens` ledger allows revoking an individual `jti` (rotation) or an entire `family_id` (logout, reuse detection). (2) Global: `users.token_version` is incremented on password change and on "log out everywhere"; JWT `tv` must equal current `token_version` for **both** access and refresh or the token is rejected. |
 | **Logout** | `POST /api/auth/logout` revokes the caller's refresh `family_id` (all rows), clears frontend state, and navigates to `/login`. Calling logout without a refresh token is a no-op 204. |
 | **Dev bypass** | Allowed only when `AUTH_REQUIRED=false` **and** `ENVIRONMENT` ∈ `{"local","test"}`. Any other environment forces auth even if the flag is set. |
@@ -93,7 +97,7 @@ This plan implements **Phase D** from [PLAN_PRODUCT_BUILD_ORDER.md](./PLAN_PRODU
 
 ```mermaid
 sequenceDiagram
-  participant FE as Frontend (AuthProvider)
+  participant FE as Frontend (AuthProvider + Redux RTK)
   participant API as FastAPI
   participant Auth as auth service
   participant DB as MongoDB
@@ -166,9 +170,10 @@ sequenceDiagram
 | `backend/tests/conftest.py` | Shared fixtures: `test_settings`, `patient_token`, `doctor_token`, `auth_headers_*` | **new or modify** |
 | `backend/tests/test_auth_service.py`, `test_refresh_repository.py`, `test_api_auth.py`, `test_route_audit.py` | Unit + API + refresh rotation / reuse detection + route-audit tests | **new** |
 | Update `test_api_chat.py`, `test_api_patients*.py`, `test_api_doctors*.py` | Swap `X-Patient-Id` for Bearer headers where auth is required | modify |
-| [`frontend/src/api/client.ts`](../../frontend/src/api/client.ts) | Attach Bearer; on 401 delegate to `AuthProvider` for single-flight refresh + one retry; on refresh failure bubble up 401 | modify |
-| `frontend/src/api/auth.ts` | `login`, `signup`, `me`, `refresh`, `logout` (refresh sends `{ refresh_token }` and skips the 401 interceptor to avoid recursion) | **new** |
-| `frontend/src/contexts/AuthContext.tsx` | state `{ accessToken, refreshToken, user, status }`; `sessionStorage` mirror for both tokens; bootstrap `/me`; single-flight `refreshPromise` ref; proactive refresh timer at `exp − 60s`; `login`, `logout`, `onUnauthorized` handler registered with `api/client.ts` | **new** |
+| [`frontend/src/api/client.ts`](../../frontend/src/api/client.ts) | Extend **`applyPrescribeHeaders`** (or a small companion) to attach **`Authorization: Bearer`** when an access token is available (via a **registered getter**, mirroring patient/doctor id getters); keep dev headers when JWT absent / dev bypass. Export **`registerAccessTokenGetter`** (or equivalent) used by `AuthProvider`. | modify |
+| [`frontend/src/api/baseApi.ts`](../../frontend/src/api/baseApi.ts) | Wrap `rawBaseQuery` so **`401`** triggers the same **single-flight refresh + one retry** as `apiFetch` (shared module — e.g. `authRefresh.ts`); ensure `/api/auth/refresh` and auth mutations skip the refresh loop (`meta` / `skipAuthRefresh` flag). | modify |
+| `frontend/src/api/authApi.ts` (or `frontend/src/api/auth.ts`) | RTK **`injectEndpoints`**: `login`, `signup`, `getMe`, `refresh`, `logout` — **refresh/logout** use `skipAuthRefresh` / `skip401Handler` so the base query does not recurse. Alternatively thin imperative wrappers that call `fetch` with shared headers; prefer **one** style for maintainability (RTK preferred for parity with the rest of the app). | **new** |
+| `frontend/src/contexts/AuthContext.tsx` | state `{ accessToken, refreshToken, user, status }`; `sessionStorage` mirror for both tokens; bootstrap `/me`; single-flight `refreshPromise` ref; proactive refresh timer at `exp − 60s`; `login`, `logout`; register token getter + **unauthorized** handler with **`client.ts` / `baseApi` wrapper** | **new** |
 | `frontend/src/pages/LoginPage.tsx`, `SignupPage.tsx` | Forms with validation | **new** |
 | `frontend/src/router.tsx` | `/login`, `/signup`, `RequireAuth` loader/guard, `returnUrl` | modify |
 | `frontend/src/layouts/RootLayout.tsx` | Wrap `AuthProvider` above `IdentityProvider` | modify |
@@ -311,7 +316,8 @@ Every other route is protected. `GET /api/patients/for-chat` and `GET /api/docto
 **Frontend**
 
 - `npm run build` typecheck gate.
-- Manual QA checklist in `docs/TESTING.md`: login, reload survival (`sessionStorage`), logout, 401 auto-redirect with `returnUrl`, role-scoped routes.
+- Extend Vitest coverage: **`baseApi` 401 → refresh → retry** (alongside existing header tests); optional MSW integration test for one authenticated RTK query.
+- Manual QA checklist in `docs/TESTING.md`: login, reload survival (`sessionStorage`), logout, 401 auto-redirect with `returnUrl`, role-scoped routes, **RTK-cached view** + **SSE chat** after token rotation.
 
 **Determinism**
 
@@ -326,6 +332,7 @@ Every other route is protected. `GET /api/patients/for-chat` and `GET /api/docto
 | Dev experience regression | `ENVIRONMENT=local` + `AUTH_REQUIRED=false` allowed; `set_dev_passwords.py` + documented login in `docs/LOCAL_DEVELOPMENT.md`. |
 | XSS exfiltrates refresh token from `sessionStorage` | Biggest residual risk now that refresh lives 7 days. Mitigations: refresh rotation + reuse detection (stolen token becomes a self-nuke the moment the legit client rotates once); `sessionStorage` (not `localStorage`) limits blast radius to the current tab; short 15 min access TTL; follow-up migrates refresh into `httpOnly; Secure; SameSite=Strict` cookie scoped to `/api/auth/refresh`. Phase D adds strict CSP headers only if trivial — otherwise a follow-up. |
 | Refresh reuse false positive (legitimate double-submit during a flaky network) | Single-flight `refreshPromise` on the frontend prevents concurrent refreshes from the same tab; server rotation is atomic via `find_one_and_update({revoked_at: null})` so at most one call succeeds and the other gets 401. Users experience "please log in again" in the rare multi-tab race — acceptable tradeoff for reuse detection. |
+| RTK `baseQuery` and `apiFetch` implement refresh differently | **Mitigation:** one shared module (`ensureFreshAccessToken` + 401 retry) imported by both; add a Vitest test that mocks `401` → refresh → retry for the wrapper (see [`frontend/src/api/baseApi.test.ts`](../../frontend/src/api/baseApi.test.ts)). |
 | `refresh_tokens` collection grows unbounded | TTL index on `expires_at` auto-removes expired rows; compound index `(user_id, family_id)` keeps logout O(family size). Verified in `test_refresh_repository.py`. |
 | CORS change breaks dev | `CORS_ALLOWED_ORIGINS` defaults include `http://localhost:5173`; documented. |
 | JWT secret committed | `.env.example` ships placeholder only; backend **refuses to start** when `AUTH_REQUIRED=true` and secret is empty or a known default. |
@@ -342,7 +349,7 @@ Every other route is protected. `GET /api/patients/for-chat` and `GET /api/docto
 2. Phase 2 — Auth HTTP API: signup, login, me, OpenAPI scheme
 3. Phase 3 — Protect patient surface (chat, patients, documents, suggestions)
 4. Phase 4 — Protect doctor surface + connections + route-audit test
-5. Phase 5 — Frontend: AuthProvider, Bearer, RequireAuth with returnUrl
+5. Phase 5 — Frontend: AuthProvider, Bearer, RequireAuth with returnUrl (**extends existing Redux + RTK `baseApi`**, shared 401/refresh)
 6. Phase 6 — Seeds, docs, regression, plan-vs-diff verification
 
 ---
@@ -403,17 +410,17 @@ Every other route is protected. `GET /api/patients/for-chat` and `GET /api/docto
 
 ---
 
-### Phase 5 — Frontend: AuthProvider, Bearer, RequireAuth
+### Phase 5 — Frontend: AuthProvider, Bearer, RequireAuth (on Redux + RTK Query)
 
 | | |
 |--|--|
-| **Goal** | A user logs in, reloads, and keeps working across the **whole refresh lifetime** via silent renewal; unauthenticated users are redirected with a `returnUrl`; SSE + multipart uploads keep functioning with Bearer. |
-| **Prerequisites** | Phase 2 (auth endpoints live, including `/refresh` and `/logout`); Phases 3–4 for meaningful E2E. |
-| **Scope** | [`client.ts`](../../frontend/src/api/client.ts), new `AuthContext`, pages, [`router.tsx`](../../frontend/src/router.tsx), [`RootLayout.tsx`](../../frontend/src/layouts/RootLayout.tsx). **Note:** frontend is plain `fetch` + hooks — **no RTK Query / Redux** is introduced. **Deferred:** password reset, email verify, `httpOnly` cookie delivery for refresh. |
-| **Tasks** | 1. `api/auth.ts` — `login`, `signup`, `me`, `refresh`, `logout`. `refresh` must **bypass the 401 interceptor** (pass `{ skipAuthRefresh: true }`) to avoid recursion. 2. `AuthContext`: state `{ accessToken, refreshToken, user, status }`; **memory + `sessionStorage` mirror** keyed `prescribe_access_token` and `prescribe_refresh_token`; bootstrap calls `/me` on mount if access token present, else attempts one `/refresh` if only the refresh token is present. 3. **Single-flight silent refresh**: `AuthProvider` holds a `refreshPromise` ref. `ensureFreshAccessToken()` returns the existing promise or creates a new one that calls `/refresh`, updates state + storage, and clears the ref on settle. 4. **Proactive refresh timer**: on every successful token update, schedule `ensureFreshAccessToken()` at `decodedAccess.exp * 1000 − 60_000 − Date.now()` (clamped to ≥ 0 and cancelled on logout / unmount). 5. `apiFetch` extension: attach `Authorization: Bearer <accessToken>`; on response `401`, call the registered `onUnauthorized` handler (now: `await ensureFreshAccessToken(); retry once with new token`). If the retry is still `401` or refresh rejected, clear tokens and navigate `/login?returnUrl=<current>`. Request path `/api/auth/refresh` always skips the interceptor. 6. Pages: `LoginPage` with inline validation; `SignupPage` mirrors backend policy; surfaces server `detail` on 401/409. 7. Router: add `/login`, `/signup`; wrap portal subtrees with `<RequireAuth>` that reads context and redirects. 8. Keep `IdentityProvider` but **drive role from `user.role`** when authenticated; dev role picker visible only when `ENVIRONMENT=local`. 9. Ensure doctor portal uses `user.user_id` for `doctor_id` path segments instead of the picker. 10. `logout()` → POST `/api/auth/logout` with current refresh token (fire-and-forget), cancel refresh timer, clear both `sessionStorage` keys, navigate `/login`. 11. **Cross-tab logout**: listen for `storage` events on `prescribe_refresh_token`; when it is cleared, drop local state and redirect. |
-| **Deliverables** | Working auth UX across reloads and beyond the 15-minute access window; Bearer on every request; SSE still streams; reused/stolen refresh tokens get the user kicked out automatically. |
-| **Verification** | `cd frontend && npm run build`; manual matrix: (a) log in → wait 16 minutes → any call still succeeds (silent refresh hit); (b) log in → open devtools Application → delete `prescribe_access_token` → any call still succeeds (on-401 refresh hit); (c) log in → clear both tokens → any call → 401 → redirect with `returnUrl`; (d) log in in two tabs → logout in tab A → tab B auto-kicks on next request; (e) tamper refresh token → `/refresh` → 401 → redirect. |
-| **Notes** | `sessionStorage` instead of `localStorage` limits the XSS window to the current tab and auto-clears on close. Document this decision in `frontend/CLAUDE.md`, including the explicit callout that **RTK Query is not used** — silent refresh is implemented at the `apiFetch` layer, not via a query-library interceptor. |
+| **Goal** | A user logs in, reloads, and keeps working across the **whole refresh lifetime** via silent renewal; unauthenticated users are redirected with a `returnUrl`; **RTK Query**, **`apiFetch`**, and **SSE** all send Bearer and share one refresh story. |
+| **Prerequisites** | Phase 2 (auth endpoints live, including `/refresh` and `/logout`); Phases 3–4 for meaningful E2E. **Already in repo:** Redux store + `baseApi` (see §3 Frontend baseline and [PLAN_redux-rtk-query.md](./PLAN_redux-rtk-query.md)). |
+| **Scope** | [`client.ts`](../../frontend/src/api/client.ts), [`baseApi.ts`](../../frontend/src/api/baseApi.ts), new `authApi` (or equivalent), `AuthContext`, pages, [`router.tsx`](../../frontend/src/router.tsx), [`RootLayout.tsx`](../../frontend/src/layouts/RootLayout.tsx). **Deferred:** password reset, email verify, `httpOnly` cookie delivery for refresh. |
+| **Tasks** | 1. **Headers:** extend `applyPrescribeHeaders` (or companion) with **`Authorization: Bearer`** when `AuthProvider` registers a non-empty access token; when JWT is present, **omit or ignore** dev identity headers per backend rules (see §5 identity rules — typically do not send `X-Patient-Id` / `X-Doctor-Id` for real auth). 2. **`api/auth` surface:** add **`authApi`** via `baseApi.injectEndpoints` for `login`, `signup`, `getMe`, `refresh`, `logout` — **or** thin `fetch` helpers that still use `applyPrescribeHeaders`; mark refresh/logout so the **401 wrapper does not recurse** (`meta.skipAuthRefresh` / dedicated `fetch` for refresh). 3. **`AuthContext`:** state `{ accessToken, refreshToken, user, status }`; **memory + `sessionStorage` mirror** for both tokens; on mount, `/me` if access present else one `/refresh` if only refresh present; register **access token getter** + **`ensureFreshAccessToken`** with the shared auth module used by `client` / `baseApi`. 4. **Single-flight refresh:** one module-level `refreshPromise` shared by **`apiFetch` and the RTK `baseQuery` wrapper** — `ensureFreshAccessToken()` dedupes callers. 5. **RTK `baseQuery`:** wrap existing `rawBaseQuery`; on **`401`** (and not `skipAuthRefresh`), await `ensureFreshAccessToken()`, **retry the request once** with updated headers; if refresh fails, clear tokens + navigate `/login?returnUrl=...`. 6. **`apiFetch`:** same 401 behavior as today’s plan (attach Bearer via headers helper; single-flight refresh + one retry). 7. **Proactive refresh timer** at `access.exp − 60s` as in §4.5. 8. Pages: `LoginPage`, `SignupPage`; router `/login`, `/signup`; `<RequireAuth>` on portal subtrees. 9. **`IdentityProvider`:** when authenticated, **drive role from `user.role`**; dev picker only when `ENVIRONMENT=local` + dev bypass. 10. Doctor routes: use **`user.user_id`** for `doctor_id` paths when authenticated. 11. `logout()` → POST `/api/auth/logout`, cancel timer, clear storage, navigate `/login`. 12. **Cross-tab:** `storage` event on `prescribe_refresh_token` cleared → sync logout. 13. **Cache:** on login/logout, `dispatch(baseApi.util.resetApiState())` or targeted invalidation so stale patient/doctor queries do not leak across users (tune in implementation). |
+| **Deliverables** | Working auth UX; Bearer on **RTK and non-RTK** requests; SSE still streams; refresh reuse still kicks the user out. |
+| **Verification** | `cd frontend && npm run build`; manual matrix includes **an RTK-backed page** (e.g. profile load via `useGetPatientQuery`) and **one SSE chat** after token expiry simulation — both must recover via refresh. Same cases as before: 16m wait, delete access token in storage, `returnUrl`, two-tab logout, tampered refresh. |
+| **Notes** | `sessionStorage` tradeoff unchanged (§10). Update [`frontend/CLAUDE.md`](../../frontend/CLAUDE.md): document **JWT + RTK Query** — `applyPrescribeHeaders`, **`baseQuery` 401 handling**, and that silent refresh lives in a **shared** module (not duplicated per endpoint). |
 
 ---
 

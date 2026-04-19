@@ -4,6 +4,7 @@ import {
   useAcceptConnectionMutation,
   useRejectConnectionMutation,
 } from "../../../api/connectionsApi";
+import { paths } from "../../../router/paths";
 import type { PendingRequestSummary } from "../../../types/doctor";
 import { rtkErrorMessage } from "../../../lib/rtkErrorMessage";
 import { formatRelativeShort } from "./formatRelative";
@@ -101,7 +102,7 @@ export default function PendingRequestsCard({
       )}
       <div className="mt-4">
         <Link
-          to="/doctor/connections"
+          to={paths.doctor.connections}
           className="text-sm font-medium text-teal-700 hover:text-teal-800"
         >
           View all requests →

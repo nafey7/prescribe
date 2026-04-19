@@ -22,6 +22,7 @@ if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
 from app.config import get_settings  # noqa: E402
+from app.scripts.seed_manifest import SEED_SOURCE_TAG  # noqa: E402
 from app.database.connection import close_mongodb, connect_to_mongodb, get_database  # noqa: E402
 from app.repository import patient as patient_repo  # noqa: E402
 from app.schemas.patient import (  # noqa: E402
@@ -290,6 +291,10 @@ async def main() -> None:
 
         payload = parse_patient_markdown(f, slug)
         profile = await patient_service.register_patient(db, payload)
+        await db.users.update_one(
+            {"user_id": profile.user_id},
+            {"$set": {"seed_source": SEED_SOURCE_TAG}},
+        )
         mapping.append((slug, profile.user_id))
         print(f"Seeded: {slug} → user_id={profile.user_id}")
 

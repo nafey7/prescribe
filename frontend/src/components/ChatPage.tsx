@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { Link } from "react-router-dom";
 import { usePatientContext } from "../contexts/PatientContext";
 import { useChat } from "../hooks/useChat";
+import { paths } from "../router/paths";
 import ChatInput from "./ChatInput";
 import DevIdentityBanner from "./DevIdentityBanner";
 import MessageList from "./MessageList";
@@ -13,7 +14,7 @@ export default function ChatPage() {
   const { messages, isLoading, sendMessage, clearChat } =
     useChat(currentPatientId);
 
-  const profileHref = "/profile";
+  const profileHref = paths.patient.profile;
 
   const handlePatientChange = useCallback(
     (id: string) => setCurrentPatientId(id),
@@ -63,7 +64,7 @@ export default function ChatPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              to="/"
+              to={paths.patient.root}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               Patient portal

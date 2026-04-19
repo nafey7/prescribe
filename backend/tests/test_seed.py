@@ -1,5 +1,6 @@
-"""Smoke tests for the Phase A seed script."""
+"""Smoke tests for the development seed script."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -7,46 +8,48 @@ import pytest
 import seed
 
 
-@pytest.mark.asyncio
-async def test_seed_runs_when_collections_empty():
-    """Inserts each collection once when count_documents is 0."""
+def test_seed_upserts_all_collections():
+    """Calls replace_one(upsert) for users, connections, prescriptions, documents."""
 
-    insert_many_calls: list[tuple[str, list]] = []
+    replace_calls: list[tuple[str, dict]] = []
 
     def make_coll(name: str) -> AsyncMock:
         coll = AsyncMock()
-        coll.count_documents = AsyncMock(return_value=0)
 
-        async def insert_many(docs: list) -> None:
-            insert_many_calls.append((name, docs))
+        async def replace_one(filter_q: dict, doc: dict, upsert: bool = False):
+            assert upsert is True
+            replace_calls.append((name, doc))
+            mock_result = MagicMock()
+            mock_result.upserted_id = None
+            return mock_result
 
-        coll.insert_many = insert_many
+        coll.replace_one = replace_one
         return coll
 
+    collections: dict[str, AsyncMock] = {}
+
+    class FakeDB:
+        def __getattr__(self, name: str) -> AsyncMock:
+            if name not in collections:
+                collections[name] = make_coll(name)
+            return collections[name]
+
     client = MagicMock()
-    db = MagicMock()
-    client.__getitem__ = lambda self, _: db  # noqa: ARG005
-
-    def get_coll(name: str) -> AsyncMock:
-        return make_coll(name)
-
-    db.__getitem__ = lambda self, name: get_coll(name)  # noqa: ARG005
+    client.__getitem__ = lambda self, _: FakeDB()  # noqa: ARG005
 
     with patch("seed.AsyncIOMotorClient", return_value=client):
         with patch("seed.get_settings") as gs:
             gs.return_value = MagicMock(MONGODB_URI="mongodb://localhost", DATABASE_NAME="t")
-            await seed.seed()
+            asyncio.run(seed.seed())
 
-    names = [n for n, _ in insert_many_calls]
-    assert "users" in names
-    assert "patient_profiles" in names
-    assert "doctor_profiles" in names
-    assert "doctor_patient_links" in names
-    assert "prescriptions" in names
-    assert "patient_documents" in names
+    names = [n for n, _ in replace_calls]
+    assert names.count("users") == len(seed.SEED_USERS)
+    assert names.count("connections") == len(seed.SEED_CONNECTIONS)
+    assert names.count("prescriptions") == len(seed.SEED_PRESCRIPTIONS)
+    assert names.count("patient_documents") == len(seed.SEED_PATIENT_DOCUMENTS)
 
 
 def test_seed_user_constants_have_expected_roles():
-    roles = {u["role"] for u in seed.USERS}
-    assert len(seed.USERS) >= 3
-    assert roles == {seed.UserRole.PATIENT, seed.UserRole.DOCTOR, seed.UserRole.ADMIN}
+    roles = {u["role"] for u in seed.SEED_USERS}
+    assert len(seed.SEED_USERS) >= 3
+    assert roles == {seed.UserRole.PATIENT.value, seed.UserRole.DOCTOR.value, seed.UserRole.ADMIN.value}

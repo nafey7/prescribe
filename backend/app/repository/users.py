@@ -12,6 +12,8 @@ async def create_user(db: AsyncIOMotorDatabase, payload: UserCreate) -> dict:
     doc = UserDocument(
         role=payload.role,
         email=payload.email,
+        first_name=payload.first_name,
+        last_name=payload.last_name,
         phone=payload.phone,
     )
     data = doc.model_dump()
@@ -74,3 +76,24 @@ async def mark_profile_completed(
     db: AsyncIOMotorDatabase, user_id: str
 ) -> dict | None:
     return await update_user(db, user_id, {"profile_completed": True})
+
+
+async def set_password_hash(
+    db: AsyncIOMotorDatabase, user_id: str, password_hash: str
+) -> dict | None:
+    return await update_user(db, user_id, {"password_hash": password_hash})
+
+
+async def bump_token_version(db: AsyncIOMotorDatabase, user_id: str) -> dict | None:
+    merged = {"updated_at": utcnow()}
+    result = await db.users.find_one_and_update(
+        {"user_id": user_id},
+        {"$inc": {"token_version": 1}, "$set": merged},
+        return_document=ReturnDocument.AFTER,
+        projection=_USER_PUBLIC_PROJECTION,
+    )
+    return result
+
+
+async def touch_last_login(db: AsyncIOMotorDatabase, user_id: str) -> dict | None:
+    return await update_user(db, user_id, {"last_login_at": utcnow()})

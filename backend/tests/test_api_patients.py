@@ -108,6 +108,7 @@ def test_create_patient_success(client):
         emergency_contact=None,
         allergies=[],
         conditions=[],
+        medications=[],
         family_history=[],
         lifestyle=None,
         created_at="2026-01-01T00:00:00",

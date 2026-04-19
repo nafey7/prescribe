@@ -6,6 +6,7 @@ import {
   X,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { paths } from "../../router/paths";
 
 export type DoctorNavItem = {
   path: string;
@@ -16,14 +17,19 @@ export type DoctorNavItem = {
 };
 
 const defaultDoctorNavItems: DoctorNavItem[] = [
-  { path: "/doctor", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { path: "/doctor/patients", label: "My Patients", icon: Users },
   {
-    path: "/doctor/connections",
+    path: paths.doctor.root,
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    end: true,
+  },
+  { path: paths.doctor.patients, label: "My Patients", icon: Users },
+  {
+    path: paths.doctor.connections,
     label: "Connections",
     icon: Link2,
   },
-  { path: "/doctor/profile", label: "My Profile", icon: UserCircle },
+  { path: paths.doctor.profile, label: "My Profile", icon: UserCircle },
 ];
 
 function linkClass(active: boolean): string {

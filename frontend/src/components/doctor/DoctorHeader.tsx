@@ -1,12 +1,15 @@
 import { Menu } from "lucide-react";
 import { useMemo } from "react";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import { useIdentity } from "../../contexts/IdentityContext";
+import { paths } from "../../router/paths";
 
 function titleFromPath(pathname: string): string {
-  if (pathname === "/doctor" || pathname === "/doctor/") return "Dashboard";
-  if (pathname.startsWith("/doctor/profile")) return "My Profile";
-  if (pathname.startsWith("/doctor/connections")) return "Connections";
+  const dr = paths.doctor.root;
+  if (pathname === dr || pathname === `${dr}/`) return "Dashboard";
+  if (pathname.startsWith(paths.doctor.profile)) return "My Profile";
+  if (pathname.startsWith(paths.doctor.connections)) return "Connections";
 
   const parts = pathname.split("/").filter(Boolean);
   if (parts.length === 2 && parts[0] === "doctor" && parts[1] === "patients") {
@@ -24,6 +27,7 @@ function titleFromPath(pathname: string): string {
 
 export default function DoctorHeader({ onMenuClick }: { onMenuClick?: () => void }) {
   const location = useLocation();
+  const { logout, status } = useAuth();
   const { currentDoctor } = useIdentity();
 
   const displayName = useMemo(() => {
@@ -69,6 +73,15 @@ export default function DoctorHeader({ onMenuClick }: { onMenuClick?: () => void
         </h2>
 
         <div className="flex shrink-0 items-center gap-2">
+          {status === "authenticated" ? (
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Log out
+            </button>
+          ) : null}
           <button
             type="button"
             className="hidden rounded-full border border-gray-200 p-2 text-gray-400 sm:inline-flex"

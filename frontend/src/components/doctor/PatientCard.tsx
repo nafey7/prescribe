@@ -1,5 +1,6 @@
 import { ChevronRight, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
+import { paths } from "../../router/paths";
 import type { ConnectedPatientSummary } from "../../types/doctor";
 
 function initials(p: ConnectedPatientSummary): string {
@@ -56,7 +57,9 @@ export default function PatientCard({ patient }: { patient: ConnectedPatientSumm
 
   return (
     <Link
-      to={`/doctor/patients/${encodeURIComponent(patient.patient_id)}`}
+      to={paths.doctor.patientDetail(
+        encodeURIComponent(patient.patient_id)
+      )}
       className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:border-teal-200 hover:shadow-md"
     >
       <div className="flex gap-3">

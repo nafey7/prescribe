@@ -12,6 +12,8 @@ from app.ai.prompts import build_system_prompt
 from app.config import get_settings
 from app.repository import chat as chat_repo
 from app.repository import doctor as doctor_repo
+from app.repository import patient as patient_repo
+from app.repository import patients as patients_repo
 from app.repository.patient import find_patient_by_id_or_slug
 from app.schemas.chat import (
     ChatHistoryResponse,
@@ -219,10 +221,40 @@ def _filesystem_patients() -> list[PatientInfo]:
     return patients
 
 
+async def list_patients_for_self(
+    db: AsyncIOMotorDatabase, user_id: str
+) -> list[PatientInfo]:
+    """Single entry for the authenticated patient (legacy or Phase A profile)."""
+    legacy = await patient_repo.get_patient(db, user_id)
+    if legacy:
+        profile = document_to_profile_response(legacy)
+        slug = profile.patient_slug or profile.user_id
+        name = f"{profile.first_name} {profile.last_name}".strip() or slug
+        return [
+            PatientInfo(
+                id=slug,
+                name=name,
+                file=f"patient_{slug}.md",
+                user_id=profile.user_id,
+            )
+        ]
+    phase = await patients_repo.get_profile_by_user_id(db, user_id)
+    if phase:
+        pid = phase["patient_id"]
+        name = (phase.get("full_name") or "").strip() or pid
+        return [
+            PatientInfo(
+                id=pid,
+                name=name,
+                file=f"patient_{pid}.md",
+                user_id=user_id,
+            )
+        ]
+    return []
+
+
 async def list_patients(db: AsyncIOMotorDatabase) -> list[PatientInfo]:
     """Prefer MongoDB patient users; fall back to Markdown files if none."""
-    from app.repository import patient as patient_repo
-
     items, _ = await patient_repo.list_patients(db, skip=0, limit=500)
     if not items:
         return _filesystem_patients()

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
 from app.api.config import router as config_router
 from app.api.connections import router as connections_router
@@ -11,6 +12,7 @@ from app.api.patients import router as patients_router
 from app.api.suggestions import router as suggestions_router
 
 api_router = APIRouter()
+api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(chat_router, prefix="/chat", tags=["chat"])
 api_router.include_router(patients_router, prefix="/patients", tags=["patients"])
 api_router.include_router(doctors_router, prefix="/doctors", tags=["doctors"])

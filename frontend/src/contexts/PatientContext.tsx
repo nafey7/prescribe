@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { registerPatientIdGetter } from "../api/client";
+import { useAuth } from "./AuthContext";
 import {
   useLazyGetPatientsForChatQuery,
   useLazyListPatientsQuery,
@@ -60,6 +61,7 @@ function mapProfilesToPatients(
 }
 
 export function PatientProvider({ children }: { children: ReactNode }) {
+  const { user, status } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,12 +72,25 @@ export function PatientProvider({ children }: { children: ReactNode }) {
   const [triggerList] = useLazyListPatientsQuery();
   const [triggerForChat] = useLazyGetPatientsForChatQuery();
 
-  registerPatientIdGetter(() => currentPatientId);
+  useEffect(() => {
+    registerPatientIdGetter(() => currentPatientId);
+  }, [currentPatientId]);
 
   const setCurrentPatientId = useCallback((id: string) => {
     setCurrentPatientIdState(id);
     persistPatientId(id);
   }, []);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !user || user.role !== "patient") {
+      return;
+    }
+    const id = user.patient_slug ?? user.user_id;
+    if (id) {
+      setCurrentPatientIdState(id);
+      persistPatientId(id);
+    }
+  }, [status, user]);
 
   const refreshPatients = useCallback(async () => {
     setIsLoading(true);

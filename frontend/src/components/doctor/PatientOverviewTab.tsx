@@ -7,6 +7,7 @@ import MedicalTimeline from "../dashboard/MedicalTimeline";
 import MedicationsTable from "../dashboard/MedicationsTable";
 import PatientSummaryCard from "../dashboard/PatientSummaryCard";
 import RecentDocumentsCard from "../dashboard/RecentDocumentsCard";
+import { paths } from "../../router/paths";
 import type { MedicalHistory } from "../../types/patient";
 
 interface Props {
@@ -15,7 +16,9 @@ interface Props {
 }
 
 export default function PatientOverviewTab({ data, patientId }: Props) {
-  const docsBase = `/doctor/patients/${encodeURIComponent(patientId)}/documents`;
+  const docsBase = paths.doctor.patientDocuments(
+    encodeURIComponent(patientId)
+  );
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">

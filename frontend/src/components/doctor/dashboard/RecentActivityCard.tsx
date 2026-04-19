@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { paths } from "../../../router/paths";
 import type { RecentActivityItem } from "../../../types/doctor";
 import ActivityItem from "./ActivityItem";
 
@@ -26,7 +27,7 @@ export default function RecentActivityCard({
       )}
       <div className="mt-4">
         <Link
-          to="/doctor/patients"
+          to={paths.doctor.patients}
           className="text-sm font-medium text-teal-700 hover:text-teal-800"
         >
           View more →

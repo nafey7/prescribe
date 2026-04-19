@@ -3,13 +3,14 @@ import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { getConnectedPatientProfile } from "../../api/doctors";
 import { useIdentity } from "../../contexts/IdentityContext";
+import { paths } from "../../router/paths";
 
 /**
  * Sub-navigation when viewing a specific patient under `/doctor/patients/:patientId/*`.
  */
 export default function PatientContextBar({ patientId }: { patientId: string }) {
   const { currentDoctorId } = useIdentity();
-  const base = `/doctor/patients/${encodeURIComponent(patientId)}`;
+  const base = paths.doctor.patientDetail(encodeURIComponent(patientId));
   const [displayName, setDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,7 +50,7 @@ export default function PatientContextBar({ patientId }: { patientId: string }) 
       <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <NavLink
-            to="/doctor/patients"
+            to={paths.doctor.patients}
             className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-teal-900 hover:text-teal-700"
           >
             <ArrowLeft size={16} aria-hidden />

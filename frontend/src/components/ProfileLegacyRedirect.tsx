@@ -1,9 +1,10 @@
 import { useLayoutEffect, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { usePatientContext } from "../contexts/PatientContext";
+import { paths } from "../router/paths";
 
 /**
- * Old bookmarks used `/profile/:userId`. Sync selection from URL then land on `/profile`.
+ * Old bookmarks used `/profile/:userId`. Sync selection from URL then land on the patient profile route.
  */
 export default function ProfileLegacyRedirect() {
   const { userId } = useParams<{ userId: string }>();
@@ -27,5 +28,5 @@ export default function ProfileLegacyRedirect() {
     );
   }
 
-  return <Navigate to="/profile" replace />;
+  return <Navigate to={paths.patient.profile} replace />;
 }

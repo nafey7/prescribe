@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { paths } from "../../../router/paths";
 import type { DashboardStats } from "../../../types/doctor";
 
 export default function DashboardStatCards({
@@ -29,7 +30,7 @@ export default function DashboardStatCards({
           {stats.connected_patients}
         </p>
         <Link
-          to="/doctor/patients"
+          to={paths.doctor.patients}
           className="mt-3 inline-block text-sm font-medium text-teal-700 hover:text-teal-800"
         >
           View all →
@@ -43,7 +44,7 @@ export default function DashboardStatCards({
           {stats.pending_requests}
         </p>
         <Link
-          to="/doctor/connections"
+          to={paths.doctor.connections}
           className="mt-3 inline-block text-sm font-medium text-teal-700 hover:text-teal-800"
         >
           Review →
