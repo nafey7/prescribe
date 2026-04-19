@@ -1,8 +1,5 @@
 import { apiFetch, getApiBase } from "./client";
 import type {
-  DocumentListResponse,
-  DocumentMetadata,
-  DocumentUpdateRequest,
   DocumentUploadResponse,
 } from "../types/document";
 
@@ -77,52 +74,6 @@ export async function uploadDocument(
     xhr.onerror = () => reject(new Error("Network error"));
     xhr.send(formData);
   });
-}
-
-export async function listDocuments(
-  patientId: string,
-  options?: { category?: string; page?: number; pageSize?: number }
-): Promise<DocumentListResponse> {
-  const q = new URLSearchParams();
-  if (options?.category && options.category !== "all") {
-    q.set("category", options.category);
-  }
-  if (options?.page != null) q.set("page", String(options.page));
-  if (options?.pageSize != null) q.set("page_size", String(options.pageSize));
-  const qs = q.toString();
-  const path = `/patients/${encodeURIComponent(patientId)}/documents${qs ? `?${qs}` : ""}`;
-  const res = await apiFetch(path);
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<DocumentListResponse>;
-}
-
-export async function deleteDocument(
-  patientId: string,
-  documentId: string
-): Promise<void> {
-  const res = await apiFetch(
-    `/patients/${encodeURIComponent(patientId)}/documents/${encodeURIComponent(documentId)}`,
-    { method: "DELETE" }
-  );
-  if (!res.ok && res.status !== 204) {
-    throw new Error(await parseError(res));
-  }
-}
-
-export async function updateDocumentMetadata(
-  patientId: string,
-  documentId: string,
-  data: DocumentUpdateRequest
-): Promise<DocumentMetadata> {
-  const res = await apiFetch(
-    `/patients/${encodeURIComponent(patientId)}/documents/${encodeURIComponent(documentId)}`,
-    {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }
-  );
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<DocumentMetadata>;
 }
 
 export async function fetchDocumentBlob(

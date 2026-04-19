@@ -5,8 +5,12 @@ import DoctorCredentialsForm from "../../components/doctor/profile/DoctorCredent
 import DoctorEducationEditor from "../../components/doctor/profile/DoctorEducationEditor";
 import DoctorInstitutionForm from "../../components/doctor/profile/DoctorInstitutionForm";
 import DoctorProfessionalForm from "../../components/doctor/profile/DoctorProfessionalForm";
+import {
+  useGetDoctorQuery,
+  useUpdateDoctorMutation,
+} from "../../api/doctorsApi";
 import { useIdentity } from "../../contexts/IdentityContext";
-import { getDoctor, updateDoctor } from "../../api/doctors";
+import { rtkErrorMessage } from "../../lib/rtkErrorMessage";
 import type { DoctorProfile, DoctorUpdateRequest, Education, OfficeAddress } from "../../types/doctor";
 
 function emptyOffice(): OfficeAddress {
@@ -116,33 +120,30 @@ function Section({
 
 export default function DoctorProfilePage() {
   const { currentDoctorId, refreshDoctors } = useIdentity();
-  const [profile, setProfile] = useState<DoctorProfile | null>(null);
+
+  const {
+    data: profile,
+    isLoading: loading,
+    error: loadError,
+    isError: loadFailed,
+  } = useGetDoctorQuery(currentDoctorId ?? "", { skip: !currentDoctorId });
+
+  const [updateDoctorMut, { isLoading: saving }] = useUpdateDoctorMutation();
+
   const [draft, setDraft] = useState<Draft | null>(null);
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!currentDoctorId) return;
-    setLoading(true);
+  useEffect(() => {
+    setEditing(false);
     setError(null);
-    try {
-      const p = await getDoctor(currentDoctorId);
-      setProfile(p);
-      setDraft(profileToDraft(p));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load profile");
-      setProfile(null);
-      setDraft(null);
-    } finally {
-      setLoading(false);
-    }
   }, [currentDoctorId]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (profile && !editing) {
+      setDraft(profileToDraft(profile));
+    }
+  }, [profile, editing]);
 
   const patchDraft = useCallback((patch: Partial<Draft>) => {
     setDraft((d) => (d ? { ...d, ...patch } : d));
@@ -176,20 +177,21 @@ export default function DoctorProfilePage() {
       setError("Please enter first name, last name, specialization, and a valid email.");
       return;
     }
-    setSaving(true);
     setError(null);
     try {
-      const updated = await updateDoctor(currentDoctorId, draftToUpdate(draft));
-      setProfile(updated);
-      setDraft(profileToDraft(updated));
+      await updateDoctorMut({
+        doctorId: currentDoctorId,
+        body: draftToUpdate(draft),
+      }).unwrap();
       setEditing(false);
       await refreshDoctors();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
-    } finally {
-      setSaving(false);
+      setError(rtkErrorMessage(e));
     }
   };
+
+  const loadErrorMessage =
+    loadFailed && loadError ? rtkErrorMessage(loadError) : null;
 
   const displayName = useMemo(() => {
     if (!profile) return "";
@@ -219,7 +221,8 @@ export default function DoctorProfilePage() {
     return (
       <div className="mx-auto max-w-3xl p-6">
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {error || "Profile not found. Seed doctors or create one via the API."}
+          {loadErrorMessage ||
+            "Profile not found. Seed doctors or create one via the API."}
         </div>
       </div>
     );

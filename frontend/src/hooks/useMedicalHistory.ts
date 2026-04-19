@@ -1,29 +1,22 @@
-import { useEffect, useState } from "react";
-import { getMedicalHistory } from "../api/patients";
+import { useGetMedicalHistoryQuery } from "../api/patientsApi";
 import { usePatientContext } from "../contexts/PatientContext";
+import { rtkErrorMessage } from "../lib/rtkErrorMessage";
 import type { MedicalHistory } from "../types/patient";
 
-export function useMedicalHistory() {
+export function useMedicalHistory(): {
+  data: MedicalHistory | null;
+  isLoading: boolean;
+  error: string | null;
+} {
   const { currentPatientId } = usePatientContext();
-  const [data, setData] = useState<MedicalHistory | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading, error } = useGetMedicalHistoryQuery(
+    currentPatientId,
+    { skip: !currentPatientId }
+  );
 
-  useEffect(() => {
-    if (!currentPatientId) {
-      setData(null);
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    getMedicalHistory(currentPatientId)
-      .then(setData)
-      .catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : "Failed to load dashboard")
-      )
-      .finally(() => setIsLoading(false));
-  }, [currentPatientId]);
-
-  return { data, isLoading, error };
+  return {
+    data: data ?? null,
+    isLoading: !!currentPatientId && isLoading,
+    error: error ? rtkErrorMessage(error) : null,
+  };
 }

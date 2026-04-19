@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sendMessageStream } from "../api/chat";
+import { sendMessageStream } from "../api/chatStream";
+import { baseApi } from "../api/baseApi";
+import { useAppDispatch } from "../store/hooks";
 import type { Message } from "../types/chat";
 
 export function useChat(patientId: string) {
+  const dispatch = useAppDispatch();
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatId, setChatId] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
@@ -90,6 +93,9 @@ export function useChat(patientId: string) {
             }
             flushTokenBuffer();
             setChatId(newChatId);
+            dispatch(
+              baseApi.util.invalidateTags([{ type: "Chat", id: newChatId }])
+            );
             updateLast((msg) => ({
               ...msg,
               messageId,
@@ -131,7 +137,7 @@ export function useChat(patientId: string) {
         setIsLoading(false);
       }
     },
-    [patientId, chatId, isLoading]
+    [chatId, isLoading, dispatch]
   );
 
   const clearChat = useCallback(() => {

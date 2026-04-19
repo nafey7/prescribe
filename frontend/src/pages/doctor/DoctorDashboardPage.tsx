@@ -20,7 +20,7 @@ function DashboardSkeleton() {
 
 export default function DoctorDashboardPage() {
   const { currentDoctorId } = useIdentity();
-  const { data, isLoading, error, refresh } = useDoctorDashboard();
+  const { data, isLoading, error } = useDoctorDashboard();
 
   if (!currentDoctorId) {
     return (
@@ -53,10 +53,7 @@ export default function DoctorDashboardPage() {
           <DoctorWelcomeBanner data={data} />
           <DashboardStatCards stats={data?.stats} />
           <div className="grid gap-6 lg:grid-cols-1">
-            <PendingRequestsCard
-              items={data?.pending_requests ?? []}
-              onAfterAction={refresh}
-            />
+            <PendingRequestsCard items={data?.pending_requests ?? []} />
             <RecentPatientsCard patients={data?.recent_patients ?? []} />
             <RecentActivityCard items={data?.recent_activity ?? []} />
           </div>

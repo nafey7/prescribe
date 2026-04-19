@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { acceptConnection, rejectConnection } from "../../../api/connections";
+import {
+  useAcceptConnectionMutation,
+  useRejectConnectionMutation,
+} from "../../../api/connectionsApi";
 import type { PendingRequestSummary } from "../../../types/doctor";
+import { rtkErrorMessage } from "../../../lib/rtkErrorMessage";
 import { formatRelativeShort } from "./formatRelative";
 
 export default function PendingRequestsCard({
@@ -9,19 +13,22 @@ export default function PendingRequestsCard({
   onAfterAction,
 }: {
   items: PendingRequestSummary[];
-  onAfterAction: () => void;
+  /** Optional; cache invalidation usually refreshes the dashboard. */
+  onAfterAction?: () => void;
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [acceptConnection] = useAcceptConnectionMutation();
+  const [rejectConnection] = useRejectConnectionMutation();
 
   async function handleAccept(id: string) {
     setLocalError(null);
     setBusyId(id);
     try {
-      await acceptConnection(id);
-      onAfterAction();
+      await acceptConnection(id).unwrap();
+      onAfterAction?.();
     } catch (e) {
-      setLocalError(e instanceof Error ? e.message : "Could not accept");
+      setLocalError(rtkErrorMessage(e));
     } finally {
       setBusyId(null);
     }
@@ -31,10 +38,10 @@ export default function PendingRequestsCard({
     setLocalError(null);
     setBusyId(id);
     try {
-      await rejectConnection(id);
-      onAfterAction();
+      await rejectConnection(id).unwrap();
+      onAfterAction?.();
     } catch (e) {
-      setLocalError(e instanceof Error ? e.message : "Could not reject");
+      setLocalError(rtkErrorMessage(e));
     } finally {
       setBusyId(null);
     }

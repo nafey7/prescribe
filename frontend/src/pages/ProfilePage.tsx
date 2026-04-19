@@ -1,7 +1,11 @@
 import { Loader2, Pencil, Save, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useGetPatientQuery,
+  useUpdatePatientMutation,
+} from "../api/patientsApi";
 import { usePatientContext } from "../contexts/PatientContext";
-import { getPatient, updatePatient } from "../api/patients";
+import { rtkErrorMessage } from "../lib/rtkErrorMessage";
 import AllergiesEditor from "../components/patient/AllergiesEditor";
 import ConditionsEditor from "../components/patient/ConditionsEditor";
 import EmergencyContactForm from "../components/patient/EmergencyContactForm";
@@ -114,33 +118,30 @@ export default function ProfilePage() {
     const p = patients.find((x) => x.id === currentPatientId);
     return p?.user_id || currentPatientId;
   }, [patients, currentPatientId]);
-  const [profile, setProfile] = useState<PatientProfile | null>(null);
+
+  const {
+    data: profile,
+    isLoading: loading,
+    error: loadError,
+    isError: loadFailed,
+  } = useGetPatientQuery(userId, { skip: !userId });
+
+  const [updatePatientMut, { isLoading: saving }] = useUpdatePatientMutation();
+
   const [draft, setDraft] = useState<Draft | null>(null);
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!userId) return;
-    setLoading(true);
+  useEffect(() => {
+    setEditing(false);
     setError(null);
-    try {
-      const p = await getPatient(userId);
-      setProfile(p);
-      setDraft(profileToDraft(p));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load profile");
-      setProfile(null);
-      setDraft(null);
-    } finally {
-      setLoading(false);
-    }
   }, [userId]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (profile && !editing) {
+      setDraft(profileToDraft(profile));
+    }
+  }, [profile, editing]);
 
   const patchDraft = useCallback((patch: Partial<Draft>) => {
     setDraft((d) => (d ? { ...d, ...patch } : d));
@@ -169,19 +170,20 @@ export default function ProfilePage() {
       setError("Please enter first name, last name, and a valid email.");
       return;
     }
-    setSaving(true);
     setError(null);
     try {
-      const updated = await updatePatient(userId, draftToUpdate(draft));
-      setProfile(updated);
-      setDraft(profileToDraft(updated));
+      await updatePatientMut({
+        patientId: userId,
+        body: draftToUpdate(draft),
+      }).unwrap();
       setEditing(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
-    } finally {
-      setSaving(false);
+      setError(rtkErrorMessage(e));
     }
   };
+
+  const loadErrorMessage =
+    loadFailed && loadError ? rtkErrorMessage(loadError) : null;
 
   if (!userId) {
     return (
@@ -202,7 +204,7 @@ export default function ProfilePage() {
   if (!profile || !draft) {
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-        {error || "Profile not found."}
+        {loadErrorMessage || "Profile not found."}
       </div>
     );
   }
