@@ -7,13 +7,16 @@ System design and data flow for `prescribe-v2`. This is the canonical reference 
 ```
 ┌──────────────────────────────────────────────┐
 │  Browser — React + Vite (port 5173)          │
+│  AuthProvider → applyPrescribeHeaders        │
 │  ChatPage → MessageList + ChatInput          │
 └───────────────────┬──────────────────────────┘
+                    │ Authorization: Bearer (Phase D)
                     │ POST /api/chat/message/stream (SSE)
                     │ POST /api/chat/message (JSON)
                     ▼
 ┌──────────────────────────────────────────────┐
 │  FastAPI (port 8000)                         │
+│  dependencies: decode JWT → CurrentUser      │
 │  api/chat.py → service/chat.py → ai/graph.py│
 │       │                │                     │
 │       ▼                ▼                     │
@@ -26,20 +29,21 @@ Three Docker Compose services: `frontend`, `backend`, `mongodb`.
 ## Request flow (non-streaming)
 
 1. User sends a message via the chat UI
-2. Frontend `POST /api/chat/message` with JSON `{ message, chat_id? }` and header `X-Patient-Id` (dev identity)
-3. `api/chat.py` validates the request via `ChatRequest` Pydantic model
-4. `service/chat.py` `process_message()`:
+2. Frontend `POST /api/chat/message` with JSON `{ message, chat_id? }`. **`Authorization: Bearer <access>`** is attached for authenticated patients (via `applyPrescribeHeaders` in `frontend/src/api/client.ts`). By default **`AUTH_REQUIRED=true`**. Only when `AUTH_REQUIRED=false` in `local`/`test`, **`X-Patient-Id`** may still be used as a legacy dev identity (no JWT).
+3. FastAPI `dependencies.resolve_actor_user` / `resolve_patient_chat_patient_id` decode and validate the access JWT (signature, `exp`, `iss`, `typ`, `tv` vs `users.token_version`), map the patient principal to the chat `patient_id`, and return **401/403** on failure or tenant mismatch.
+4. `api/chat.py` validates the request via `ChatRequest` Pydantic model
+5. `service/chat.py` `process_message()`:
    - Creates or retrieves the chat session (UUID-based `chat_id`)
    - Saves the user message to MongoDB via `repository/chat.py`
    - Invokes `ai/graph.py` `invoke_medical_agent()` with the message, patient ID, and chat ID
-5. LangGraph agent loop runs (see below)
-6. AI response is saved to MongoDB
-7. Returns `ChatResponse { message, chat_id, message_id }`
-8. Frontend renders the response with Markdown formatting
+6. LangGraph agent loop runs (see below)
+7. AI response is saved to MongoDB
+8. Returns `ChatResponse { message, chat_id, message_id }`
+9. Frontend renders the response with Markdown formatting
 
 ## Request flow (streaming)
 
-1. Frontend `POST /api/chat/message/stream` with the same JSON body and `X-Patient-Id` header
+1. Frontend `POST /api/chat/message/stream` with the same JSON body and the same auth headers as non-streaming (Bearer when logged in; legacy `X-Patient-Id` only in dev bypass mode).
 2. Returns `text/event-stream` (SSE)
 3. `service/chat.py` `process_message_stream()`:
    - Same session/message setup as non-streaming
@@ -83,6 +87,8 @@ _should_continue?
 
 | Collection | Purpose | Key fields |
 |------------|---------|-----------|
+| `users` | Accounts | `user_id`, `email`, `role`, `password_hash`, `token_version`, … |
+| `refresh_tokens` | Rotating refresh JWT ledger | `jti`, `user_id`, `family_id`, `expires_at`, `revoked_at`, … |
 | `chat_sessions` | One doc per conversation | `chat_id`, `patient_id`, `created_at`, `updated_at` |
 | `chat_messages` | One doc per message | `message_id`, `chat_id`, `patient_id`, `role`, `content`, `timestamp` |
 | `checkpoints` (LangGraph) | Graph state checkpoints | Managed by `MongoDBSaver` |
@@ -106,6 +112,7 @@ Files are scanned at request time — no restart needed to pick up new patients.
 | Layer | Key packages |
 |-------|-------------|
 | Backend web | FastAPI, Uvicorn, Pydantic, pydantic-settings |
+| Backend auth | PyJWT, passlib/bcrypt (Phase D) |
 | Backend DB | Motor (async MongoDB), PyMongo |
 | Backend AI | LangGraph, LangChain, langchain-google-genai, langchain-openai |
 | Frontend UI | React 18, Vite 6, TypeScript 5, Tailwind CSS 3 |

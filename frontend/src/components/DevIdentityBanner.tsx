@@ -1,13 +1,18 @@
 import { ChevronDown, ShieldAlert, Stethoscope, UserRound } from "lucide-react";
 import PatientSelector from "./PatientSelector";
+import { useAuth } from "../contexts/AuthContext";
+import { useFeatureFlags } from "../contexts/FeatureFlagContext";
 import { useIdentity } from "../contexts/IdentityContext";
 import { usePatientContext } from "../contexts/PatientContext";
 import type { DoctorInfo } from "../types/doctor";
 
 /**
- * Sticky dev-only bar: role switch + acting-as identity. Stripped in production builds.
+ * Sticky dev-only bar: role switch + acting-as identity when the backend allows
+ * header bypass and no JWT session. Stripped in production builds.
  */
 export default function DevIdentityBanner() {
+  const { user } = useAuth();
+  const { authRelaxed } = useFeatureFlags();
   const {
     currentRole,
     setCurrentRole,
@@ -20,7 +25,7 @@ export default function DevIdentityBanner() {
   } = useIdentity();
   const { currentPatientId, setCurrentPatientId } = usePatientContext();
 
-  if (!import.meta.env.DEV) {
+  if (!import.meta.env.DEV || !authRelaxed || user) {
     return null;
   }
 

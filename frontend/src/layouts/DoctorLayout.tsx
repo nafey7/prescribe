@@ -5,10 +5,14 @@ import DoctorHeader from "../components/doctor/DoctorHeader";
 import DoctorSidebar from "../components/doctor/DoctorSidebar";
 import PatientContextBar from "../components/doctor/PatientContextBar";
 import Footer from "../components/Footer";
+import { paths } from "../router/paths";
 
 export default function DoctorLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const patientMatch = useMatch({ path: "/doctor/patients/:patientId", end: false });
+  const patientMatch = useMatch({
+    path: `${paths.doctor.patients}/:patientId`,
+    end: false,
+  });
   const patientId = patientMatch?.params.patientId;
 
   return (

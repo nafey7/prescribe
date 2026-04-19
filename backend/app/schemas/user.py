@@ -12,8 +12,11 @@ class UserDocument(BaseModel):
     user_id: str = Field(default_factory=user_id)
     role: UserRole
     email: EmailStr
+    first_name: str | None = None
+    last_name: str | None = None
     phone: str | None = None
     password_hash: str | None = None
+    token_version: int = 0
     status: UserStatus = UserStatus.ACTIVE
     email_verified: bool = False
     profile_completed: bool = False
@@ -27,6 +30,8 @@ class UserCreate(BaseModel):
 
     role: UserRole
     email: EmailStr
+    first_name: str | None = None
+    last_name: str | None = None
     phone: str | None = None
 
 
@@ -36,7 +41,10 @@ class UserRead(BaseModel):
     user_id: str
     role: UserRole
     email: str
+    first_name: str | None = None
+    last_name: str | None = None
     phone: str | None = None
+    token_version: int = 0
     status: UserStatus
     email_verified: bool
     profile_completed: bool

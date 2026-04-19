@@ -1,8 +1,9 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
+from app.api.dependencies import ensure_doctor_route, resolve_actor_user
 from app.database.connection import get_database
 from app.schemas.chat import (
     ChatHistoryResponse,
@@ -13,6 +14,7 @@ from app.schemas.chat import (
 from app.service import chat as chat_service
 from app.service import connection as connection_service
 from app.service import doctor_chat as doctor_chat_service
+from app.service.auth import CurrentUser
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,9 @@ async def doctor_send_message(
     doctor_id: str,
     patient_id: str,
     request: ChatRequest,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ) -> ChatResponse:
+    ensure_doctor_route(actor, doctor_id)
     db = get_database()
     try:
         return await doctor_chat_service.process_doctor_message(
@@ -48,7 +52,9 @@ async def doctor_send_message_stream(
     doctor_id: str,
     patient_id: str,
     request: ChatRequest,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ):
+    ensure_doctor_route(actor, doctor_id)
     db = get_database()
     await connection_service.verify_connection(db, doctor_id, patient_id)
     return StreamingResponse(
@@ -74,7 +80,9 @@ async def doctor_send_message_stream(
 async def doctor_list_patient_sessions(
     doctor_id: str,
     patient_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ) -> list[ChatSessionSummary]:
+    ensure_doctor_route(actor, doctor_id)
     db = get_database()
     return await doctor_chat_service.list_doctor_patient_sessions(
         db, doctor_id, patient_id
@@ -90,7 +98,9 @@ async def doctor_list_all_sessions(
     patient_id: str | None = Query(
         None, description="Optional filter to one connected patient"
     ),
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ) -> list[ChatSessionSummary]:
+    ensure_doctor_route(actor, doctor_id)
     db = get_database()
     return await doctor_chat_service.list_doctor_all_sessions(
         db, doctor_id, patient_id=patient_id
@@ -104,7 +114,9 @@ async def doctor_list_all_sessions(
 async def doctor_chat_history(
     doctor_id: str,
     chat_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ) -> ChatHistoryResponse:
+    ensure_doctor_route(actor, doctor_id)
     db = get_database()
     return await doctor_chat_service.get_doctor_chat_history(
         db, doctor_id, chat_id

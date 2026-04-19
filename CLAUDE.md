@@ -56,7 +56,7 @@ docker compose down
 docker compose logs -f backend
 docker compose logs -f frontend
 
-# Run backend tests
+# Run backend tests (always use the backend container; do not rely on host pytest)
 docker compose exec backend python -m pytest tests/ -v
 
 # Sync backend Python deps in the running container (after requirements.txt changes)

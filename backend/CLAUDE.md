@@ -63,13 +63,13 @@ Prefer installing packages **inside the backend container** so they match the de
 
 ## Testing
 
-```bash
-# In Docker
-docker compose exec backend python -m pytest tests/ -v
+**Always run the test suite inside the backend container** so Python deps, env, and paths match production and CI. From the repo root:
 
-# Local
-cd backend && python -m pytest tests/ -v
+```bash
+docker compose exec backend python -m pytest tests/ -v
 ```
+
+Running `pytest` directly on the host (e.g. `cd backend && python -m pytest`) is not the supported workflow and can drift from the image.
 
 Tests live in `backend/tests/`. New tests should follow the existing pattern of one test file per module area.
 

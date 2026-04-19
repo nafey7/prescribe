@@ -1,20 +1,27 @@
 import { Menu } from "lucide-react";
 import { useMemo } from "react";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { usePatientContext } from "../contexts/PatientContext";
+import { paths } from "../router/paths";
 import PatientSelector from "./PatientSelector";
 
 const TITLES: { prefix: string; title: string }[] = [
-  { prefix: "/documents", title: "Documents" },
-  { prefix: "/profile", title: "My Profile" },
-  { prefix: "/", title: "Dashboard" },
+  { prefix: paths.patient.documents, title: "Documents" },
+  { prefix: paths.patient.profile, title: "My Profile" },
+  { prefix: paths.patient.doctors, title: "My Doctors" },
+  { prefix: paths.patient.chat, title: "Medical AI Chat" },
+  { prefix: paths.patient.root, title: "Dashboard" },
 ];
 
 function pageTitle(pathname: string): string {
-  if (pathname === "/") return "Dashboard";
-  const hit = TITLES.find(
-    (t) => t.prefix !== "/" && pathname.startsWith(t.prefix)
-  );
+  if (
+    pathname === paths.patient.root ||
+    pathname === `${paths.patient.root}/`
+  ) {
+    return "Dashboard";
+  }
+  const hit = TITLES.find((t) => pathname.startsWith(t.prefix));
   return hit?.title ?? "Portal";
 }
 
@@ -24,6 +31,7 @@ export default function Header({
   onMenuClick?: () => void;
 }) {
   const location = useLocation();
+  const { logout, status } = useAuth();
   const { patients, currentPatientId, setCurrentPatientId } =
     usePatientContext();
   const title = useMemo(
@@ -68,6 +76,15 @@ export default function Header({
               onChange={setCurrentPatientId}
             />
           )}
+          {status === "authenticated" ? (
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Log out
+            </button>
+          ) : null}
           <button
             type="button"
             className="hidden rounded-full border border-gray-200 p-2 text-gray-400 sm:inline-flex"

@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
+from app.api.dependencies import ensure_doctor_route, resolve_actor_user
 from app.database.connection import get_database
 from app.schemas.document import DocumentListResponse
 from app.schemas.doctor import DoctorPatientListResponse
 from app.schemas.medical_history import MedicalHistoryResponse
 from app.schemas.patient import PatientProfileResponse
 from app.service import doctor_patients as doctor_patients_service
+from app.service.auth import CurrentUser
 
 router = APIRouter()
 
@@ -21,7 +23,9 @@ async def list_doctor_patients(
     ),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ) -> DoctorPatientListResponse:
+    ensure_doctor_route(actor, doctor_id)
     db = get_database()
     return await doctor_patients_service.get_connected_patient_list(
         db,
@@ -40,7 +44,9 @@ async def list_doctor_patients(
 async def get_doctor_patient_profile(
     doctor_id: str,
     patient_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ) -> PatientProfileResponse:
+    ensure_doctor_route(actor, doctor_id)
     db = get_database()
     return await doctor_patients_service.get_connected_patient_profile(
         db, doctor_id, patient_id
@@ -54,7 +60,9 @@ async def get_doctor_patient_profile(
 async def get_doctor_patient_medical_history(
     doctor_id: str,
     patient_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ) -> MedicalHistoryResponse:
+    ensure_doctor_route(actor, doctor_id)
     db = get_database()
     return await doctor_patients_service.get_connected_patient_history(
         db, doctor_id, patient_id
@@ -71,7 +79,9 @@ async def list_doctor_patient_documents(
     category: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ) -> DocumentListResponse:
+    ensure_doctor_route(actor, doctor_id)
     db = get_database()
     return await doctor_patients_service.list_connected_patient_documents(
         db,
@@ -88,7 +98,9 @@ async def download_doctor_patient_document(
     doctor_id: str,
     patient_id: str,
     document_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ):
+    ensure_doctor_route(actor, doctor_id)
     db = get_database()
     stream, content_type, filename = (
         await doctor_patients_service.download_connected_patient_document(

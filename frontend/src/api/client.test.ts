@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   applyPrescribeHeaders,
+  registerAccessTokenGetter,
   registerDoctorIdGetter,
   registerPatientIdGetter,
 } from "./client";
@@ -9,11 +10,13 @@ describe("applyPrescribeHeaders", () => {
   beforeEach(() => {
     registerPatientIdGetter(() => "pat-1");
     registerDoctorIdGetter(() => "doc-9");
+    registerAccessTokenGetter(() => "");
   });
 
   afterEach(() => {
     registerPatientIdGetter(() => "");
     registerDoctorIdGetter(() => "");
+    registerAccessTokenGetter(() => "");
   });
 
   it("adds X-Patient-Id and X-Doctor-Id from registered getters", () => {
@@ -37,5 +40,13 @@ describe("applyPrescribeHeaders", () => {
     const h = new Headers({ "Content-Type": "text/plain" });
     applyPrescribeHeaders(h, { body: "{}" });
     expect(h.get("Content-Type")).toBe("text/plain");
+  });
+
+  it("sends Authorization and omits dev headers when an access token is registered", () => {
+    registerAccessTokenGetter(() => "jwt-here");
+    const h = applyPrescribeHeaders(new Headers());
+    expect(h.get("Authorization")).toBe("Bearer jwt-here");
+    expect(h.get("X-Patient-Id")).toBeNull();
+    expect(h.get("X-Doctor-Id")).toBeNull();
   });
 });

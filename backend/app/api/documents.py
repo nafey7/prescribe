@@ -1,8 +1,14 @@
-from fastapi import APIRouter, BackgroundTasks, File, Form, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
+from app.api.dependencies import (
+    assert_jwt_patient_can_access_patient_path,
+    auth_bypass_allowed,
+    resolve_actor_user,
+)
 from app.config import get_settings
 from app.database.connection import get_database
+from app.service.auth import CurrentUser
 from app.schemas.document import (
     DocumentListResponse,
     DocumentMetadata,
@@ -26,8 +32,13 @@ async def upload_document(
     file: UploadFile = File(...),
     category: str = Form("other"),
     description: str = Form(""),
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ):
     db = get_database()
+    if actor is not None:
+        await assert_jwt_patient_can_access_patient_path(db, actor, patient_id)
+    elif not auth_bypass_allowed():
+        raise HTTPException(status_code=401, detail="Authentication required")
     result = await document_service.upload_document(
         db, patient_id, file, category, description
     )
@@ -48,22 +59,43 @@ async def list_patient_documents(
     category: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ):
     db = get_database()
+    if actor is not None:
+        await assert_jwt_patient_can_access_patient_path(db, actor, patient_id)
+    elif not auth_bypass_allowed():
+        raise HTTPException(status_code=401, detail="Authentication required")
     return await document_service.list_patient_documents(
         db, patient_id, category, page, page_size
     )
 
 
 @router.get("/{patient_id}/documents/{document_id}/metadata", response_model=DocumentMetadata)
-async def get_document_metadata(patient_id: str, document_id: str):
+async def get_document_metadata(
+    patient_id: str,
+    document_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+):
     db = get_database()
+    if actor is not None:
+        await assert_jwt_patient_can_access_patient_path(db, actor, patient_id)
+    elif not auth_bypass_allowed():
+        raise HTTPException(status_code=401, detail="Authentication required")
     return await document_service.get_document_metadata(db, document_id, patient_id)
 
 
 @router.get("/{patient_id}/documents/{document_id}")
-async def download_document(patient_id: str, document_id: str):
+async def download_document(
+    patient_id: str,
+    document_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+):
     db = get_database()
+    if actor is not None:
+        await assert_jwt_patient_can_access_patient_path(db, actor, patient_id)
+    elif not auth_bypass_allowed():
+        raise HTTPException(status_code=401, detail="Authentication required")
     stream, content_type, filename = await document_service.download_document(
         db, document_id, patient_id
     )
@@ -82,14 +114,27 @@ async def update_document_metadata(
     patient_id: str,
     document_id: str,
     body: DocumentUpdateRequest,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
 ):
     db = get_database()
+    if actor is not None:
+        await assert_jwt_patient_can_access_patient_path(db, actor, patient_id)
+    elif not auth_bypass_allowed():
+        raise HTTPException(status_code=401, detail="Authentication required")
     return await document_service.update_document_metadata(
         db, document_id, patient_id, body
     )
 
 
 @router.delete("/{patient_id}/documents/{document_id}", status_code=204)
-async def delete_document(patient_id: str, document_id: str):
+async def delete_document(
+    patient_id: str,
+    document_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+):
     db = get_database()
+    if actor is not None:
+        await assert_jwt_patient_can_access_patient_path(db, actor, patient_id)
+    elif not auth_bypass_allowed():
+        raise HTTPException(status_code=401, detail="Authentication required")
     await document_service.delete_document(db, document_id, patient_id)

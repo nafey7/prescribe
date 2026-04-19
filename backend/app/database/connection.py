@@ -3,6 +3,7 @@ import logging
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from app.config import get_settings
+from app.repository.refresh_tokens import ensure_indexes as ensure_refresh_token_indexes
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ async def connect_to_mongodb() -> None:
     _database = _client[settings.DATABASE_NAME]
     # Verify connectivity
     await _client.admin.command("ping")
+    await ensure_refresh_token_indexes(_database)
     logger.info("Connected to MongoDB: %s", settings.DATABASE_NAME)
 
 

@@ -4,6 +4,8 @@
  */
 export * from "./client";
 export * from "./baseApi";
+export * from "./authApi";
+export * from "./authSession";
 export * from "./config";
 export * from "./configApi";
 export * from "./patientsApi";

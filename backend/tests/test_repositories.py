@@ -14,9 +14,11 @@ from app.schemas.relationship import DoctorPatientLinkCreate
 from app.schemas.user import UserCreate
 
 
-def _fake_db(collection: AsyncMock) -> MagicMock:
+def _fake_db(collection: AsyncMock, *, collection_attr: str = "users") -> MagicMock:
+    """Motor exposes collections as attributes (e.g. db.users), not only db['users']."""
     db = MagicMock()
     db.__getitem__ = lambda self, name: collection  # noqa: ARG005
+    setattr(db, collection_attr, collection)
     return db
 
 
@@ -89,7 +91,7 @@ async def test_create_patient_profile_uses_exclude_none():
         doc["_id"] = ObjectId()
 
     coll.insert_one = AsyncMock(side_effect=insert_one)
-    db = _fake_db(coll)
+    db = _fake_db(coll, collection_attr="patient_profiles")
     payload = PhaseAPatientProfileCreate(
         user_id="usr_1",
         full_name="Jane",
@@ -108,7 +110,7 @@ async def test_create_link_uses_enum_for_patient_request():
         doc["_id"] = ObjectId()
 
     coll.insert_one = AsyncMock(side_effect=insert_one)
-    db = _fake_db(coll)
+    db = _fake_db(coll, collection_attr="doctor_patient_links")
     payload = DoctorPatientLinkCreate(
         patient_id="pat_x",
         doctor_id="dr_y",
@@ -126,7 +128,7 @@ async def test_create_prescription_strips_id():
         doc["_id"] = ObjectId()
 
     coll.insert_one = AsyncMock(side_effect=insert_one)
-    db = _fake_db(coll)
+    db = _fake_db(coll, collection_attr="prescriptions")
     payload = PrescriptionCreate(
         patient_id="pat_a",
         doctor_id="dr_b",
@@ -141,7 +143,7 @@ async def test_create_prescription_strips_id():
 async def test_update_prescription_status_uses_return_document_after():
     coll = AsyncMock()
     coll.find_one_and_update = AsyncMock(return_value={"prescription_id": "rx_1"})
-    db = _fake_db(coll)
+    db = _fake_db(coll, collection_attr="prescriptions")
     await prescriptions.update_prescription_status(
         db, "rx_1", PrescriptionStatus.CANCELLED
     )
@@ -155,7 +157,7 @@ async def test_doctor_update_does_not_mutate_profile_dict():
     coll.find_one_and_update = AsyncMock(
         return_value={"user_id": "u1", "role": "doctor"}
     )
-    db = _fake_db(coll)
+    db = _fake_db(coll, collection_attr="users")
     prof = {"bio": "x"}
     await doctor.update_doctor(db, "u1", prof, None)
     assert "updated_at" not in prof
@@ -165,7 +167,7 @@ async def test_doctor_update_does_not_mutate_profile_dict():
 async def test_document_update_does_not_mutate_updates():
     coll = AsyncMock()
     coll.find_one_and_update = AsyncMock(return_value={"document_id": "docu_1"})
-    db = _fake_db(coll)
+    db = _fake_db(coll, collection_attr="patient_documents")
     u = {"title": "Lab"}
     await documents.update_document(db, "docu_1", u)
     assert "updated_at" not in u

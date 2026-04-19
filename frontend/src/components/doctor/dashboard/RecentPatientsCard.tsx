@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { paths } from "../../../router/paths";
 import type { RecentPatientSummary } from "../../../types/doctor";
 import { formatRelativeShort } from "./formatRelative";
 
@@ -34,7 +35,9 @@ export default function RecentPatientsCard({
             return (
               <li key={p.patient_id}>
                 <Link
-                  to={`/doctor/patients/${encodeURIComponent(p.patient_id)}`}
+                  to={paths.doctor.patientDetail(
+                    encodeURIComponent(p.patient_id)
+                  )}
                   className="block rounded-xl border border-gray-100 bg-gray-50/80 p-4 transition hover:border-teal-200 hover:bg-white"
                 >
                   <div className="flex items-start gap-3">
@@ -67,7 +70,7 @@ export default function RecentPatientsCard({
       )}
       <div className="mt-4">
         <Link
-          to="/doctor/patients"
+          to={paths.doctor.patients}
           className="text-sm font-medium text-teal-700 hover:text-teal-800"
         >
           View all patients →

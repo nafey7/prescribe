@@ -22,6 +22,7 @@ if str(_BACKEND_ROOT) not in sys.path:
 
 from app.config import get_settings  # noqa: E402
 from app.database.connection import close_mongodb, connect_to_mongodb, get_database  # noqa: E402
+from app.scripts.seed_manifest import SEED_SOURCE_TAG  # noqa: E402
 
 SEED_DOCTORS: list[dict] = [
     {
@@ -125,6 +126,7 @@ async def main() -> None:
             "created_at": now,
             "updated_at": now,
             "doctor_profile": row["doctor_profile"],
+            "seed_source": SEED_SOURCE_TAG,
         }
         await db.users.insert_one(doc)
         print(f"Seeded: {email} → user_id={user_id}")

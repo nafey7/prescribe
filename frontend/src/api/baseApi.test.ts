@@ -2,9 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { configureStore } from "@reduxjs/toolkit";
 import type { PatientProfile } from "../types/patient";
 import type { MedicalHistory } from "../types/patient";
+import * as authSession from "./authSession";
 import { baseApi } from "./baseApi";
 import { patientsApi } from "./patientsApi";
 import {
+  registerAccessTokenGetter,
   registerDoctorIdGetter,
   registerPatientIdGetter,
 } from "./client";
@@ -83,6 +85,7 @@ describe("baseQuery + cache tags", () => {
   beforeEach(() => {
     registerPatientIdGetter(() => "patient-dev");
     registerDoctorIdGetter(() => "");
+    registerAccessTokenGetter(() => "");
     vi.spyOn(globalThis, "fetch");
   });
 
@@ -90,6 +93,7 @@ describe("baseQuery + cache tags", () => {
     vi.restoreAllMocks();
     registerPatientIdGetter(() => "");
     registerDoctorIdGetter(() => "");
+    registerAccessTokenGetter(() => "");
   });
 
   it("sets X-Patient-Id by default and omits it when skipPatientHeader is used", async () => {
@@ -129,5 +133,25 @@ describe("baseQuery + cache tags", () => {
       await new Promise((r) => setTimeout(r, 10));
     }
     expect(vi.mocked(fetch).mock.calls.length).toBe(3);
+  });
+
+  it("retries once after 401 when ensureFreshAccessToken succeeds", async () => {
+    const refreshSpy = vi
+      .spyOn(authSession, "ensureFreshAccessToken")
+      .mockResolvedValue(true);
+    let calls = 0;
+    vi.mocked(fetch).mockImplementation(() => {
+      calls++;
+      if (calls === 1) {
+        return Promise.resolve(new Response(JSON.stringify({ detail: "nope" }), { status: 401 }));
+      }
+      return jsonResponse({});
+    });
+    const store = createTestStore();
+
+    await store.dispatch(patientsApi.endpoints.getPatient.initiate("p1")).unwrap();
+
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetch).mock.calls.length).toBe(2);
   });
 });

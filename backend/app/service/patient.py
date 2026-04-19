@@ -89,7 +89,35 @@ async def list_all_patients(
     limit: int = 50,
     *,
     search: str | None = None,
+    restrict_to_user_id: str | None = None,
 ) -> PatientListResponse:
+    if restrict_to_user_id is not None:
+        doc = await patient_repo.get_patient(db, restrict_to_user_id)
+        if doc is None:
+            return PatientListResponse(
+                items=[], total=0, skip=skip, limit=limit
+            )
+        prof = document_to_profile_response(doc)
+        if search and search.strip():
+            q = search.strip().lower()
+            hay = " ".join(
+                [
+                    (prof.first_name or ""),
+                    (prof.last_name or ""),
+                    prof.email,
+                    prof.patient_slug or "",
+                ]
+            ).lower()
+            if q not in hay:
+                return PatientListResponse(
+                    items=[], total=0, skip=skip, limit=limit
+                )
+        return PatientListResponse(
+            items=[prof],
+            total=1,
+            skip=skip,
+            limit=limit,
+        )
     items, total = await patient_repo.list_patients(
         db, skip=skip, limit=limit, search=search
     )

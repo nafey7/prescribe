@@ -1,3 +1,4 @@
+import { ensureFreshAccessToken } from "./authSession";
 import { applyPrescribeHeaders, getApiBase } from "./client";
 
 type StreamCallbacks = {
@@ -67,13 +68,21 @@ export async function sendMessageStream(
     message,
     chat_id: chatId,
   });
-  const headers = new Headers();
-  applyPrescribeHeaders(headers, { body });
-  const res = await fetch(`${getApiBase()}/chat/message/stream`, {
-    method: "POST",
-    headers,
-    body,
-  });
+  const send = () => {
+    const headers = new Headers();
+    applyPrescribeHeaders(headers, { body });
+    return fetch(`${getApiBase()}/chat/message/stream`, {
+      method: "POST",
+      headers,
+      body,
+    });
+  };
+
+  let res = await send();
+  if (res.status === 401) {
+    const ok = await ensureFreshAccessToken();
+    if (ok) res = await send();
+  }
 
   if (!res.ok) {
     const bodyJson = (await res.json().catch(() => ({}))) as {
@@ -98,13 +107,21 @@ export async function sendDoctorChatMessageStream(
     message,
     chat_id: chatId ?? null,
   });
-  const headers = new Headers();
-  applyPrescribeHeaders(headers, { body, skipPatientHeader: true });
-  const res = await fetch(`${getApiBase()}${path}`, {
-    method: "POST",
-    headers,
-    body,
-  });
+  const sendDoc = () => {
+    const headers = new Headers();
+    applyPrescribeHeaders(headers, { body, skipPatientHeader: true });
+    return fetch(`${getApiBase()}${path}`, {
+      method: "POST",
+      headers,
+      body,
+    });
+  };
+
+  let res = await sendDoc();
+  if (res.status === 401) {
+    const ok = await ensureFreshAccessToken();
+    if (ok) res = await sendDoc();
+  }
 
   if (!res.ok) {
     const bodyJson = (await res.json().catch(() => ({}))) as {

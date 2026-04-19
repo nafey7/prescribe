@@ -1,5 +1,6 @@
-import { FileText, LayoutDashboard, User, X } from "lucide-react";
+import { FileText, LayoutDashboard, Stethoscope, User, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { paths } from "../router/paths";
 
 export type SidebarNavItem = {
   path: string;
@@ -9,9 +10,15 @@ export type SidebarNavItem = {
 };
 
 export const patientNavItems: SidebarNavItem[] = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { path: "/profile", label: "My Profile", icon: User },
-  { path: "/documents", label: "Documents", icon: FileText },
+  {
+    path: paths.patient.root,
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    end: true,
+  },
+  { path: paths.patient.profile, label: "My Profile", icon: User },
+  { path: paths.patient.documents, label: "Documents", icon: FileText },
+  { path: paths.patient.doctors, label: "My Doctors", icon: Stethoscope },
 ];
 
 function linkClass(active: boolean): string {

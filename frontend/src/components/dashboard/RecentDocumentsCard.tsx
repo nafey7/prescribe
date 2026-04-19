@@ -1,5 +1,6 @@
 import { FileText, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
+import { paths } from "../../router/paths";
 import type { DocumentSummary } from "../../types/patient";
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
 
 export default function RecentDocumentsCard({
   documents,
-  viewAllTo = "/documents",
+  viewAllTo = paths.patient.documents,
 }: Props) {
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">

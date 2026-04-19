@@ -1,4 +1,5 @@
 import { isRouteErrorResponse, Link, useRouteError } from "react-router-dom";
+import { paths } from "../router/paths";
 
 function errorMessage(error: unknown): string {
   if (isRouteErrorResponse(error)) {
@@ -22,7 +23,7 @@ export default function RouteErrorPage() {
           {message}
         </p>
         <Link
-          to="/"
+          to={paths.root}
           className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-700"
         >
           Back to home

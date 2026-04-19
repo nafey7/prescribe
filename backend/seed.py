@@ -1,12 +1,18 @@
 """
-Seed script for Phase A development data.
+Seed script for local development data.
 
 Usage:
     cd backend && python -m seed
 
-Populates the medical_chat database with realistic patient, doctor, admin,
-relationship, prescription, and document records for local development.
+Creates demo patients, doctors, an admin, doctor–patient connections (active and
+pending), sample prescriptions, and patient_documents rows. Uses the same
+`users` + `connections` collections as the running app.
+
+Idempotent: safe to re-run; missing rows are inserted, existing seed rows are
+replaced in place (stable user_id / connection_id / etc.).
 """
+
+from __future__ import annotations
 
 import asyncio
 import sys
@@ -19,22 +25,13 @@ from app.schemas.enums import (
     DocumentSource,
     DocumentType,
     DocumentVisibility,
-    Gender,
-    LinkRequestedBy,
-    LinkStatus,
     PrescriptionStatus,
     UserRole,
     UserStatus,
+    ConnectionStatus,
 )
-from app.utils import (
-    doctor_id,
-    document_id,
-    link_id,
-    patient_id,
-    prescription_id,
-    user_id,
-    utcnow,
-)
+from app.scripts.seed_manifest import SEED_SOURCE_TAG, stable_seed_uuid
+from app.utils import utcnow
 
 NOW = utcnow()
 
@@ -43,285 +40,278 @@ def ts(iso: str) -> datetime:
     return datetime.fromisoformat(iso).replace(tzinfo=timezone.utc)
 
 
-# ── Users ────────────────────────────────────────────────────────────────────
+# ── Stable user ids (deterministic across runs) ─────────────────────────────
 
-USR_JOHN = user_id()
-USR_JANE = user_id()
-USR_ALEX = user_id()
-USR_SARAH = user_id()
-USR_OMAR = user_id()
-USR_ADMIN = user_id()
+USR_JOHN = stable_seed_uuid("user:patient:john.doe@example.com")
+USR_JANE = stable_seed_uuid("user:patient:jane.smith@example.com")
+USR_ALEX = stable_seed_uuid("user:patient:alex.kumar@example.com")
+USR_SARAH = stable_seed_uuid("user:doctor:dr.sarah.ahmed@example.com")
+USR_OMAR = stable_seed_uuid("user:doctor:dr.omar.khan@example.com")
+USR_ADMIN = stable_seed_uuid("user:admin:admin@prescribe.local")
 
-USERS = [
-    {
-        "user_id": USR_JOHN,
-        "role": UserRole.PATIENT,
-        "email": "john.doe@example.com",
-        "phone": "+923001234567",
+
+def _patient_user(
+    *,
+    user_id: str,
+    email: str,
+    patient_slug: str,
+    first_name: str,
+    last_name: str,
+    date_of_birth: str | None,
+    sex: str | None,
+    blood_type: str | None,
+    phone: str | None,
+    profile_completed: bool,
+    created_at: datetime,
+) -> dict:
+    return {
+        "user_id": user_id,
+        "role": UserRole.PATIENT.value,
+        "email": email,
+        "patient_slug": patient_slug,
         "password_hash": None,
-        "status": UserStatus.ACTIVE,
+        "token_version": 0,
+        "status": UserStatus.ACTIVE.value,
+        "email_verified": False,
+        "profile_completed": profile_completed,
+        "last_login_at": None,
+        "created_at": created_at,
+        "updated_at": NOW,
+        "seed_source": SEED_SOURCE_TAG,
+        "patient_profile": {
+            "first_name": first_name,
+            "last_name": last_name,
+            "date_of_birth": date_of_birth,
+            "sex": sex,
+            "blood_type": blood_type,
+            "weight_kg": None,
+            "height_cm": None,
+            "phone": phone,
+            "address": {"street": "", "city": "", "state": "", "zip": ""},
+            "emergency_contact": {"name": "", "relationship": "", "phone": ""},
+            "allergies": [],
+            "conditions": [],
+            "medications": [],
+            "family_history": [],
+            "lifestyle": {
+                "smoking_status": "unknown",
+                "smoking_notes": "",
+                "alcohol": "",
+                "exercise": "",
+                "diet_notes": "",
+            },
+        },
+    }
+
+
+def _doctor_user(
+    *,
+    user_id: str,
+    email: str,
+    first_name: str,
+    last_name: str,
+    specialization: str,
+    license_number: str,
+    years_of_experience: int,
+    institution: str,
+    phone: str,
+    bio: str,
+    created_at: datetime,
+) -> dict:
+    return {
+        "user_id": user_id,
+        "role": UserRole.DOCTOR.value,
+        "email": email,
+        "password_hash": None,
+        "token_version": 0,
+        "status": UserStatus.ACTIVE.value,
         "email_verified": False,
         "profile_completed": True,
         "last_login_at": None,
-        "created_at": ts("2026-03-01T10:00:00"),
+        "created_at": created_at,
         "updated_at": NOW,
-    },
-    {
-        "user_id": USR_JANE,
-        "role": UserRole.PATIENT,
-        "email": "jane.smith@example.com",
-        "phone": "+923009876543",
-        "password_hash": None,
-        "status": UserStatus.ACTIVE,
-        "email_verified": False,
-        "profile_completed": True,
-        "last_login_at": None,
-        "created_at": ts("2026-03-05T14:00:00"),
-        "updated_at": NOW,
-    },
-    {
-        "user_id": USR_ALEX,
-        "role": UserRole.PATIENT,
-        "email": "alex.kumar@example.com",
-        "phone": "+923005551234",
-        "password_hash": None,
-        "status": UserStatus.ACTIVE,
-        "email_verified": False,
-        "profile_completed": False,
-        "last_login_at": None,
-        "created_at": ts("2026-04-01T09:00:00"),
-        "updated_at": NOW,
-    },
-    {
-        "user_id": USR_SARAH,
-        "role": UserRole.DOCTOR,
-        "email": "dr.sarah.ahmed@example.com",
-        "phone": "+923008887776",
-        "password_hash": None,
-        "status": UserStatus.ACTIVE,
-        "email_verified": False,
-        "profile_completed": True,
-        "last_login_at": None,
-        "created_at": ts("2026-02-15T08:00:00"),
-        "updated_at": NOW,
-    },
-    {
-        "user_id": USR_OMAR,
-        "role": UserRole.DOCTOR,
-        "email": "dr.omar.khan@example.com",
-        "phone": "+923007776665",
-        "password_hash": None,
-        "status": UserStatus.ACTIVE,
-        "email_verified": False,
-        "profile_completed": True,
-        "last_login_at": None,
-        "created_at": ts("2026-02-20T11:00:00"),
-        "updated_at": NOW,
-    },
+        "seed_source": SEED_SOURCE_TAG,
+        "doctor_profile": {
+            "first_name": first_name,
+            "last_name": last_name,
+            "title": "Dr.",
+            "specialization": specialization,
+            "sub_specializations": [],
+            "license_number": license_number,
+            "license_state": "",
+            "npi_number": "",
+            "institution": institution,
+            "department": specialization,
+            "years_of_experience": years_of_experience,
+            "education": [],
+            "phone": phone,
+            "office_address": {"street": "", "city": "", "state": "", "zip": ""},
+            "accepting_new_patients": True,
+            "bio": bio,
+        },
+    }
+
+
+SEED_USERS: list[dict] = [
+    _patient_user(
+        user_id=USR_JOHN,
+        email="john.doe@example.com",
+        patient_slug="john_doe",
+        first_name="John",
+        last_name="Doe",
+        date_of_birth="1990-01-20",
+        sex="male",
+        blood_type="O+",
+        phone="+923001234567",
+        profile_completed=True,
+        created_at=ts("2026-03-01T10:00:00"),
+    ),
+    _patient_user(
+        user_id=USR_JANE,
+        email="jane.smith@example.com",
+        patient_slug="jane_smith",
+        first_name="Jane",
+        last_name="Smith",
+        date_of_birth="1985-07-12",
+        sex="female",
+        blood_type="A+",
+        phone="+923009876543",
+        profile_completed=True,
+        created_at=ts("2026-03-05T14:00:00"),
+    ),
+    _patient_user(
+        user_id=USR_ALEX,
+        email="alex.kumar@example.com",
+        patient_slug="alex_kumar",
+        first_name="Alex",
+        last_name="Kumar",
+        date_of_birth="1998-11-03",
+        sex="male",
+        blood_type="B+",
+        phone="+923005551234",
+        profile_completed=False,
+        created_at=ts("2026-04-01T09:00:00"),
+    ),
+    _doctor_user(
+        user_id=USR_SARAH,
+        email="dr.sarah.ahmed@example.com",
+        first_name="Sarah",
+        last_name="Ahmed",
+        specialization="Cardiology",
+        license_number="PMC-123456",
+        years_of_experience=8,
+        institution="City Heart Clinic",
+        phone="+923008887776",
+        bio="Cardiologist focused on preventive care and hypertension management.",
+        created_at=ts("2026-02-15T08:00:00"),
+    ),
+    _doctor_user(
+        user_id=USR_OMAR,
+        email="dr.omar.khan@example.com",
+        first_name="Omar",
+        last_name="Khan",
+        specialization="Endocrinology",
+        license_number="PMC-654321",
+        years_of_experience=12,
+        institution="Khan Diabetes & Endo Center",
+        phone="+923007776665",
+        bio="Endocrinologist specializing in diabetes and thyroid disorders.",
+        created_at=ts("2026-02-20T11:00:00"),
+    ),
     {
         "user_id": USR_ADMIN,
-        "role": UserRole.ADMIN,
+        "role": UserRole.ADMIN.value,
         "email": "admin@prescribe.local",
+        "first_name": "Local",
+        "last_name": "Admin",
         "phone": None,
         "password_hash": None,
-        "status": UserStatus.ACTIVE,
+        "token_version": 0,
+        "status": UserStatus.ACTIVE.value,
         "email_verified": True,
         "profile_completed": True,
         "last_login_at": None,
         "created_at": ts("2026-01-01T00:00:00"),
         "updated_at": NOW,
+        "seed_source": SEED_SOURCE_TAG,
     },
 ]
 
-# ── Patient profiles ─────────────────────────────────────────────────────────
+# connection_id stable per (patient user_id, doctor user_id)
+CONN_JOHN_SARAH = stable_seed_uuid(f"conn:{USR_JOHN}:{USR_SARAH}")
+CONN_JANE_OMAR = stable_seed_uuid(f"conn:{USR_JANE}:{USR_OMAR}")
+CONN_ALEX_SARAH = stable_seed_uuid(f"conn:{USR_ALEX}:{USR_SARAH}")
+CONN_JOHN_OMAR = stable_seed_uuid(f"conn:{USR_JOHN}:{USR_OMAR}")
 
-PAT_JOHN = patient_id()
-PAT_JANE = patient_id()
-PAT_ALEX = patient_id()
-
-PATIENT_PROFILES = [
+SEED_CONNECTIONS: list[dict] = [
     {
-        "patient_id": PAT_JOHN,
-        "user_id": USR_JOHN,
-        "full_name": "John Doe",
-        "date_of_birth": "1990-01-20",
-        "gender": Gender.MALE,
-        "blood_group": "O+",
-        "phone": "+923001234567",
-        "address": {"line1": "House 12, Street 5", "city": "Lahore", "country": "PK"},
-        "emergency_contact": {
-            "name": "Jane Doe",
-            "phone": "+923009999999",
-            "relation": "sister",
-        },
-        "medical_summary": {
-            "allergies": ["penicillin"],
-            "chronic_conditions": ["hypertension"],
-            "notes": "Regular follow-up for blood pressure management",
-        },
-        "created_at": ts("2026-03-01T10:05:00"),
-        "updated_at": NOW,
-    },
-    {
-        "patient_id": PAT_JANE,
-        "user_id": USR_JANE,
-        "full_name": "Jane Smith",
-        "date_of_birth": "1985-07-12",
-        "gender": Gender.FEMALE,
-        "blood_group": "A+",
-        "phone": "+923009876543",
-        "address": {"line1": "Flat 4B, Towers", "city": "Karachi", "country": "PK"},
-        "emergency_contact": {
-            "name": "Bob Smith",
-            "phone": "+923001112233",
-            "relation": "spouse",
-        },
-        "medical_summary": {
-            "allergies": [],
-            "chronic_conditions": ["type 2 diabetes"],
-            "notes": "Managing with metformin since 2024",
-        },
-        "created_at": ts("2026-03-05T14:05:00"),
-        "updated_at": NOW,
-    },
-    {
-        "patient_id": PAT_ALEX,
-        "user_id": USR_ALEX,
-        "full_name": "Alex Kumar",
-        "date_of_birth": "1998-11-03",
-        "gender": Gender.MALE,
-        "blood_group": "B+",
-        "phone": "+923005551234",
-        "address": {"line1": "Block C, DHA Phase 6", "city": "Lahore", "country": "PK"},
-        "emergency_contact": {"name": "", "phone": "", "relation": ""},
-        "medical_summary": {
-            "allergies": ["sulfa drugs"],
-            "chronic_conditions": [],
-            "notes": "New patient, onboarding incomplete",
-        },
-        "created_at": ts("2026-04-01T09:05:00"),
-        "updated_at": NOW,
-    },
-]
-
-# ── Doctor profiles ──────────────────────────────────────────────────────────
-
-DOC_SARAH = doctor_id()
-DOC_OMAR = doctor_id()
-
-DOCTOR_PROFILES = [
-    {
-        "doctor_id": DOC_SARAH,
-        "user_id": USR_SARAH,
-        "full_name": "Dr. Sarah Ahmed",
-        "specialization": "Cardiology",
-        "license_number": "PMC-123456",
-        "years_of_experience": 8,
-        "clinic_name": "City Heart Clinic",
-        "phone": "+923008887776",
-        "bio": "Cardiologist focused on preventive care and hypertension management.",
-        "accepting_new_patients": True,
-        "created_at": ts("2026-02-15T08:05:00"),
-        "updated_at": NOW,
-    },
-    {
-        "doctor_id": DOC_OMAR,
-        "user_id": USR_OMAR,
-        "full_name": "Dr. Omar Khan",
-        "specialization": "Endocrinology",
-        "license_number": "PMC-654321",
-        "years_of_experience": 12,
-        "clinic_name": "Khan Diabetes & Endo Center",
-        "phone": "+923007776665",
-        "bio": "Endocrinologist specializing in diabetes and thyroid disorders.",
-        "accepting_new_patients": True,
-        "created_at": ts("2026-02-20T11:05:00"),
-        "updated_at": NOW,
-    },
-]
-
-# ── Doctor-patient links ─────────────────────────────────────────────────────
-
-LNK_1 = link_id()
-LNK_2 = link_id()
-LNK_3 = link_id()
-LNK_4 = link_id()
-
-LINKS = [
-    {
-        "link_id": LNK_1,
-        "patient_id": PAT_JOHN,
-        "doctor_id": DOC_SARAH,
-        "status": LinkStatus.ACTIVE,
-        "requested_by": LinkRequestedBy.PATIENT,
-        "requested_at": ts("2026-03-10T09:00:00"),
+        "connection_id": CONN_JOHN_SARAH,
+        "doctor_id": USR_SARAH,
+        "patient_id": USR_JOHN,
+        "status": ConnectionStatus.ACTIVE.value,
+        "initiated_by": "patient",
+        "initiated_at": ts("2026-03-10T09:00:00"),
         "responded_at": ts("2026-03-10T12:00:00"),
-        "accepted_at": ts("2026-03-10T12:00:00"),
-        "rejected_at": None,
-        "ended_at": None,
-        "notes": None,
+        "removed_at": None,
+        "removed_by": None,
         "created_at": ts("2026-03-10T09:00:00"),
         "updated_at": ts("2026-03-10T12:00:00"),
+        "seed_source": SEED_SOURCE_TAG,
     },
     {
-        "link_id": LNK_2,
-        "patient_id": PAT_JANE,
-        "doctor_id": DOC_OMAR,
-        "status": LinkStatus.ACTIVE,
-        "requested_by": LinkRequestedBy.PATIENT,
-        "requested_at": ts("2026-03-12T10:00:00"),
+        "connection_id": CONN_JANE_OMAR,
+        "doctor_id": USR_OMAR,
+        "patient_id": USR_JANE,
+        "status": ConnectionStatus.ACTIVE.value,
+        "initiated_by": "patient",
+        "initiated_at": ts("2026-03-12T10:00:00"),
         "responded_at": ts("2026-03-12T15:00:00"),
-        "accepted_at": ts("2026-03-12T15:00:00"),
-        "rejected_at": None,
-        "ended_at": None,
-        "notes": None,
+        "removed_at": None,
+        "removed_by": None,
         "created_at": ts("2026-03-12T10:00:00"),
         "updated_at": ts("2026-03-12T15:00:00"),
+        "seed_source": SEED_SOURCE_TAG,
     },
     {
-        "link_id": LNK_3,
-        "patient_id": PAT_ALEX,
-        "doctor_id": DOC_SARAH,
-        "status": LinkStatus.PENDING_PATIENT_REQUEST,
-        "requested_by": LinkRequestedBy.PATIENT,
-        "requested_at": ts("2026-04-05T08:00:00"),
+        "connection_id": CONN_ALEX_SARAH,
+        "doctor_id": USR_SARAH,
+        "patient_id": USR_ALEX,
+        "status": ConnectionStatus.PENDING.value,
+        "initiated_by": "patient",
+        "initiated_at": ts("2026-04-05T08:00:00"),
         "responded_at": None,
-        "accepted_at": None,
-        "rejected_at": None,
-        "ended_at": None,
-        "notes": "New patient requesting cardiology consultation",
+        "removed_at": None,
+        "removed_by": None,
         "created_at": ts("2026-04-05T08:00:00"),
         "updated_at": ts("2026-04-05T08:00:00"),
+        "seed_source": SEED_SOURCE_TAG,
     },
     {
-        "link_id": LNK_4,
-        "patient_id": PAT_JOHN,
-        "doctor_id": DOC_OMAR,
-        "status": LinkStatus.ACTIVE,
-        "requested_by": LinkRequestedBy.DOCTOR,
-        "requested_at": ts("2026-03-20T11:00:00"),
+        "connection_id": CONN_JOHN_OMAR,
+        "doctor_id": USR_OMAR,
+        "patient_id": USR_JOHN,
+        "status": ConnectionStatus.ACTIVE.value,
+        "initiated_by": "doctor",
+        "initiated_at": ts("2026-03-20T11:00:00"),
         "responded_at": ts("2026-03-20T18:00:00"),
-        "accepted_at": ts("2026-03-20T18:00:00"),
-        "rejected_at": None,
-        "ended_at": None,
-        "notes": "Referred by Dr. Sarah for endocrine evaluation",
+        "removed_at": None,
+        "removed_by": None,
         "created_at": ts("2026-03-20T11:00:00"),
         "updated_at": ts("2026-03-20T18:00:00"),
+        "seed_source": SEED_SOURCE_TAG,
     },
 ]
 
-# ── Prescriptions ────────────────────────────────────────────────────────────
+RX_1 = stable_seed_uuid("rx:john:sarah:1")
+RX_2 = stable_seed_uuid("rx:jane:omar:1")
 
-RX_1 = prescription_id()
-RX_2 = prescription_id()
-
-PRESCRIPTIONS = [
+SEED_PRESCRIPTIONS: list[dict] = [
     {
         "prescription_id": RX_1,
-        "patient_id": PAT_JOHN,
-        "doctor_id": DOC_SARAH,
+        "patient_id": USR_JOHN,
+        "doctor_id": USR_SARAH,
         "created_by_user_id": USR_SARAH,
-        "status": PrescriptionStatus.ACTIVE,
+        "status": PrescriptionStatus.ACTIVE.value,
         "diagnosis_summary": "Hypertension follow-up",
         "notes": "Monitor blood pressure daily. Recheck in 4 weeks.",
         "medications": [
@@ -344,13 +334,14 @@ PRESCRIPTIONS = [
         "issued_at": ts("2026-03-15T10:30:00"),
         "created_at": ts("2026-03-15T10:30:00"),
         "updated_at": ts("2026-03-15T10:30:00"),
+        "seed_source": SEED_SOURCE_TAG,
     },
     {
         "prescription_id": RX_2,
-        "patient_id": PAT_JANE,
-        "doctor_id": DOC_OMAR,
+        "patient_id": USR_JANE,
+        "doctor_id": USR_OMAR,
         "created_by_user_id": USR_OMAR,
-        "status": PrescriptionStatus.ACTIVE,
+        "status": PrescriptionStatus.ACTIVE.value,
         "diagnosis_summary": "Type 2 diabetes management",
         "notes": "Continue metformin. HbA1c test in 3 months.",
         "medications": [
@@ -366,71 +357,70 @@ PRESCRIPTIONS = [
         "issued_at": ts("2026-03-18T14:00:00"),
         "created_at": ts("2026-03-18T14:00:00"),
         "updated_at": ts("2026-03-18T14:00:00"),
+        "seed_source": SEED_SOURCE_TAG,
     },
 ]
 
-# ── Patient documents ────────────────────────────────────────────────────────
+DOCU_1 = stable_seed_uuid("pdoc:john:cbc")
+DOCU_2 = stable_seed_uuid("pdoc:john:ecg")
+DOCU_3 = stable_seed_uuid("pdoc:jane:hba1c")
 
-DOCU_1 = document_id()
-DOCU_2 = document_id()
-DOCU_3 = document_id()
-
-DOCUMENTS = [
+SEED_PATIENT_DOCUMENTS: list[dict] = [
     {
         "document_id": DOCU_1,
-        "patient_id": PAT_JOHN,
+        "patient_id": USR_JOHN,
         "uploaded_by_user_id": USR_JOHN,
-        "document_type": DocumentType.LAB_REPORT,
+        "document_type": DocumentType.LAB_REPORT.value,
         "title": "CBC Report - March 2026",
         "description": "Complete blood count routine checkup",
         "file_name": "cbc-march-2026.pdf",
-        "storage_key": f"patients/{PAT_JOHN}/docs/cbc-march-2026.pdf",
+        "storage_key": f"patients/{USR_JOHN}/docs/cbc-march-2026.pdf",
         "mime_type": "application/pdf",
         "file_size_bytes": 245198,
-        "visibility": DocumentVisibility.LINKED_DOCTORS,
-        "source": DocumentSource.PATIENT_UPLOAD,
+        "visibility": DocumentVisibility.LINKED_DOCTORS.value,
+        "source": DocumentSource.PATIENT_UPLOAD.value,
         "uploaded_at": ts("2026-03-08T16:00:00"),
         "created_at": ts("2026-03-08T16:00:00"),
         "updated_at": ts("2026-03-08T16:00:00"),
+        "seed_source": SEED_SOURCE_TAG,
     },
     {
         "document_id": DOCU_2,
-        "patient_id": PAT_JOHN,
+        "patient_id": USR_JOHN,
         "uploaded_by_user_id": USR_JOHN,
-        "document_type": DocumentType.MEDICAL_TEST,
+        "document_type": DocumentType.MEDICAL_TEST.value,
         "title": "ECG Report - March 2026",
         "description": "Electrocardiogram, ordered by Dr. Sarah",
         "file_name": "ecg-march-2026.pdf",
-        "storage_key": f"patients/{PAT_JOHN}/docs/ecg-march-2026.pdf",
+        "storage_key": f"patients/{USR_JOHN}/docs/ecg-march-2026.pdf",
         "mime_type": "application/pdf",
         "file_size_bytes": 512000,
-        "visibility": DocumentVisibility.LINKED_DOCTORS,
-        "source": DocumentSource.PATIENT_UPLOAD,
+        "visibility": DocumentVisibility.LINKED_DOCTORS.value,
+        "source": DocumentSource.PATIENT_UPLOAD.value,
         "uploaded_at": ts("2026-03-12T11:00:00"),
         "created_at": ts("2026-03-12T11:00:00"),
         "updated_at": ts("2026-03-12T11:00:00"),
+        "seed_source": SEED_SOURCE_TAG,
     },
     {
         "document_id": DOCU_3,
-        "patient_id": PAT_JANE,
+        "patient_id": USR_JANE,
         "uploaded_by_user_id": USR_JANE,
-        "document_type": DocumentType.LAB_REPORT,
+        "document_type": DocumentType.LAB_REPORT.value,
         "title": "HbA1c Report - February 2026",
         "description": "Glycated hemoglobin test for diabetes monitoring",
         "file_name": "hba1c-feb-2026.pdf",
-        "storage_key": f"patients/{PAT_JANE}/docs/hba1c-feb-2026.pdf",
+        "storage_key": f"patients/{USR_JANE}/docs/hba1c-feb-2026.pdf",
         "mime_type": "application/pdf",
         "file_size_bytes": 198400,
-        "visibility": DocumentVisibility.LINKED_DOCTORS,
-        "source": DocumentSource.PATIENT_UPLOAD,
+        "visibility": DocumentVisibility.LINKED_DOCTORS.value,
+        "source": DocumentSource.PATIENT_UPLOAD.value,
         "uploaded_at": ts("2026-02-28T09:00:00"),
         "created_at": ts("2026-02-28T09:00:00"),
         "updated_at": ts("2026-02-28T09:00:00"),
+        "seed_source": SEED_SOURCE_TAG,
     },
 ]
-
-
-# ── Seed runner ──────────────────────────────────────────────────────────────
 
 
 async def seed() -> None:
@@ -438,31 +428,43 @@ async def seed() -> None:
     client = AsyncIOMotorClient(settings.MONGODB_URI)
     db = client[settings.DATABASE_NAME]
 
-    collections = {
-        "users": USERS,
-        "patient_profiles": PATIENT_PROFILES,
-        "doctor_profiles": DOCTOR_PROFILES,
-        "doctor_patient_links": LINKS,
-        "prescriptions": PRESCRIPTIONS,
-        "patient_documents": DOCUMENTS,
-    }
+    for doc in SEED_USERS:
+        r = await db.users.replace_one(
+            {"email": doc["email"], "role": doc["role"]},
+            doc,
+            upsert=True,
+        )
+        action = "inserted" if r.upserted_id else "updated"
+        print(f"  ✓  users: {doc['email']} ({action})")
 
-    for name, docs in collections.items():
-        coll = db[name]
-        existing = await coll.count_documents({})
-        if existing > 0:
-            print(f"  ⏭  {name}: already has {existing} docs, skipping")
-            continue
-        if docs:
-            await coll.insert_many(docs)
-            print(f"  ✓  {name}: inserted {len(docs)} docs")
+    for doc in SEED_CONNECTIONS:
+        r = await db.connections.replace_one(
+            {"connection_id": doc["connection_id"]}, doc, upsert=True
+        )
+        action = "inserted" if r.upserted_id else "updated"
+        pair = f"{doc['initiated_by']} → {doc['status']}"
+        print(f"  ✓  connections: {doc['connection_id'][:8]}… ({pair}, {action})")
+
+    for doc in SEED_PRESCRIPTIONS:
+        r = await db.prescriptions.replace_one(
+            {"prescription_id": doc["prescription_id"]}, doc, upsert=True
+        )
+        action = "inserted" if r.upserted_id else "updated"
+        print(f"  ✓  prescriptions: {doc['prescription_id'][:8]}… ({action})")
+
+    for doc in SEED_PATIENT_DOCUMENTS:
+        r = await db.patient_documents.replace_one(
+            {"document_id": doc["document_id"]}, doc, upsert=True
+        )
+        action = "inserted" if r.upserted_id else "updated"
+        print(f"  ✓  patient_documents: {doc['document_id'][:8]}… ({action})")
 
     client.close()
     print("\nSeed complete.")
 
 
 if __name__ == "__main__":
-    print("Seeding Phase A development data…\n")
+    print("Seeding development data…\n")
     try:
         asyncio.run(seed())
     except Exception as exc:

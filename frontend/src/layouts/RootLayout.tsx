@@ -1,39 +1,14 @@
-import { useEffect } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { IdentityProvider, useIdentity } from "../contexts/IdentityContext";
-import { PatientProvider } from "../contexts/PatientContext";
+import { Outlet } from "react-router-dom";
+import { AuthProvider } from "../contexts/AuthContext";
 
 /**
- * Wraps portal routes with identity + patient providers. Must sit under `RouterProvider`
- * so `IdentityProvider` can call `useNavigate` for role switches.
+ * Global auth session (tokens, `/me` bootstrap, refresh coordinator). Nested routes
+ * add `RequireAuth` + identity providers where needed.
  */
 export default function RootLayout() {
   return (
-    <IdentityProvider>
-      <PatientProvider>
-        <IdentityRedirectBoundary />
-      </PatientProvider>
-    </IdentityProvider>
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
   );
-}
-
-function IdentityRedirectBoundary() {
-  const { currentRole } = useIdentity();
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const path = location.pathname;
-    if (
-      currentRole === "doctor" &&
-      !path.startsWith("/doctor") &&
-      !path.startsWith("/public")
-    ) {
-      navigate("/doctor", { replace: true });
-    } else if (currentRole === "patient" && path.startsWith("/doctor")) {
-      navigate("/", { replace: true });
-    }
-  }, [currentRole, location.pathname, navigate]);
-
-  return <Outlet />;
 }
