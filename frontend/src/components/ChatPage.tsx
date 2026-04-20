@@ -1,4 +1,4 @@
-import { MessageSquare, RotateCcw, ShieldAlert, UserCircle } from "lucide-react";
+import { MessageSquare, RotateCcw, UserCircle } from "lucide-react";
 import { useCallback } from "react";
 import { Link } from "react-router-dom";
 import { usePatientContext } from "../contexts/PatientContext";
@@ -22,12 +22,12 @@ export default function ChatPage() {
   );
 
   return (
-    <div className="flex h-screen min-h-0 flex-col bg-gray-50">
+    <div className="flex min-h-0 w-full flex-1 flex-col bg-gray-50">
       {import.meta.env.DEV ? (
         <DevIdentityBanner />
       ) : (
         <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-2">
-          <div className="mx-auto flex max-w-3xl justify-end">
+          <div className="flex w-full justify-end">
             <PatientSelector
               selectedId={currentPatientId}
               onChange={handlePatientChange}
@@ -36,18 +36,8 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2">
-        <div className="mx-auto flex max-w-3xl items-center gap-2 text-amber-800">
-          <ShieldAlert size={16} className="shrink-0" aria-hidden />
-          <p className="text-xs">
-            <strong>Prototype only.</strong> Not real medical advice. Always
-            consult a qualified healthcare professional.
-          </p>
-        </div>
-      </div>
-
       <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600">
               <MessageSquare className="text-white" size={18} />
@@ -88,12 +78,9 @@ export default function ChatPage() {
         </div>
       </header>
 
-      {/* Full-width scroll surface so wheel/trackpad works on side margins; content stays max-w-3xl */}
-      <main className="flex-1 flex min-h-0 w-full flex-col">
+      <main className="flex min-h-0 w-full flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col">
-            <MessageList messages={messages} isLoading={isLoading} />
-          </div>
+          <MessageList messages={messages} isLoading={isLoading} />
         </div>
       </main>
 

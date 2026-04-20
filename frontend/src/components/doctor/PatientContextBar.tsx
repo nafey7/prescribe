@@ -46,8 +46,8 @@ export default function PatientContextBar({ patientId }: { patientId: string }) 
     (patientId.length > 12 ? `${patientId.slice(0, 8)}…` : patientId);
 
   return (
-    <div className="shrink-0 border-b border-teal-100 bg-teal-50/80 px-4 py-3">
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="relative isolate shrink-0 border-b border-teal-100 bg-teal-50/80 px-4 py-3">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <NavLink
             to={paths.doctor.patients}
@@ -64,15 +64,18 @@ export default function PatientContextBar({ patientId }: { patientId: string }) 
             <span title={patientId}>{label}</span>
           </p>
         </div>
-        <nav className="flex flex-wrap gap-1" aria-label="Patient section">
+        <nav
+          className="flex min-w-0 shrink-0 flex-wrap justify-start gap-1 sm:justify-end"
+          aria-label="Patient section"
+        >
           <NavLink to={base} end className={tabClass}>
             Overview
           </NavLink>
+          <NavLink to={`${base}/chat`} className={tabClass}>
+            AI
+          </NavLink>
           <NavLink to={`${base}/documents`} className={tabClass}>
             Documents
-          </NavLink>
-          <NavLink to={`${base}/chat`} className={tabClass}>
-            Chat
           </NavLink>
           <NavLink to={`${base}/prescriptions`} className={tabClass}>
             Prescriptions

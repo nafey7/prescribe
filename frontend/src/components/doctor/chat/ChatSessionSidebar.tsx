@@ -45,7 +45,12 @@ export default function ChatSessionSidebar({
         <ul className="space-y-1">
           {sessions.map((s) => {
             const active = selectedChatId === s.chat_id;
-            const label = formatRelativeShort(s.updated_at) || "Session";
+            const title = (s.title ?? "").trim();
+            const when = formatRelativeShort(s.updated_at);
+            const primary = title || when || "Session";
+            const secondary = title
+              ? when
+              : `${s.chat_id.slice(0, 8)}…`;
             return (
               <li key={s.chat_id}>
                 <button
@@ -58,10 +63,12 @@ export default function ChatSessionSidebar({
                       : "text-gray-700 hover:bg-gray-100",
                   ].join(" ")}
                 >
-                  <span className="block truncate">{label}</span>
-                  <span className="block truncate font-mono text-[10px] text-gray-400">
-                    {s.chat_id.slice(0, 8)}…
-                  </span>
+                  <span className="block truncate">{primary}</span>
+                  {secondary ? (
+                    <span className="block truncate font-mono text-[10px] text-gray-400">
+                      {secondary}
+                    </span>
+                  ) : null}
                 </button>
               </li>
             );

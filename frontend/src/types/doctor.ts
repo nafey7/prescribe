@@ -141,6 +141,7 @@ export interface ChatSessionSummary {
   chat_id: string;
   patient_id: string;
   doctor_id: string | null;
+  title: string;
   created_at: string;
   updated_at: string;
 }

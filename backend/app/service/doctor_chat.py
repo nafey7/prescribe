@@ -57,6 +57,7 @@ def _session_to_summary(doc: dict) -> ChatSessionSummary:
         chat_id=doc["chat_id"],
         patient_id=doc.get("patient_id") or "",
         doctor_id=doc.get("doctor_id"),
+        title=(doc.get("title") or "").strip(),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )

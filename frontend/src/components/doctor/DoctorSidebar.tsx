@@ -1,11 +1,13 @@
 import {
   LayoutDashboard,
   Link2,
+  LogOut,
   UserCircle,
   Users,
   X,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import { paths } from "../../router/paths";
 
 export type DoctorNavItem = {
@@ -50,6 +52,8 @@ export default function DoctorSidebar({
   onClose: () => void;
   items?: DoctorNavItem[];
 }) {
+  const { logout, status } = useAuth();
+
   const nav = items.map((item) => {
     const Icon = item.icon;
     const badge =
@@ -125,6 +129,22 @@ export default function DoctorSidebar({
         <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
           {nav}
         </nav>
+
+        {status === "authenticated" ? (
+          <div className="shrink-0 border-t border-gray-200 p-3">
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className={[
+                "doctor-sidebar-nav-link flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm",
+                "text-gray-700 transition-colors duration-200 hover:bg-gray-100",
+              ].join(" ")}
+            >
+              <LogOut size={20} className="shrink-0" aria-hidden />
+              <span className="doctor-sidebar-label min-w-0 truncate">Log out</span>
+            </button>
+          </div>
+        ) : null}
       </aside>
     </>
   );

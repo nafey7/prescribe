@@ -15,6 +15,7 @@ async def create_session(
     session: dict = {
         "chat_id": chat_id,
         "patient_id": patient_id,
+        "title": "",
         "created_at": now,
         "updated_at": now,
     }
@@ -32,6 +33,25 @@ async def touch_session(db: AsyncIOMotorDatabase, chat_id: str) -> None:
     await db.chat_sessions.update_one(
         {"chat_id": chat_id},
         {"$set": {"updated_at": datetime.now(timezone.utc)}},
+    )
+
+
+async def count_messages(db: AsyncIOMotorDatabase, chat_id: str) -> int:
+    return await db.chat_messages.count_documents({"chat_id": chat_id})
+
+
+async def set_session_title(db: AsyncIOMotorDatabase, chat_id: str, title: str) -> None:
+    cleaned = (title or "").strip()
+    if len(cleaned) > 200:
+        cleaned = cleaned[:199] + "…"
+    await db.chat_sessions.update_one(
+        {"chat_id": chat_id},
+        {
+            "$set": {
+                "title": cleaned,
+                "updated_at": datetime.now(timezone.utc),
+            }
+        },
     )
 
 

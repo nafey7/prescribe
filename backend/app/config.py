@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
+    # Short thread titles from the first user message (cheap / small models)
+    CHAT_TITLE_MODEL_OPENAI: str = "gpt-4o-mini"
+    CHAT_TITLE_MODEL_GOOGLE: str = "gemini-2.0-flash-lite"
+
     AI_SUGGESTIONS_ENABLED: bool = True
 
     # Auth (Phase D)

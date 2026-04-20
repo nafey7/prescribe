@@ -6,6 +6,7 @@ type StreamCallbacks = {
   onToken: (token: string) => void;
   onDone: (chatId: string, messageId: string) => void;
   onError: (error: string) => void;
+  onChatTitle?: (title: string) => void;
 };
 
 async function consumeSseStream(
@@ -45,6 +46,9 @@ async function consumeSseStream(
                 String(data.chat_id ?? ""),
                 String(data.message_id ?? "")
               );
+              break;
+            case "title":
+              callbacks.onChatTitle?.(String(data.title ?? ""));
               break;
             case "error":
               callbacks.onError(String(data.detail ?? "Error"));

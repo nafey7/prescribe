@@ -12,6 +12,7 @@ export interface ChatResponse {
   message: string;
   chat_id: string;
   message_id: string;
+  chat_title?: string | null;
 }
 
 export interface ChatHistoryResponse {

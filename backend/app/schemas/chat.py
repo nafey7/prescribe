@@ -22,6 +22,7 @@ class ChatResponse(BaseModel):
     message: str
     chat_id: str
     message_id: str
+    chat_title: str | None = None
 
 
 class MessageSchema(BaseModel):
@@ -39,6 +40,7 @@ class ChatSessionSummary(BaseModel):
     chat_id: str
     patient_id: str
     doctor_id: str | None = None
+    title: str = ""
     created_at: datetime
     updated_at: datetime
 

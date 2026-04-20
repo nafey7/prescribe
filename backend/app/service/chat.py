@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from collections.abc import AsyncGenerator
@@ -6,6 +7,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.ai.chat_title import generate_chat_title
 from app.ai.graph import invoke_medical_agent, stream_medical_agent
 from app.ai.prompts import build_system_prompt
 from app.repository import chat as chat_repo
@@ -107,25 +109,45 @@ async def process_message(
 
     system_prompt = await _resolve_system_prompt(db, patient_id, doctor_id)
 
+    is_first_message = await chat_repo.count_messages(db, chat_id) == 0
+
     await chat_repo.save_message(
         db, chat_id, patient_id, "user", message, doctor_id=doctor_id
     )
 
-    ai_response = await invoke_medical_agent(
-        message=message,
-        patient_id=patient_id,
-        chat_id=chat_id,
-        system_prompt=system_prompt,
-    )
+    title_task = None
+    if is_first_message:
+        title_task = asyncio.create_task(generate_chat_title(message))
+
+    try:
+        ai_response = await invoke_medical_agent(
+            message=message,
+            patient_id=patient_id,
+            chat_id=chat_id,
+            system_prompt=system_prompt,
+        )
+    except Exception:
+        if title_task is not None:
+            title_task.cancel()
+        raise
 
     message_id = await chat_repo.save_message(
         db, chat_id, patient_id, "assistant", ai_response, doctor_id=doctor_id
     )
 
+    chat_title: str | None = None
+    if title_task is not None:
+        try:
+            chat_title = await asyncio.wait_for(title_task, timeout=30.0)
+            await chat_repo.set_session_title(db, chat_id, chat_title)
+        except Exception:
+            logger.warning("Failed to set chat title", exc_info=True)
+
     return ChatResponse(
         message=ai_response,
         chat_id=chat_id,
         message_id=message_id,
+        chat_title=chat_title,
     )
 
 
@@ -151,9 +173,15 @@ async def process_message_stream(
 
     system_prompt = await _resolve_system_prompt(db, patient_id, doctor_id)
 
+    is_first_message = await chat_repo.count_messages(db, chat_id) == 0
+
     await chat_repo.save_message(
         db, chat_id, patient_id, "user", message, doctor_id=doctor_id
     )
+
+    title_task = None
+    if is_first_message:
+        title_task = asyncio.create_task(generate_chat_title(message))
 
     yield _format_sse("thinking", {"status": "Thinking..."})
 
@@ -178,7 +206,17 @@ async def process_message_stream(
         )
         yield _format_sse("done", {"chat_id": chat_id, "message_id": message_id})
 
+        if title_task is not None:
+            try:
+                chat_title = await asyncio.wait_for(title_task, timeout=30.0)
+                await chat_repo.set_session_title(db, chat_id, chat_title)
+                yield _format_sse("title", {"title": chat_title})
+            except Exception:
+                logger.warning("Failed to set chat title", exc_info=True)
+
     except Exception as e:
+        if title_task is not None:
+            title_task.cancel()
         logger.exception("Error during streaming")
         yield _format_sse("error", {"detail": str(e)})
 

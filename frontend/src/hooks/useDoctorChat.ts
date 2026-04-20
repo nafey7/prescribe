@@ -136,6 +136,16 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
 
       try {
         await sendDoctorChatMessageStream(doctorId, patientId, text, chatId, {
+          onChatTitle: () => {
+            dispatch(
+              baseApi.util.invalidateTags([
+                {
+                  type: "ChatSessions",
+                  id: `${doctorId}-${patientId}`,
+                },
+              ])
+            );
+          },
           onThinking: (status) => {
             updateLast((msg) => {
               if (msg.isStreaming || msg.content || tokenBufferRef.current)

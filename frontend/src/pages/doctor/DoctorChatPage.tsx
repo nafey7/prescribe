@@ -60,8 +60,8 @@ export default function DoctorChatPage() {
   const titleName = patientLabel || patientId;
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-3">
-      <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm md:h-[min(640px,calc(100dvh-13rem))] md:flex-row">
+    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden border border-gray-200 bg-white md:flex-row">
         <ChatSessionSidebar
           sessions={sessions}
           selectedChatId={chatId}

@@ -9,7 +9,8 @@ Also runs automatically after MongoDB connects on API startup when
 
 Creates demo patients, doctors, an admin, doctor–patient connections (active and
 pending), sample prescriptions, and patient_documents rows. Uses the same
-`users` + `connections` collections as the running app.
+`users` + `connections` collections as the running app. Seeded patient profiles
+include sample allergies, conditions, medications, and family history for local UI demos.
 
 Password hashes use the same bcrypt path as the API (`hash_password` +
 `BCRYPT_ROUNDS` from settings / `.env`). Set `DEV_DEFAULT_PASSWORD` (min 8 chars,
@@ -98,6 +99,11 @@ def _patient_user(
     phone: str | None,
     profile_completed: bool,
     created_at: datetime,
+    allergies: list[dict],
+    conditions: list[dict],
+    medications: list[dict],
+    family_history: list[dict],
+    lifestyle: dict,
 ) -> dict:
     return {
         "user_id": user_id,
@@ -124,17 +130,11 @@ def _patient_user(
             "phone": phone,
             "address": {"street": "", "city": "", "state": "", "zip": ""},
             "emergency_contact": {"name": "", "relationship": "", "phone": ""},
-            "allergies": [],
-            "conditions": [],
-            "medications": [],
-            "family_history": [],
-            "lifestyle": {
-                "smoking_status": "unknown",
-                "smoking_notes": "",
-                "alcohol": "",
-                "exercise": "",
-                "diet_notes": "",
-            },
+            "allergies": allergies,
+            "conditions": conditions,
+            "medications": medications,
+            "family_history": family_history,
+            "lifestyle": lifestyle,
         },
     }
 
@@ -200,6 +200,58 @@ SEED_USERS: list[dict] = [
         phone="+923001234567",
         profile_completed=True,
         created_at=ts("2026-03-01T10:00:00"),
+        allergies=[
+            {
+                "substance": "Penicillin",
+                "reaction": "Rash and itching",
+                "documented_date": "2015-06-01",
+            },
+            {
+                "substance": "Shellfish",
+                "reaction": "Mild oral tingling",
+                "documented_date": "2019-08-12",
+            },
+        ],
+        conditions=[
+            {
+                "name": "Essential hypertension",
+                "diagnosed_year": 2018,
+                "status": "active",
+                "notes": "Targets met on current therapy; home BP log reviewed.",
+            },
+            {
+                "name": "Hyperlipidemia",
+                "diagnosed_year": 2020,
+                "status": "active",
+                "notes": "Statin discussed; lifestyle modification ongoing.",
+            },
+        ],
+        medications=[
+            {
+                "name": "Amlodipine",
+                "dosage": "5mg",
+                "frequency": "once daily",
+                "since": "2025-03",
+            },
+            {
+                "name": "Losartan",
+                "dosage": "50mg",
+                "frequency": "once daily",
+                "since": "2025-03",
+            },
+        ],
+        family_history=[
+            {"relation": "Father", "condition": "Hypertension"},
+            {"relation": "Mother", "condition": "Stroke (age 72)"},
+            {"relation": "Sister", "condition": "Asthma"},
+        ],
+        lifestyle={
+            "smoking_status": "never",
+            "smoking_notes": "",
+            "alcohol": "Occasional (1-2 drinks/week)",
+            "exercise": "Brisk walking 3×/week, ~25 minutes",
+            "diet_notes": "DASH-style diet; limiting sodium",
+        },
     ),
     _patient_user(
         user_id=USR_JANE,
@@ -213,6 +265,46 @@ SEED_USERS: list[dict] = [
         phone="+923009876543",
         profile_completed=True,
         created_at=ts("2026-03-05T14:00:00"),
+        allergies=[
+            {
+                "substance": "Sulfa drugs",
+                "reaction": "Nausea and rash",
+                "documented_date": "2012-04-18",
+            },
+        ],
+        conditions=[
+            {
+                "name": "Type 2 diabetes mellitus",
+                "diagnosed_year": 2019,
+                "status": "active",
+                "notes": "HbA1c monitored every 3 months; foot checks annually.",
+            },
+            {
+                "name": "Hypothyroidism",
+                "diagnosed_year": 2021,
+                "status": "active",
+                "notes": "Stable on levothyroxine (managed outside demo data).",
+            },
+        ],
+        medications=[
+            {
+                "name": "Metformin",
+                "dosage": "500mg",
+                "frequency": "twice daily",
+                "since": "2019-11",
+            },
+        ],
+        family_history=[
+            {"relation": "Mother", "condition": "Type 2 diabetes"},
+            {"relation": "Father", "condition": "Hypertension"},
+        ],
+        lifestyle={
+            "smoking_status": "former",
+            "smoking_notes": "Quit 2016",
+            "alcohol": "None",
+            "exercise": "Swimming twice weekly",
+            "diet_notes": "Carbohydrate counting; regular meal times",
+        },
     ),
     _patient_user(
         user_id=USR_ALEX,
@@ -226,6 +318,39 @@ SEED_USERS: list[dict] = [
         phone="+923005551234",
         profile_completed=False,
         created_at=ts("2026-04-01T09:00:00"),
+        allergies=[
+            {
+                "substance": "Pollen (seasonal)",
+                "reaction": "Rhinitis, itchy eyes",
+                "documented_date": "2020-03-01",
+            },
+        ],
+        conditions=[
+            {
+                "name": "Mild persistent asthma",
+                "diagnosed_year": 2010,
+                "status": "active",
+                "notes": "Rare daytime symptoms; uses rescue inhaler PRN.",
+            },
+        ],
+        medications=[
+            {
+                "name": "Albuterol",
+                "dosage": "90mcg",
+                "frequency": "as needed for wheeze",
+                "since": "2010-05",
+            },
+        ],
+        family_history=[
+            {"relation": "Father", "condition": "Asthma"},
+        ],
+        lifestyle={
+            "smoking_status": "never",
+            "smoking_notes": "",
+            "alcohol": "Social only",
+            "exercise": "Cycling on weekends",
+            "diet_notes": "",
+        },
     ),
     _doctor_user(
         user_id=USR_SARAH,
