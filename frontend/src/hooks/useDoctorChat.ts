@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { sendDoctorChatMessageStream } from "../api/chatStream";
 import {
+  useDeleteDoctorChatMutation,
   useGetDoctorChatSessionsQuery,
   useLazyGetDoctorChatHistoryQuery,
 } from "../api/chatApi";
@@ -31,6 +32,8 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
   );
 
   const [triggerHistory] = useLazyGetDoctorChatHistoryQuery();
+  const [deleteDoctorChat] = useDeleteDoctorChatMutation();
+  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
 
   const tokenBufferRef = useRef("");
   const rafIdRef = useRef<number | null>(null);
@@ -78,6 +81,36 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
     setChatId(undefined);
     setError(null);
   }, []);
+
+  const deleteChat = useCallback(
+    async (sessionChatId: string): Promise<boolean> => {
+      if (!doctorId || !patientId || !sessionChatId.trim()) return false;
+      setError(null);
+      setDeletingChatId(sessionChatId);
+      try {
+        await deleteDoctorChat({ doctorId, patientId, chatId: sessionChatId }).unwrap();
+        if (chatId === sessionChatId) {
+          newChat();
+        }
+        return true;
+      } catch (e: unknown) {
+        let msg = "Failed to delete chat";
+        if (e && typeof e === "object" && "data" in e) {
+          const data = (e as { data?: { detail?: unknown } }).data;
+          const d = data?.detail;
+          if (typeof d === "string") msg = d;
+          else if (Array.isArray(d)) msg = d.map((x) => String(x)).join(", ");
+        } else if (e instanceof Error) {
+          msg = e.message;
+        }
+        setError(msg);
+        return false;
+      } finally {
+        setDeletingChatId(null);
+      }
+    },
+    [doctorId, patientId, chatId, deleteDoctorChat, newChat]
+  );
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -236,9 +269,11 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
     sessionsLoading,
     historyLoading,
     isLoading,
+    deletingChatId,
     error,
     sendMessage,
     newChat,
+    deleteChat,
     selectSession,
     refreshSessions: refetchSessions,
   };

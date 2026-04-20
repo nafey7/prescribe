@@ -114,3 +114,44 @@ def test_doctor_chat_history_ok(client):
             data = r.json()
             assert data["chat_id"] == "c1"
             assert len(data["messages"]) == 1
+
+
+def test_doctor_delete_patient_chat_forbidden_wrong_doctor(client):
+    with patch(
+        "app.service.doctor_chat.chat_repo.get_session",
+        new_callable=AsyncMock,
+        return_value={
+            "chat_id": "c1",
+            "doctor_id": "other",
+            "patient_id": "pat-1",
+        },
+    ):
+        with patch(
+            "app.service.doctor_chat.connection_service.verify_connection",
+            new_callable=AsyncMock,
+        ):
+            r = client.delete("/api/doctors/dr-1/patients/pat-1/chat/c1")
+            assert r.status_code == 403
+
+
+def test_doctor_delete_patient_chat_ok(client):
+    with patch(
+        "app.service.doctor_chat.chat_repo.get_session",
+        new_callable=AsyncMock,
+        return_value={
+            "chat_id": "c1",
+            "doctor_id": "dr-1",
+            "patient_id": "pat-1",
+        },
+    ):
+        with patch(
+            "app.service.doctor_chat.connection_service.verify_connection",
+            new_callable=AsyncMock,
+        ):
+            with patch(
+                "app.service.doctor_chat.chat_repo.delete_session_and_messages",
+                new_callable=AsyncMock,
+            ) as mock_del:
+                r = client.delete("/api/doctors/dr-1/patients/pat-1/chat/c1")
+                assert r.status_code == 204
+                mock_del.assert_called_once()

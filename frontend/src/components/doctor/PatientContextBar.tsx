@@ -1,12 +1,8 @@
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import { alpha, styled } from "@mui/material";
 import { ArrowLeft } from "lucide-react";
-import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { getConnectedPatientProfile } from "../../api/doctors";
-import { useIdentity } from "../../contexts/IdentityContext";
 import { paths } from "../../router/paths";
 
 const PatientTabLink = styled(NavLink)(({ theme }) => ({
@@ -45,33 +41,7 @@ const BackLink = styled(NavLink)(({ theme }) => ({
  * Sub-navigation when viewing a specific patient under `/doctor/patients/:patientId/*`.
  */
 export default function PatientContextBar({ patientId }: { patientId: string }) {
-  const { currentDoctorId } = useIdentity();
   const base = paths.doctor.patientDetail(encodeURIComponent(patientId));
-  const [displayName, setDisplayName] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!currentDoctorId || !patientId) {
-      setDisplayName(null);
-      return;
-    }
-    let cancelled = false;
-    getConnectedPatientProfile(currentDoctorId, patientId)
-      .then((p) => {
-        if (cancelled) return;
-        const n = `${p.first_name} ${p.last_name}`.trim();
-        setDisplayName(n || null);
-      })
-      .catch(() => {
-        if (!cancelled) setDisplayName(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [currentDoctorId, patientId]);
-
-  const label =
-    displayName ||
-    (patientId.length > 12 ? `${patientId.slice(0, 8)}…` : patientId);
 
   return (
     <Box
@@ -101,22 +71,6 @@ export default function PatientContextBar({ patientId }: { patientId: string }) 
             <ArrowLeft size={16} aria-hidden />
             Back to Patients
           </BackLink>
-          <Typography
-            component="span"
-            variant="body2"
-            sx={{ display: { xs: "none", sm: "inline" }, color: "divider" }}
-            aria-hidden
-          >
-            |
-          </Typography>
-          <Typography variant="body2" color="text.primary" noWrap sx={{ minWidth: 0 }}>
-            <Typography component="span" sx={{ fontWeight: 600 }}>
-              Viewing:
-            </Typography>{" "}
-            <Box component="span" title={patientId}>
-              {label}
-            </Box>
-          </Typography>
         </Stack>
         <Stack
           component="nav"

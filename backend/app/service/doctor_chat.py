@@ -80,3 +80,28 @@ async def get_doctor_chat_history(
     history = await chat_service.get_chat_history(chat_id=chat_id, db=db)
     assert history is not None
     return history
+
+
+async def delete_doctor_patient_chat(
+    db: AsyncIOMotorDatabase,
+    doctor_id: str,
+    patient_id: str,
+    chat_id: str,
+) -> None:
+    await connection_service.verify_connection(db, doctor_id, patient_id)
+    session = await chat_repo.get_session(db, chat_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    sd = session.get("doctor_id")
+    if sd is None or sd != doctor_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized for this chat session",
+        )
+    sp = session.get("patient_id")
+    if sp is not None and sp != patient_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized for this chat session",
+        )
+    await chat_repo.delete_session_and_messages(db, chat_id)

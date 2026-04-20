@@ -1,7 +1,8 @@
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { MessageSquare } from "lucide-react";
+import { UserCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getConnectedPatientProfile } from "../../api/doctors";
@@ -24,9 +25,12 @@ export default function DoctorChatPage() {
     sessionsLoading,
     historyLoading,
     isLoading,
+    deletingChatId,
+    error,
     sendMessage,
     newChat,
     selectSession,
+    deleteChat,
   } = useDoctorChat(currentDoctorId, patientId ?? null);
 
   useEffect(() => {
@@ -88,36 +92,55 @@ export default function DoctorChatPage() {
           onSelect={selectSession}
           onNew={newChat}
           isLoading={sessionsLoading}
+          onDeleteChat={deleteChat}
+          deletingChatId={deletingChatId}
         />
 
-        <Box sx={{ display: "flex", minHeight: 0, minWidth: 0, flex: 1, flexDirection: "column" }}>
+        <Box
+          sx={(theme) => ({
+            display: "flex",
+            minHeight: 0,
+            minWidth: 0,
+            flex: 1,
+            flexDirection: "column",
+            borderLeft: { md: `1px solid ${theme.palette.divider}` },
+          })}
+        >
           <Box component="header" sx={(theme) => chatPanelToolbarSx(theme)}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <Stack direction="row" spacing={2} sx={{ alignItems: "center", minWidth: 0 }}>
               <Box
                 sx={{
-                  width: 32,
-                  height: 32,
+                  width: 28,
+                  height: 28,
                   borderRadius: 1,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   bgcolor: "secondary.main",
                   color: "secondary.contrastText",
+                  flexShrink: 0,
                 }}
               >
-                <MessageSquare size={18} />
+                <UserCircle size={16} strokeWidth={1.75} aria-hidden />
               </Box>
-              <Box>
-                <Typography variant="subtitle1" color="text.primary" sx={{ fontWeight: 600 }}>
-                  AI Medical Assistant
+              <Stack direction="row" spacing={1} sx={{ alignItems: "baseline", minWidth: 0 }}>
+                <Typography variant="body2" color="text.primary" sx={{ fontWeight: 500 }} noWrap>
+                  {titleName}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Patient: {titleName}
-                  {historyLoading ? " · Loading history…" : null}
-                </Typography>
-              </Box>
+                {historyLoading ? (
+                  <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                    Loading history…
+                  </Typography>
+                ) : null}
+              </Stack>
             </Stack>
           </Box>
+
+          {error ? (
+            <Alert severity="error" sx={{ borderRadius: 0 }}>
+              {error}
+            </Alert>
+          ) : null}
 
           <Box sx={{ minHeight: 0, flex: 1, overflowY: "auto" }}>
             <MessageList

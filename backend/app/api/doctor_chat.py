@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 
 from app.api.dependencies import ensure_doctor_route, resolve_actor_user
@@ -121,3 +121,18 @@ async def doctor_chat_history(
     return await doctor_chat_service.get_doctor_chat_history(
         db, doctor_id, chat_id
     )
+
+
+@router.delete("/{doctor_id}/patients/{patient_id}/chat/{chat_id}")
+async def doctor_delete_patient_chat(
+    doctor_id: str,
+    patient_id: str,
+    chat_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+) -> Response:
+    ensure_doctor_route(actor, doctor_id)
+    db = get_database()
+    await doctor_chat_service.delete_doctor_patient_chat(
+        db, doctor_id, patient_id, chat_id
+    )
+    return Response(status_code=204)

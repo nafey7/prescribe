@@ -113,6 +113,12 @@ async def list_sessions(
     return await cursor.to_list(length=limit)
 
 
+async def delete_session_and_messages(db: AsyncIOMotorDatabase, chat_id: str) -> None:
+    """Remove all messages and the session document for this chat."""
+    await db.chat_messages.delete_many({"chat_id": chat_id})
+    await db.chat_sessions.delete_one({"chat_id": chat_id})
+
+
 async def get_last_assistant_snippet(
     db: AsyncIOMotorDatabase, chat_id: str, *, max_len: int = 120
 ) -> str:

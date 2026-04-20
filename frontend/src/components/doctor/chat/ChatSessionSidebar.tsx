@@ -1,12 +1,19 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import { alpha } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
 import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { MessageSquare, Plus } from "lucide-react";
+import { MessageSquare, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { chatPanelToolbarSx } from "./chatPanelToolbarSx";
 import { formatRelativeShort } from "../dashboard/formatRelative";
 import type { ChatSessionSummary } from "../../../types/doctor";
@@ -17,6 +24,8 @@ interface ChatSessionSidebarProps {
   onSelect: (chatId: string) => void;
   onNew: () => void;
   isLoading: boolean;
+  onDeleteChat: (chatId: string) => Promise<boolean>;
+  deletingChatId: string | null;
 }
 
 export default function ChatSessionSidebar({
@@ -25,7 +34,12 @@ export default function ChatSessionSidebar({
   onSelect,
   onNew,
   isLoading,
+  onDeleteChat,
+  deletingChatId,
 }: ChatSessionSidebarProps) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const confirmBusy = confirmDeleteId !== null && deletingChatId === confirmDeleteId;
+
   return (
     <Box
       component="aside"
@@ -36,8 +50,7 @@ export default function ChatSessionSidebar({
         flexShrink: 0,
         flexDirection: "column",
         borderBottom: { xs: 1, md: 0 },
-        borderRight: { md: 1 },
-        borderColor: "divider",
+        borderBottomColor: "divider",
         bgcolor: "grey.50",
         alignSelf: { md: "stretch" },
       }}
@@ -52,7 +65,7 @@ export default function ChatSessionSidebar({
       >
         <Stack
           direction="row"
-          spacing={1}
+          spacing={2}
           sx={{ alignItems: "center", typography: "body2", fontWeight: 500, color: "text.primary" }}
         >
           <Box sx={{ color: "secondary.main", lineHeight: 0, display: "flex" }} aria-hidden>
@@ -65,9 +78,9 @@ export default function ChatSessionSidebar({
           onClick={onNew}
           variant="contained"
           color="secondary"
-          size="medium"
-          startIcon={<Plus size={16} aria-hidden />}
-          sx={{ textTransform: "none", flexShrink: 0 }}
+          size="small"
+          startIcon={<Plus size={14} aria-hidden />}
+          sx={{ textTransform: "none", flexShrink: 0, py: 0.25, px: 1, minHeight: 0 }}
         >
           New
         </Button>
@@ -90,47 +103,114 @@ export default function ChatSessionSidebar({
             const when = formatRelativeShort(s.updated_at);
             const primary = title || when || "Session";
             const secondary = title ? when : `${s.chat_id.slice(0, 8)}…`;
+            const rowDeleting = deletingChatId === s.chat_id;
             return (
-              <ListItem key={s.chat_id} disablePadding>
-                <ListItemButton
-                  onClick={() => onSelect(s.chat_id)}
+              <ListItemButton
+                key={s.chat_id}
+                onClick={() => onSelect(s.chat_id)}
+                sx={(theme) => ({
+                  borderRadius: 2,
+                  py: 1,
+                  px: 1,
+                  gap: 0.5,
+                  alignItems: "flex-start",
+                  display: "flex",
+                  minWidth: 0,
+                  "@media (hover: hover) and (pointer: fine)": {
+                    "&:hover .session-delete-btn": { opacity: 1 },
+                  },
+                  "@media (hover: none), (pointer: coarse)": {
+                    ".session-delete-btn": { opacity: 0.65 },
+                  },
+                  ...(active
+                    ? {
+                        bgcolor: alpha(theme.palette.secondary.main, 0.12),
+                        fontWeight: 600,
+                        color: "secondary.dark",
+                        "&:hover": { bgcolor: alpha(theme.palette.secondary.main, 0.2) },
+                      }
+                    : {
+                        color: "text.primary",
+                        "&:hover": { bgcolor: "action.hover" },
+                      }),
+                })}
+              >
+                <Box sx={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                  <Typography variant="body2" noWrap sx={{ fontWeight: "inherit" }}>
+                    {primary}
+                  </Typography>
+                  {secondary ? (
+                    <Typography
+                      variant="caption"
+                      noWrap
+                      sx={{ display: "block", fontFamily: "monospace", fontSize: "0.625rem", color: "text.disabled" }}
+                    >
+                      {secondary}
+                    </Typography>
+                  ) : null}
+                </Box>
+                <IconButton
+                  type="button"
+                  className="session-delete-btn"
+                  size="small"
+                  aria-label={`Delete chat ${primary}`}
+                  disabled={rowDeleting}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setConfirmDeleteId(s.chat_id);
+                  }}
                   sx={(theme) => ({
-                    borderRadius: 2,
-                    py: 1,
-                    alignItems: "flex-start",
-                    ...(active
-                      ? {
-                          bgcolor: alpha(theme.palette.secondary.main, 0.12),
-                          fontWeight: 600,
-                          color: "secondary.dark",
-                          "&:hover": { bgcolor: alpha(theme.palette.secondary.main, 0.2) },
-                        }
-                      : {
-                          color: "text.primary",
-                          "&:hover": { bgcolor: "action.hover" },
-                        }),
+                    alignSelf: "flex-start",
+                    mt: 0.25,
+                    flexShrink: 0,
+                    opacity: rowDeleting ? 1 : 0,
+                    transition: theme.transitions.create("opacity", { duration: 120 }),
+                    color: "text.secondary",
+                    "&:focus-visible": { opacity: 1 },
                   })}
                 >
-                  <Box sx={{ width: "100%", minWidth: 0, textAlign: "left" }}>
-                    <Typography variant="body2" noWrap sx={{ fontWeight: "inherit" }}>
-                      {primary}
-                    </Typography>
-                    {secondary ? (
-                      <Typography
-                        variant="caption"
-                        noWrap
-                        sx={{ display: "block", fontFamily: "monospace", fontSize: "0.625rem", color: "text.disabled" }}
-                      >
-                        {secondary}
-                      </Typography>
-                    ) : null}
-                  </Box>
-                </ListItemButton>
-              </ListItem>
+                  {rowDeleting ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : (
+                    <Trash2 size={18} />
+                  )}
+                </IconButton>
+              </ListItemButton>
             );
           })}
         </List>
       </Box>
+
+      <Dialog
+        open={confirmDeleteId !== null}
+        onClose={() => (!confirmBusy ? setConfirmDeleteId(null) : undefined)}
+        aria-labelledby="session-delete-chat-title"
+      >
+        <DialogTitle id="session-delete-chat-title">Delete this chat?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This removes the conversation from your history for this patient. This cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setConfirmDeleteId(null)} disabled={confirmBusy}>
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={confirmBusy}
+            onClick={async () => {
+              if (!confirmDeleteId) return;
+              const ok = await onDeleteChat(confirmDeleteId);
+              if (ok) setConfirmDeleteId(null);
+            }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

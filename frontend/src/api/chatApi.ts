@@ -76,6 +76,20 @@ export const chatApi = baseApi.injectEndpoints({
         return tags;
       },
     }),
+    deleteDoctorChat: builder.mutation<
+      void,
+      { doctorId: string; patientId: string; chatId: string }
+    >({
+      query: ({ doctorId, patientId, chatId }) => ({
+        url: `/doctors/${encodeURIComponent(doctorId)}/patients/${encodeURIComponent(patientId)}/chat/${encodeURIComponent(chatId)}`,
+        method: "DELETE",
+        skipPatientHeader: true,
+      }),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: "ChatSessions", id: `${arg.doctorId}-${arg.patientId}` },
+        { type: "Chat", id: arg.chatId },
+      ],
+    }),
   }),
 });
 
@@ -86,4 +100,5 @@ export const {
   useGetDoctorChatHistoryQuery,
   useLazyGetDoctorChatHistoryQuery,
   useSendDoctorChatMessageMutation,
+  useDeleteDoctorChatMutation,
 } = chatApi;
