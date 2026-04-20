@@ -1,4 +1,4 @@
-import { MessageSquare, ShieldAlert } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import ChatInput from "../../components/ChatInput";
@@ -61,16 +61,6 @@ export default function DoctorChatPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-3">
-      <div className="shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-        <div className="flex items-center gap-2 text-amber-900">
-          <ShieldAlert size={16} className="shrink-0" aria-hidden />
-          <p className="text-xs">
-            <strong>Educational prototype</strong> — not medical advice. Always
-            confirm with the care team.
-          </p>
-        </div>
-      </div>
-
       <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm md:h-[min(640px,calc(100dvh-13rem))] md:flex-row">
         <ChatSessionSidebar
           sessions={sessions}

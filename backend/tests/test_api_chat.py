@@ -25,7 +25,6 @@ def test_list_patients(client):
             {
                 "id": "john_doe",
                 "name": "John Doe",
-                "file": "patient_john_doe.md",
                 "user_id": None,
             }
         ]

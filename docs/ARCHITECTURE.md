@@ -77,7 +77,7 @@ _should_continue?
 
 - **Graph type:** `StateGraph` with `MedicalChatState` (messages list + patient_id)
 - **Checkpointing:** MongoDB via `langgraph-checkpoint-mongodb`, keyed by `thread_id` = `chat_id`
-- **Tools:** Currently one — `search_patient_records` reads `data/patients/patient_{id}.md`
+- **Tools:** Currently one — `search_patient_records` reads the patient's profile from MongoDB (`users` collection, `role: patient`) and recent uploaded documents from the `documents` collection
 - **LLM:** Configurable via `LLM_PROVIDER` env var — Google Gemini (default) or OpenAI
 - **System prompt:** Injected as `SystemMessage` at the start of the message list, templated with `patient_id`
 
@@ -98,14 +98,14 @@ Messages are written in order: user message saved before AI invocation, assistan
 
 ## Patient data integration
 
-Patient records are Markdown files in `data/patients/` mounted into the backend container at `data/patients/`. The `search_patient_records` tool:
+Patient records live entirely in MongoDB. The `search_patient_records` tool:
 
-1. Receives `patient_id` (e.g., `john_doe`) from the LangGraph agent
-2. Reads `data/patients/patient_{patient_id}.md`
-3. Returns the full file content as a string
-4. Falls back to listing available patients if the file doesn't exist
+1. Receives a `patient_id` (either a `user_id` UUID or a `patient_slug`) from the LangGraph agent
+2. Resolves it against the `users` collection (`role: patient`) via `user_id` or `patient_slug`
+3. Formats the `patient_profile` (demographics, conditions, medications, allergies, family history, lifestyle) plus the five most recent entries from the `documents` collection into a structured text summary
+4. Returns a "no record found" message if neither lookup hits
 
-Files are scanned at request time — no restart needed to pick up new patients.
+No filesystem dependency, no restart required to pick up new or edited patients — it's a live read every turn.
 
 ## Key dependencies
 

@@ -90,7 +90,6 @@ When you make a code change, update the relevant doc:
 | Architecture change | `docs/ARCHITECTURE.md` |
 | New backend module/file | `backend/CLAUDE.md` folder map |
 | New frontend component/hook | `frontend/CLAUDE.md` folder map |
-| New patient file | `data/CLAUDE.md` current files list |
 | New test file | `docs/TESTING.md` test files table |
 | New environment variable | `docs/LOCAL_DEVELOPMENT.md` env table |
 | New plan | `docs/README.md` plans table |

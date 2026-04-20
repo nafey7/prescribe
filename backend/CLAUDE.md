@@ -22,13 +22,12 @@ backend/
 │   │   └── chat.py          # Pydantic request/response models (ChatRequest, ChatResponse, etc.)
 │   └── ai/
 │       ├── graph.py         # LangGraph StateGraph: agent ↔ tools loop, invoke + stream
-│       ├── tools.py         # search_patient_records tool (reads data/patients/*.md)
+│       ├── tools.py         # search_patient_records tool (reads MongoDB users/documents)
 │       ├── prompts.py       # System prompt template
 │       ├── llm.py           # LLM factory (Google Gemini or OpenAI)
 │       └── state.py         # MedicalChatState TypedDict
 ├── tests/
-│   ├── test_api_chat.py     # API endpoint tests
-│   └── test_tools.py        # Tool function tests
+│   └── test_api_chat.py     # API endpoint tests
 ├── requirements.txt
 └── Dockerfile
 ```
@@ -55,7 +54,7 @@ HTTP request
 - **Async with Motor:** All MongoDB operations use Motor's async driver. The LangGraph graph runs sync internally but is wrapped with `asyncio.to_thread` for the non-streaming path.
 - **Streaming via SSE:** `POST /message/stream` returns `text/event-stream` with `thinking`, `token`, `done`, and `error` events. Full response is only persisted after stream completion.
 - **LangGraph checkpointing:** Graph state is checkpointed to MongoDB via `langgraph-checkpoint-mongodb`, keyed by `chat_id` as `thread_id`.
-- **Tool pattern:** Tools are LangChain `@tool`-decorated functions. Currently only `search_patient_records`.
+- **Tool pattern:** Tools are LangChain `@tool`-decorated functions. Currently only `search_patient_records`, which looks up the patient's `patient_profile` document in MongoDB (by `user_id` or `patient_slug`) and formats a grounded summary for the LLM.
 
 ## Dependencies
 

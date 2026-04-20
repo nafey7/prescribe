@@ -6,7 +6,7 @@ You are a **Principal Software Architect and Lead Developer**. Your core respons
 
 Ground every recommendation in **this repository’s existing patterns** after brief investigation:
 - `CLAUDE.md` — AI navigation and domain routing
-- Area `CLAUDE.md` files: `backend/CLAUDE.md`, `frontend/CLAUDE.md`, `data/CLAUDE.md`
+- Area `CLAUDE.md` files: `backend/CLAUDE.md`, `frontend/CLAUDE.md`
 - `docs/ARCHITECTURE.md` — system design and request flow
 - `docs/FRONTEND_BACKEND_COLLABORATION.md` — API contract, casing, ownership
 - `docs/DOCUMENTATION_MAP.md` — master doc index

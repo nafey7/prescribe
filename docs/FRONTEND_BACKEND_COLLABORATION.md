@@ -184,7 +184,7 @@ interface Patient {
 
 ### `MedicalHistoryResponse` (summary)
 
-Returned by `GET /api/patients/{patient_id}/medical-history`. JSON uses `snake_case` throughout (e.g. `lab_reports`, `medical_events`, `recent_documents`). Core fields: `patient_id` (UUID), `summary` (name, demographics), `conditions`, `allergies` (from MongoDB profile), `medications`, `lab_reports`, `medical_events` (from `data/patients/patient_{slug}.md` via parser), `family_history`, `lifestyle`, `recent_documents` (from `documents` collection when Feature 3 data exists).
+Returned by `GET /api/patients/{patient_id}/medical-history`. JSON uses `snake_case` throughout (e.g. `lab_reports`, `medical_events`, `recent_documents`). Core fields: `patient_id` (UUID), `summary` (name, demographics), `conditions`, `allergies`, `medications`, `family_history`, `lifestyle` (all from the patient's `patient_profile` in MongoDB), `recent_documents` (from the `documents` collection), and `lab_reports` / `medical_events` (reserved for future DB-backed timelines; currently returned as empty arrays).
 
 ## Casing conventions
 

@@ -31,7 +31,6 @@ def test_patients_for_chat_ok(client):
             {
                 "id": "john_doe",
                 "name": "John Doe",
-                "file": "patient_john_doe.md",
                 "user_id": None,
             }
         ]

@@ -1,6 +1,6 @@
 # Medical AI Chat Prototype
 
-A standalone medical AI chat application that reads patient prescription/medical-history files and uses them as context to answer symptom queries, suggest diagnoses, and recommend medicines.
+A medical AI chat application that reads each patient's structured profile from MongoDB and uses it as context to answer symptom queries, suggest diagnoses, and recommend medicines.
 
 **Stack:** React + Vite frontend, FastAPI + LangGraph backend, MongoDB for persistence — all orchestrated via Docker Compose.
 
@@ -24,7 +24,7 @@ A standalone medical AI chat application that reads patient prescription/medical
 │  api/chat.py → service/chat.py → ai/graph.py│
 │       │                │                     │
 │       ▼                ▼                     │
-│    MongoDB        Patient docs (data/*.md)   │
+│    MongoDB (patient profiles + chat state)   │
 └──────────────────────────────────────────────┘
 
 LangGraph:  START → agent ←→ tools → END
@@ -36,7 +36,7 @@ LangGraph:  START → agent ←→ tools → END
 **Data flow:**
 1. User types a message → frontend `POST /api/chat/message`
 2. Backend loads/creates chat session, invokes LangGraph agent
-3. Agent reads patient files via `search_patient_records` tool
+3. Agent reads the patient profile from MongoDB via `search_patient_records` tool
 4. Agent synthesizes response → persisted to MongoDB → returned to frontend
 5. Frontend renders the AI response with markdown formatting
 
@@ -86,7 +86,6 @@ curl http://localhost:8000/api/chat/patients  # List of patients
 | `OPENAI_API_KEY` | — | OpenAI API key (required if provider=openai) |
 | `MONGODB_URI` | `mongodb://mongodb:27017` | MongoDB connection string |
 | `DATABASE_NAME` | `medical_chat` | MongoDB database name |
-| `PATIENT_DATA_DIR` | `data/patients` | Path to patient record files |
 
 ---
 
@@ -109,14 +108,9 @@ curl -X POST http://localhost:8000/api/chat/message \
 
 ---
 
-## Adding New Patient Files
+## Adding New Patients
 
-1. Create a new markdown file in `data/patients/` following the naming convention:
-   ```
-   data/patients/patient_<first>_<last>.md
-   ```
-2. Include sections: Demographics, Active Conditions, Current Medications, Allergies, Lab Results, Medical History
-3. Restart the backend (or it picks up new files automatically on next request)
+New patients are created through the registration API or seed scripts — there are no files to edit. Each patient's profile in the `users` collection (with `role: patient`) is the single source of truth for demographics, conditions, medications, allergies, family history, and lifestyle. Uploaded documents live in the `documents` collection. The `search_patient_records` tool reads from those collections at request time.
 
 ---
 
@@ -126,7 +120,6 @@ curl -X POST http://localhost:8000/api/chat/message \
 prescribe-v2/
 ├── docker-compose.yml          # Orchestrates 3 services
 ├── .env.example                # Environment template
-├── data/patients/              # Patient medical records (markdown)
 ├── backend/
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -140,7 +133,7 @@ prescribe-v2/
 │       ├── schemas/chat.py     # Pydantic models
 │       └── ai/
 │           ├── graph.py        # LangGraph agent
-│           ├── tools.py        # Patient record search tool
+│           ├── tools.py        # DB-backed patient profile tool
 │           ├── prompts.py      # System prompt
 │           ├── llm.py          # LLM factory
 │           └── state.py        # Graph state

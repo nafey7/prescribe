@@ -14,8 +14,6 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
-    PATIENT_DATA_DIR: str = "data/patients"
-
     AI_SUGGESTIONS_ENABLED: bool = True
 
     # Auth (Phase D)

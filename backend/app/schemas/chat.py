@@ -46,7 +46,6 @@ class ChatSessionSummary(BaseModel):
 class PatientInfo(BaseModel):
     id: str
     name: str
-    file: str
     user_id: str | None = None
 
 

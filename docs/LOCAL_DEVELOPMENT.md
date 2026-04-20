@@ -119,7 +119,6 @@ Set `VITE_API_URL=http://localhost:8000/api` if the backend is not behind the Do
 | `OPENAI_API_KEY` | — | OpenAI API key (required if provider=openai) |
 | `MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
 | `DATABASE_NAME` | `medical_chat` | MongoDB database name |
-| `PATIENT_DATA_DIR` | `data/patients` | Path to patient record files |
 | `VITE_API_URL` | `/api` | Frontend API base URL (set in Docker Compose) |
 | `JWT_SECRET` | `""` | HS256 signing key; **required** when `AUTH_REQUIRED=true` (cannot be empty or `change-me`) |
 | `AUTH_REQUIRED` | `true` | When `true`, protected routes require `Authorization: Bearer`. Set `false` only for local legacy header identity (with `ENVIRONMENT=local` or `test`). |
@@ -148,7 +147,7 @@ Set `VITE_API_URL=http://localhost:8000/api` if the backend is not behind the Do
 - Local: the backend defaults to `mongodb://localhost:27017`
 - To reset data: `docker compose down -v` removes the MongoDB volume
 
-### New patient files not showing up
-- Files in `data/patients/` are scanned at request time — no restart needed
-- Ensure the filename matches `patient_<first>_<last>.md`
-- Check that the file is not empty
+### New patients not showing up
+- Patients are stored in the `users` collection with `role: patient`; each carries a `patient_profile`
+- Register via the API or re-run the seed script (`python -m seed`) to repopulate
+- No restart is needed — the AI tool reads the DB live every turn

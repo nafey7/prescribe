@@ -29,7 +29,7 @@ Roles are mutually exclusive per account. A single `users` collection stores all
 
 | Term | Definition |
 |------|-----------|
-| **Medical history** | The collection of all health documents belonging to a patient — prescriptions, lab results, diagnostic reports, clinical notes, etc. Currently stored as Markdown files in `data/patients/` |
+| **Medical history** | The collection of a patient's health information — demographics, conditions, medications, allergies, family history, lifestyle — stored on each patient's `patient_profile` in MongoDB, together with uploaded attachments in the `documents` collection |
 | **Doctor–patient connection** | A mutual relationship between a doctor and a patient, initiated by either party via a connection request. Once accepted, the doctor can access the patient's medical history. Similar to a friend request on a social platform |
 | **Connection request** | A pending invitation from a doctor to a patient (or vice versa) to establish a doctor–patient connection |
 | **Prescription** | A doctor-created medication order for a connected patient, stored as part of the patient's medical history |
@@ -45,7 +45,7 @@ Roles are mutually exclusive per account. A single `users` collection stores all
 5. **AI is doctor-only** — Only doctors can access the AI assistant. Every chat session is initiated by a doctor and tied to exactly one connected patient. The AI agent only retrieves medical history documents for that patient, ensuring data isolation. Patients have no access to AI chat.
 6. **AI grounding** — The AI must base responses on actual patient record content. The system prompt instructs it to not fabricate medical data.
 7. **Admin access** — Admins manage users and system configuration but do not participate in clinical workflows or connections.
-8. **Data safety** — All patient files in `data/patients/` are synthetic and educational. Never treat them as real PHI.
+8. **Data safety** — All seeded patient records in MongoDB are synthetic and educational. Never treat them as real PHI.
 
 ## Build sequence
 

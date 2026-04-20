@@ -7,9 +7,6 @@ from app.repository import patient as patient_repo
 from app.repository.document import document_to_summary, list_documents_for_patient
 from app.schemas.medical_history import (
     DocumentSummary,
-    LabReport,
-    LabResult,
-    MedicalEvent,
     MedicalHistoryResponse,
     Medication,
     PatientSummary,
@@ -19,10 +16,8 @@ from app.schemas.patient import (
     Condition,
     FamilyHistoryEntry,
     Lifestyle,
-    Medication as PatientMedication,
     document_to_profile_response,
 )
-from app.markdown_parser import parse_patient_markdown
 
 
 def _age_from_dob(date_of_birth: str | None) -> int | None:
@@ -62,50 +57,15 @@ async def get_medical_history(
         raise HTTPException(status_code=404, detail="Patient not found")
 
     user_id = doc["user_id"]
-    slug = doc.get("patient_slug") or patient_id
     profile = doc.get("patient_profile") or {}
-
-    md = parse_patient_markdown(slug)
 
     raw_docs = await list_documents_for_patient(db, user_id, limit=5)
     recent_documents = [
         DocumentSummary(**document_to_summary(d)) for d in raw_docs
     ]
 
-    db_meds = [
-        Medication.model_validate(m)
-        for m in profile.get("medications") or []
-    ]
-    md_meds = [
-        Medication(
-            name=m.name,
-            dosage=m.dosage,
-            frequency=m.frequency,
-            since=m.since,
-        )
-        for m in md.medications
-    ]
-    db_med_names = {m.name.lower() for m in db_meds}
-    medications = db_meds + [m for m in md_meds if m.name.lower() not in db_med_names]
-
-    lab_reports = [
-        LabReport(
-            date=r.date,
-            results=[
-                LabResult(
-                    name=x.name,
-                    value=x.value,
-                    status=x.status,
-                    reference_range=x.reference_range,
-                )
-                for x in r.results
-            ],
-        )
-        for r in md.lab_reports
-    ]
-
-    medical_events = [
-        MedicalEvent(year=e.year, description=e.description) for e in md.medical_events
+    medications = [
+        Medication.model_validate(m) for m in profile.get("medications") or []
     ]
 
     lifestyle: Lifestyle | None = None
@@ -118,8 +78,8 @@ async def get_medical_history(
         conditions=[Condition.model_validate(c) for c in profile.get("conditions") or []],
         allergies=[Allergy.model_validate(a) for a in profile.get("allergies") or []],
         medications=medications,
-        lab_reports=lab_reports,
-        medical_events=medical_events,
+        lab_reports=[],
+        medical_events=[],
         family_history=[
             FamilyHistoryEntry.model_validate(f)
             for f in profile.get("family_history") or []

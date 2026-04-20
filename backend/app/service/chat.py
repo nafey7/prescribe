@@ -1,7 +1,6 @@
 import json
 import logging
 from collections.abc import AsyncGenerator
-from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -9,7 +8,6 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.ai.graph import invoke_medical_agent, stream_medical_agent
 from app.ai.prompts import build_system_prompt
-from app.config import get_settings
 from app.repository import chat as chat_repo
 from app.repository import doctor as doctor_repo
 from app.repository import patient as patient_repo
@@ -204,23 +202,6 @@ async def get_chat_history(
     return ChatHistoryResponse(chat_id=chat_id, messages=messages)
 
 
-def _filesystem_patients() -> list[PatientInfo]:
-    settings = get_settings()
-    data_dir = Path(settings.PATIENT_DATA_DIR)
-
-    if not data_dir.exists():
-        return []
-
-    patients = []
-    for f in sorted(data_dir.glob("patient_*.md")):
-        patient_id = f.stem.replace("patient_", "")
-        name = _id_to_display_name(patient_id)
-        patients.append(
-            PatientInfo(id=patient_id, name=name, file=f.name, user_id=None)
-        )
-    return patients
-
-
 async def list_patients_for_self(
     db: AsyncIOMotorDatabase, user_id: str
 ) -> list[PatientInfo]:
@@ -230,51 +211,21 @@ async def list_patients_for_self(
         profile = document_to_profile_response(legacy)
         slug = profile.patient_slug or profile.user_id
         name = f"{profile.first_name} {profile.last_name}".strip() or slug
-        return [
-            PatientInfo(
-                id=slug,
-                name=name,
-                file=f"patient_{slug}.md",
-                user_id=profile.user_id,
-            )
-        ]
+        return [PatientInfo(id=slug, name=name, user_id=profile.user_id)]
     phase = await patients_repo.get_profile_by_user_id(db, user_id)
     if phase:
         pid = phase["patient_id"]
         name = (phase.get("full_name") or "").strip() or pid
-        return [
-            PatientInfo(
-                id=pid,
-                name=name,
-                file=f"patient_{pid}.md",
-                user_id=user_id,
-            )
-        ]
+        return [PatientInfo(id=pid, name=name, user_id=user_id)]
     return []
 
 
 async def list_patients(db: AsyncIOMotorDatabase) -> list[PatientInfo]:
-    """Prefer MongoDB patient users; fall back to Markdown files if none."""
     items, _ = await patient_repo.list_patients(db, skip=0, limit=500)
-    if not items:
-        return _filesystem_patients()
-
     out: list[PatientInfo] = []
     for doc in items:
         profile = document_to_profile_response(doc)
         slug = profile.patient_slug or profile.user_id
         name = f"{profile.first_name} {profile.last_name}".strip() or slug
-        out.append(
-            PatientInfo(
-                id=slug,
-                name=name,
-                file=f"patient_{slug}.md",
-                user_id=profile.user_id,
-            )
-        )
+        out.append(PatientInfo(id=slug, name=name, user_id=profile.user_id))
     return out
-
-
-def _id_to_display_name(patient_id: str) -> str:
-    """Convert 'john_doe' → 'John Doe'."""
-    return " ".join(word.capitalize() for word in patient_id.split("_"))

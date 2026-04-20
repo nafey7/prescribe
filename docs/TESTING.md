@@ -27,9 +27,8 @@ Running `pytest` on the host (`cd backend && python -m pytest`) can drift from t
 | `tests/test_api_documents.py` | Document upload/list/download and patient scoping |
 | `tests/test_api_doctors.py`, `tests/test_api_doctor_patients.py`, `tests/test_api_doctor_chat.py` | Doctor portal and connection-aware routes |
 | `tests/test_repositories.py` | Repository helpers |
-| `tests/test_tools.py` | `search_patient_records` and related tools |
 | `tests/test_seed.py` | Seed script smoke |
-| Other `tests/test_*.py` | Schemas, parser, dashboard, utils |
+| Other `tests/test_*.py` | Schemas, dashboard, utils |
 
 ### Route-audit guardrail (Phase D)
 

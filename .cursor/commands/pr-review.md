@@ -12,7 +12,7 @@ Deliver precise, actionable feedback prioritized by impact.
 - PR context: `$ARGUMENTS` (PR URL/ID, branch, or summary from user)
 - Repository standards and architecture in:
   - `CLAUDE.md`
-  - relevant domain docs (`backend/CLAUDE.md`, `frontend/CLAUDE.md`, `data/CLAUDE.md`, `docs/*`)
+  - relevant domain docs (`backend/CLAUDE.md`, `frontend/CLAUDE.md`, `docs/*`)
 - Changed files, tests, and diff in current workspace/PR
 
 ## Review Priorities (in order)

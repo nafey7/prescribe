@@ -25,11 +25,9 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - ./data:/app/data
     environment:
       - MONGODB_URI=mongodb://mongodb:27017
       - DATABASE_NAME=medical_chat
-      - PATIENT_DATA_DIR=data/patients
       - AI_SUGGESTIONS_ENABLED=true
       # Default secret so the stack starts with AUTH_REQUIRED=true; override in .env for real use.
       - JWT_SECRET=${JWT_SECRET:-local-docker-dev-only-not-for-production-use-32chars}

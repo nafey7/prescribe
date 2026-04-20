@@ -12,7 +12,6 @@ This directory contains the reference documentation for `prescribe-v2`. For AI a
 | [FRONTEND_BACKEND_COLLABORATION.md](FRONTEND_BACKEND_COLLABORATION.md) | API contract, casing conventions, ownership |
 | [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) | Docker setup, local dev, env vars, troubleshooting |
 | [TESTING.md](TESTING.md) | Test strategy, commands, where new tests go |
-| [PATIENT_DATA.md](PATIENT_DATA.md) | Patient file schema, naming, safety rules |
 | [CODE_QUALITY.md](CODE_QUALITY.md) | Layering, type safety, validation, doc maintenance |
 
 ## Plans
