@@ -8,7 +8,8 @@ from fastapi.openapi.utils import get_openapi
 from app.ai.graph import cleanup_graph
 from app.api.router import api_router
 from app.config import get_settings, validate_auth_settings
-from app.database.connection import close_mongodb, connect_to_mongodb
+from app.database.connection import close_mongodb, connect_to_mongodb, get_database
+from seed import seed as run_dev_seed
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,6 +23,13 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Medical AI Chat backend...")
     validate_auth_settings(get_settings())
     await connect_to_mongodb()
+    try:
+        seeded = await run_dev_seed(db=get_database(), require_dev_password=False)
+        if seeded:
+            logger.info("Development seed completed (initial data inserted).")
+    except Exception:
+        logger.exception("Development seed failed")
+        raise
     yield
     cleanup_graph()
     await close_mongodb()

@@ -6,7 +6,7 @@ each run overwrites password_hash for all users.
 
 Optional per-user override: set an env var derived from the user's email — uppercase,
 non-alphanumeric sequences collapsed to a single underscore — prefixed with DEV_PASSWORD_.
-Example: jane.smith@example.com → DEV_PASSWORD_JANE_SMITH_EXAMPLE_COM.
+Example: jane@example.com → DEV_PASSWORD_JANE_EXAMPLE_COM.
 
 Usage (Docker, from repo root):
 

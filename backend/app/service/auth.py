@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import bcrypt
 import jwt
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from passlib.hash import bcrypt as bcrypt_hasher
 
 from app.config import get_settings
 from app.repository import refresh_tokens, users
@@ -32,18 +32,25 @@ _TIMING_DUMMY_HASH: str | None = None
 def _timing_safe_dummy_hash() -> str:
     global _TIMING_DUMMY_HASH
     if _TIMING_DUMMY_HASH is None:
-        _TIMING_DUMMY_HASH = bcrypt_hasher.using(rounds=4).hash(
-            "dummy-login-timing-pad"
-        )
+        _TIMING_DUMMY_HASH = hash_password("dummy-login-timing-pad", rounds=4)
     return _TIMING_DUMMY_HASH
 
 
 def hash_password(password: str, *, rounds: int) -> str:
-    return bcrypt_hasher.using(rounds=rounds).hash(password)
+    return bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt(rounds=rounds),
+    ).decode("utf-8")
 
 
 def verify_password(plain: str, password_hash: str) -> bool:
-    return bcrypt_hasher.verify(plain, password_hash)
+    try:
+        return bcrypt.checkpw(
+            plain.encode("utf-8"),
+            password_hash.encode("utf-8"),
+        )
+    except ValueError:
+        return False
 
 
 def _role_to_str(role: Any) -> str:
@@ -274,6 +281,8 @@ async def revoke_family(db: AsyncIOMotorDatabase, user_id: str, family_id: str) 
 async def authenticate_user(
     db: AsyncIOMotorDatabase, email: str, password: str
 ) -> dict | None:
+    # Match Mongo lookups regardless of client casing (seed stores lowercase).
+    email = email.strip().lower()
     user = await users.get_user_by_email_with_password_hash(db, email)
     dummy = _timing_safe_dummy_hash()
     if user is None:

@@ -27,12 +27,12 @@ def stable_seed_uuid(part: str) -> str:
 # Primary demo users from `seed.py` (Phase A examples).
 PHASE_A_USER_EMAILS: Final[frozenset[str]] = frozenset(
     {
-        "john.doe@example.com",
-        "jane.smith@example.com",
-        "alex.kumar@example.com",
-        "dr.sarah.ahmed@example.com",
-        "dr.omar.khan@example.com",
-        "admin@prescribe.local",
+        "john@example.com",
+        "jane@example.com",
+        "alex@example.com",
+        "sarah@example.com",
+        "omar@example.com",
+        "admin@example.com",
     }
 )
 

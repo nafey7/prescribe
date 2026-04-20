@@ -59,25 +59,28 @@ The backend mounts `./backend` and `./data` as volumes for live reload. The fron
 
 ## Authentication (Phase D)
 
-Seeded users start with `password_hash: null`. To log in at `/login` when `AUTH_REQUIRED=true`, set passwords once:
+To log in at `/login` when `AUTH_REQUIRED=true`, set a dev password and JWT secret, then seed (or re-hash users).
 
-1. Add to `.env` (or export in your shell) a strong dev password and JWT secret, for example:
+1. Add to `.env` (or export in your shell), for example:
    - `JWT_SECRET=<long random string, not the placeholder "change-me">`
    - `AUTH_REQUIRED=true` is the default; set `AUTH_REQUIRED=false` only for legacy header identity in `local` / `test`
-   - `DEV_DEFAULT_PASSWORD=<12+ chars with at least one letter and one digit>`
-2. Restart the stack so the backend picks up env vars.
-3. Run the hash utility inside the backend container (password is **not** stored in the repo):
+   - `DEV_DEFAULT_PASSWORD=<8+ chars with at least one letter and one digit>` — **required** when running `python -m seed`; bcrypt hashes are written during seed using `BCRYPT_ROUNDS`
+   - Optional: `BCRYPT_ROUNDS` (default `12`)
+2. Restart the stack (or reload env) so the backend and seed process pick up variables.
+3. Run the seed from `backend` with the same env (Docker example):
 
    ```bash
    docker compose exec -e DEV_DEFAULT_PASSWORD="$DEV_DEFAULT_PASSWORD" backend \
-     python -m app.scripts.set_dev_passwords
+     python -m seed
    ```
 
-4. Sign in at `http://localhost:5173/login` with a seeded email (see `backend/seed.py`, e.g. `john.doe@example.com`) and that password.
+4. Sign in at `http://localhost:5173/login` with a seeded email (see `backend/seed.py`, e.g. `john@example.com` or `omar@example.com`) and `DEV_DEFAULT_PASSWORD` (or the per-user override below).
+
+If you already have users in MongoDB and only need to set or rotate password hashes, run `python -m app.scripts.set_dev_passwords` instead of or after seed (same `DEV_DEFAULT_PASSWORD` rules).
 
 **Dev bypass:** When `AUTH_REQUIRED=false` and `ENVIRONMENT` is `local` or `test`, the API still accepts `X-Patient-Id` / `X-Doctor-Id` for the dev identity picker. When a Bearer access token is present, those headers are ignored for authorization.
 
-**Per-user dev passwords (optional):** The script applies `DEV_DEFAULT_PASSWORD` to every user unless you set `DEV_PASSWORD_<EMAIL_NORMALIZED>` — email uppercased, non-alphanumeric runs replaced by underscores (e.g. `jane.smith@example.com` → `DEV_PASSWORD_JANE_SMITH_EXAMPLE_COM`). See `backend/app/scripts/set_dev_passwords.py`.
+**Per-user dev passwords (optional):** Seed and `set_dev_passwords` apply `DEV_DEFAULT_PASSWORD` to every user unless you set `DEV_PASSWORD_<EMAIL_NORMALIZED>` — email uppercased, non-alphanumeric runs replaced by underscores (e.g. `jane@example.com` → `DEV_PASSWORD_JANE_EXAMPLE_COM`). See `backend/app/scripts/set_dev_passwords.py`.
 
 ## Local development (without Docker)
 
@@ -122,7 +125,7 @@ Set `VITE_API_URL=http://localhost:8000/api` if the backend is not behind the Do
 | `AUTH_REQUIRED` | `true` | When `true`, protected routes require `Authorization: Bearer`. Set `false` only for local legacy header identity (with `ENVIRONMENT=local` or `test`). |
 | `ENVIRONMENT` | `local` | `local`, `test`, etc.; dev header bypass only when `local` or `test` and `AUTH_REQUIRED=false` |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Allowed browser origins (list in config) |
-| `DEV_DEFAULT_PASSWORD` | — | Only for `python -m app.scripts.set_dev_passwords`; sets seeded user passwords |
+| `DEV_DEFAULT_PASSWORD` | — | Required for `python -m seed` (bcrypt hashes for seed users) and for `python -m app.scripts.set_dev_passwords` |
 | `BCRYPT_ROUNDS` | `12` | bcrypt cost (tests often use `4`) |
 
 ## Troubleshooting
@@ -137,7 +140,7 @@ Set `VITE_API_URL=http://localhost:8000/api` if the backend is not behind the Do
 - Locally: ensure both services are running; CORS allows only `CORS_ALLOWED_ORIGINS` (default includes `http://localhost:5173`)
 
 ### Login returns 401 after enabling AUTH_REQUIRED
-- Seed users need password hashes: run `python -m app.scripts.set_dev_passwords` with `DEV_DEFAULT_PASSWORD` set (see **Authentication** above).
+- Seed users need password hashes: run `python -m seed` with `DEV_DEFAULT_PASSWORD` set, or run `python -m app.scripts.set_dev_passwords` (see **Authentication** above).
 - Confirm `JWT_SECRET` is set and the backend was restarted.
 
 ### MongoDB connection errors

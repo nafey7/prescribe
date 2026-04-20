@@ -29,9 +29,7 @@ Pillow>=10.0.0
 httpx>=0.28.1
 
 # Auth (Phase D)
-passlib[bcrypt]>=1.7.4
-# bcrypt 5.x breaks passlib's backend probe (72-byte rule); keep <5 until passlib catches up
-bcrypt>=4.2.0,<5
+bcrypt>=4.2.0
 PyJWT>=2.9.0
 
 # Testing

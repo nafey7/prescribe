@@ -4,21 +4,34 @@ Seed script for local development data.
 Usage:
     cd backend && python -m seed
 
+Also runs automatically after MongoDB connects on API startup when
+`DEV_DEFAULT_PASSWORD` is set: if all seed users already exist, seeding is skipped.
+
 Creates demo patients, doctors, an admin, doctor–patient connections (active and
 pending), sample prescriptions, and patient_documents rows. Uses the same
 `users` + `connections` collections as the running app.
 
-Idempotent: safe to re-run; missing rows are inserted, existing seed rows are
-replaced in place (stable user_id / connection_id / etc.).
+Password hashes use the same bcrypt path as the API (`hash_password` +
+`BCRYPT_ROUNDS` from settings / `.env`). Set `DEV_DEFAULT_PASSWORD` (min 8 chars,
+letter + digit; same rules as signup) so seed accounts can log in immediately.
+Optional per-email override: `DEV_PASSWORD_<EMAIL_UPPER_WITH_UNDERSCORES>` (see
+`app.scripts.set_dev_passwords`).
+
+CLI runs are idempotent for recovery: missing rows are inserted; existing rows
+with the same ids are replaced. Startup seed skips entirely when every seed
+user row is already present.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
+import re
 import sys
 from datetime import datetime, timezone
 
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from app.config import get_settings
 from app.schemas.enums import (
@@ -30,10 +43,23 @@ from app.schemas.enums import (
     UserStatus,
     ConnectionStatus,
 )
+from app.schemas.auth import validate_password_strength
 from app.scripts.seed_manifest import SEED_SOURCE_TAG, stable_seed_uuid
+from app.service.auth import hash_password
 from app.utils import utcnow
 
+logger = logging.getLogger(__name__)
+
 NOW = utcnow()
+
+
+def _dev_password_override_env_name(email: str) -> str:
+    safe = re.sub(r"[^A-Z0-9]+", "_", email.upper()).strip("_")
+    return f"DEV_PASSWORD_{safe}"
+
+
+def _resolve_plain_password(email: str, default: str) -> str:
+    return os.environ.get(_dev_password_override_env_name(email), default)
 
 
 def ts(iso: str) -> datetime:
@@ -42,12 +68,21 @@ def ts(iso: str) -> datetime:
 
 # ── Stable user ids (deterministic across runs) ─────────────────────────────
 
-USR_JOHN = stable_seed_uuid("user:patient:john.doe@example.com")
-USR_JANE = stable_seed_uuid("user:patient:jane.smith@example.com")
-USR_ALEX = stable_seed_uuid("user:patient:alex.kumar@example.com")
-USR_SARAH = stable_seed_uuid("user:doctor:dr.sarah.ahmed@example.com")
-USR_OMAR = stable_seed_uuid("user:doctor:dr.omar.khan@example.com")
-USR_ADMIN = stable_seed_uuid("user:admin:admin@prescribe.local")
+USR_JOHN = stable_seed_uuid("user:patient:john@example.com")
+USR_JANE = stable_seed_uuid("user:patient:jane@example.com")
+USR_ALEX = stable_seed_uuid("user:patient:alex@example.com")
+USR_SARAH = stable_seed_uuid("user:doctor:sarah@example.com")
+USR_OMAR = stable_seed_uuid("user:doctor:omar@example.com")
+USR_ADMIN = stable_seed_uuid("user:admin:admin@example.com")
+
+ALL_SEED_USER_IDS: tuple[str, ...] = (
+    USR_JOHN,
+    USR_JANE,
+    USR_ALEX,
+    USR_SARAH,
+    USR_OMAR,
+    USR_ADMIN,
+)
 
 
 def _patient_user(
@@ -155,7 +190,7 @@ def _doctor_user(
 SEED_USERS: list[dict] = [
     _patient_user(
         user_id=USR_JOHN,
-        email="john.doe@example.com",
+        email="john@example.com",
         patient_slug="john_doe",
         first_name="John",
         last_name="Doe",
@@ -168,7 +203,7 @@ SEED_USERS: list[dict] = [
     ),
     _patient_user(
         user_id=USR_JANE,
-        email="jane.smith@example.com",
+        email="jane@example.com",
         patient_slug="jane_smith",
         first_name="Jane",
         last_name="Smith",
@@ -181,7 +216,7 @@ SEED_USERS: list[dict] = [
     ),
     _patient_user(
         user_id=USR_ALEX,
-        email="alex.kumar@example.com",
+        email="alex@example.com",
         patient_slug="alex_kumar",
         first_name="Alex",
         last_name="Kumar",
@@ -194,7 +229,7 @@ SEED_USERS: list[dict] = [
     ),
     _doctor_user(
         user_id=USR_SARAH,
-        email="dr.sarah.ahmed@example.com",
+        email="sarah@example.com",
         first_name="Sarah",
         last_name="Ahmed",
         specialization="Cardiology",
@@ -207,7 +242,7 @@ SEED_USERS: list[dict] = [
     ),
     _doctor_user(
         user_id=USR_OMAR,
-        email="dr.omar.khan@example.com",
+        email="omar@example.com",
         first_name="Omar",
         last_name="Khan",
         specialization="Endocrinology",
@@ -221,7 +256,7 @@ SEED_USERS: list[dict] = [
     {
         "user_id": USR_ADMIN,
         "role": UserRole.ADMIN.value,
-        "email": "admin@prescribe.local",
+        "email": "admin@example.com",
         "first_name": "Local",
         "last_name": "Admin",
         "phone": None,
@@ -423,50 +458,114 @@ SEED_PATIENT_DOCUMENTS: list[dict] = [
 ]
 
 
-async def seed() -> None:
+async def _is_dev_seed_complete(db: AsyncIOMotorDatabase) -> bool:
+    n = await db.users.count_documents({"user_id": {"$in": list(ALL_SEED_USER_IDS)}})
+    return n == len(ALL_SEED_USER_IDS)
+
+
+async def seed(
+    *,
+    db: AsyncIOMotorDatabase | None = None,
+    require_dev_password: bool = True,
+) -> bool:
+    """
+    Insert development seed rows. Returns True if data was written, False if skipped.
+
+    When ``require_dev_password`` is False (API startup), missing
+    ``DEV_DEFAULT_PASSWORD`` skips seeding without error. When True (CLI),
+    missing password raises ``ValueError``.
+    """
     settings = get_settings()
-    client = AsyncIOMotorClient(settings.MONGODB_URI)
-    db = client[settings.DATABASE_NAME]
-
-    for doc in SEED_USERS:
-        r = await db.users.replace_one(
-            {"email": doc["email"], "role": doc["role"]},
-            doc,
-            upsert=True,
+    default_raw = os.environ.get("DEV_DEFAULT_PASSWORD")
+    if not default_raw:
+        if require_dev_password:
+            raise ValueError(
+                "DEV_DEFAULT_PASSWORD is required to set bcrypt hashes for seed users "
+                "(min 8 chars, letter + digit). Export it or add it to .env before seeding."
+            )
+        logger.info(
+            "DEV_DEFAULT_PASSWORD not set; skipping automatic development seed."
         )
-        action = "inserted" if r.upserted_id else "updated"
-        print(f"  ✓  users: {doc['email']} ({action})")
+        return False
 
-    for doc in SEED_CONNECTIONS:
-        r = await db.connections.replace_one(
-            {"connection_id": doc["connection_id"]}, doc, upsert=True
-        )
-        action = "inserted" if r.upserted_id else "updated"
-        pair = f"{doc['initiated_by']} → {doc['status']}"
-        print(f"  ✓  connections: {doc['connection_id'][:8]}… ({pair}, {action})")
+    validate_password_strength(default_raw)
 
-    for doc in SEED_PRESCRIPTIONS:
-        r = await db.prescriptions.replace_one(
-            {"prescription_id": doc["prescription_id"]}, doc, upsert=True
-        )
-        action = "inserted" if r.upserted_id else "updated"
-        print(f"  ✓  prescriptions: {doc['prescription_id'][:8]}… ({action})")
+    own_client: AsyncIOMotorClient | None = None
+    if db is None:
+        own_client = AsyncIOMotorClient(settings.MONGODB_URI)
+        db = own_client[settings.DATABASE_NAME]
 
-    for doc in SEED_PATIENT_DOCUMENTS:
-        r = await db.patient_documents.replace_one(
-            {"document_id": doc["document_id"]}, doc, upsert=True
-        )
-        action = "inserted" if r.upserted_id else "updated"
-        print(f"  ✓  patient_documents: {doc['document_id'][:8]}… ({action})")
+    try:
+        if await _is_dev_seed_complete(db):
+            logger.info("Development seed data already present; skipping.")
+            return False
 
-    client.close()
-    print("\nSeed complete.")
+        rounds = settings.BCRYPT_ROUNDS
+        seeded_users: list[dict] = []
+        for doc in SEED_USERS:
+            email = doc["email"]
+            plain = _resolve_plain_password(email, default_raw)
+            validate_password_strength(plain)
+            pwd_hash = hash_password(plain, rounds=rounds)
+            seeded_users.append({**doc, "password_hash": pwd_hash})
+
+        for doc in seeded_users:
+            r = await db.users.replace_one(
+                {"email": doc["email"], "role": doc["role"]},
+                doc,
+                upsert=True,
+            )
+            action = "inserted" if r.upserted_id else "updated"
+            logger.info("  users: %s (%s)", doc["email"], action)
+
+        for doc in SEED_CONNECTIONS:
+            r = await db.connections.replace_one(
+                {"connection_id": doc["connection_id"]}, doc, upsert=True
+            )
+            action = "inserted" if r.upserted_id else "updated"
+            pair = f"{doc['initiated_by']} → {doc['status']}"
+            logger.info(
+                "  connections: %s… (%s, %s)",
+                doc["connection_id"][:8],
+                pair,
+                action,
+            )
+
+        for doc in SEED_PRESCRIPTIONS:
+            r = await db.prescriptions.replace_one(
+                {"prescription_id": doc["prescription_id"]}, doc, upsert=True
+            )
+            action = "inserted" if r.upserted_id else "updated"
+            logger.info(
+                "  prescriptions: %s… (%s)",
+                doc["prescription_id"][:8],
+                action,
+            )
+
+        for doc in SEED_PATIENT_DOCUMENTS:
+            r = await db.patient_documents.replace_one(
+                {"document_id": doc["document_id"]}, doc, upsert=True
+            )
+            action = "inserted" if r.upserted_id else "updated"
+            logger.info(
+                "  patient_documents: %s… (%s)",
+                doc["document_id"][:8],
+                action,
+            )
+
+        logger.info("Seed complete.")
+        return True
+    finally:
+        if own_client is not None:
+            own_client.close()
 
 
 if __name__ == "__main__":
     print("Seeding development data…\n")
     try:
-        asyncio.run(seed())
+        ran = asyncio.run(seed())
+        if not ran:
+            print("Skipped: seed users already present in the database.")
     except Exception as exc:
         print(f"\nSeed failed: {exc}", file=sys.stderr)
         sys.exit(1)
