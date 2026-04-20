@@ -1,3 +1,5 @@
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 import type { DoctorDashboardResponse } from "../../../types/doctor";
 
 export default function DoctorWelcomeBanner({
@@ -8,15 +10,19 @@ export default function DoctorWelcomeBanner({
   if (!data) return null;
   const sub = [data.specialization, data.institution].filter(Boolean).join(" · ");
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-      <p className="text-lg font-semibold text-gray-900">
+    <Paper variant="outlined" sx={{ px: 2.5, py: 2, borderRadius: 3 }}>
+      <Typography variant="h6" component="p" sx={{ fontWeight: 600 }}>
         Welcome, {data.doctor_name}
-      </p>
+      </Typography>
       {sub ? (
-        <p className="mt-1 text-sm text-gray-600">{sub}</p>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          {sub}
+        </Typography>
       ) : (
-        <p className="mt-1 text-sm text-gray-500">Your practice overview</p>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          Your practice overview
+        </Typography>
       )}
-    </div>
+    </Paper>
   );
 }

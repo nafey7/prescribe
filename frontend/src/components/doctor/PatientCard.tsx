@@ -1,5 +1,9 @@
 import { ChevronRight, UserRound } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { paths } from "../../router/paths";
 import type { ConnectedPatientSummary } from "../../types/doctor";
 
@@ -56,38 +60,73 @@ export default function PatientCard({ patient }: { patient: ConnectedPatientSumm
       : "None reported";
 
   return (
-    <Link
+    <Paper
+      component={RouterLink}
       to={paths.doctor.patientDetail(
         encodeURIComponent(patient.patient_id)
       )}
-      className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:border-teal-200 hover:shadow-md"
+      aria-label={`View patient ${name}`}
+      variant="outlined"
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        textDecoration: "none",
+        color: "inherit",
+        display: "block",
+        "&:hover": {
+          borderColor: "secondary.light",
+          boxShadow: 2,
+        },
+      }}
     >
-      <div className="flex gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-teal-100 text-sm font-semibold text-teal-800">
-          {inn ? (
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+        <Box
+          sx={{
+            width: 48,
+            height: 48,
+            flexShrink: 0,
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "secondary.light",
+            color: "secondary.dark",
+            typography: "subtitle2",
+            fontWeight: 700,
+          }}
+        >
+          {inn && inn !== "?" ? (
             <span aria-hidden>{inn}</span>
           ) : (
-            <UserRound size={22} className="text-teal-700" aria-hidden />
+            <UserRound size={22} aria-hidden />
           )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-semibold text-gray-900">{name}</h2>
-          <p className="mt-0.5 text-sm text-gray-600">
+        </Box>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            {name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
             {demo.length > 0 ? `${demo.join(" · ")} · ` : ""}
             {conditions}
-          </p>
-          <p className="mt-1 text-xs text-gray-500">
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
             Connected since {formatConnected(patient.connected_since)}
-          </p>
-          <p className="text-xs text-gray-500">
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
             Last visited: {formatLastVisit(patient.last_interaction)}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center self-center text-teal-700">
-          <span className="sr-only">View patient</span>
-          <ChevronRight size={20} aria-hidden />
-        </div>
-      </div>
-    </Link>
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            color: "secondary.main",
+            display: "flex",
+            alignItems: "center",
+          }}
+          aria-hidden
+        >
+          <ChevronRight size={20} />
+        </Box>
+      </Stack>
+    </Paper>
   );
 }

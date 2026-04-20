@@ -1,71 +1,141 @@
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material";
 import { Stethoscope } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
+import {
+  chatAssistantStatusAvatarSx,
+  chatAssistantStatusBubbleSx,
+} from "../theme/chatMessages";
 import type { Message } from "../types/chat";
 import ChatMessage from "./ChatMessage";
 
 interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
+  /** When set, empty-state suggestion chips send this text (e.g. `sendMessage`). */
+  onSuggestionClick?: (text: string) => void;
 }
 
 function ThinkingIndicator({ status }: { status?: string }) {
   return (
-    <div className="flex gap-3 thinking-enter">
-      <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-emerald-100 text-emerald-700">
-        <Stethoscope size={16} />
-      </div>
-      <div className="bg-white shadow-sm border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full thinking-dot" />
-            <span className="text-sm font-medium text-gray-700">
+    <Stack
+      direction="row"
+      spacing={1.5}
+      sx={{
+        width: "100%",
+        justifyContent: "flex-start",
+        alignItems: "flex-end",
+        "@keyframes chatThinkingEnter": {
+          from: { opacity: 0, transform: "translateY(4px) scale(0.97)" },
+          to: { opacity: 1, transform: "translateY(0) scale(1)" },
+        },
+        animation: "chatThinkingEnter 0.25s ease-out",
+      }}
+    >
+      <Box sx={(theme) => chatAssistantStatusAvatarSx(theme)}>
+        <Stethoscope size={16} strokeWidth={2} />
+      </Box>
+      <Box sx={chatAssistantStatusBubbleSx()}>
+        <Stack spacing={0.5}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                bgcolor: "secondary.main",
+                "@keyframes chatThinkingPulse": {
+                  "0%, 100%": { opacity: 0.4, transform: "scale(0.85)" },
+                  "50%": { opacity: 1, transform: "scale(1.1)" },
+                },
+                animation: "chatThinkingPulse 1.2s ease-in-out infinite",
+              }}
+            />
+            <Typography variant="body2" color="text.primary" sx={{ fontWeight: 500 }}>
               Thinking...
-            </span>
-          </div>
-          {status && status !== "Thinking..." && (
-            <p className="text-xs text-gray-500 ml-4">{status}</p>
-          )}
-        </div>
-      </div>
-    </div>
+            </Typography>
+          </Stack>
+          {status && status !== "Thinking..." ? (
+            <Typography variant="caption" color="text.secondary" sx={{ pl: 2.5 }}>
+              {status}
+            </Typography>
+          ) : null}
+        </Stack>
+      </Box>
+    </Stack>
   );
 }
 
-function EmptyState() {
+function EmptyState({ onSuggestionClick }: { onSuggestionClick?: (text: string) => void }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-      <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
-        <Stethoscope size={32} className="text-emerald-600" />
-      </div>
-      <h3 className="text-lg font-semibold text-gray-700 mb-2">
+    <Stack
+      sx={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        p: 4,
+      }}
+    >
+      <Box
+        sx={(theme) => ({
+          width: 64,
+          height: 64,
+          borderRadius: "50%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          mb: 2,
+          bgcolor: alpha(theme.palette.success.main, 0.08),
+          color: "success.main",
+        })}
+      >
+        <Stethoscope size={32} />
+      </Box>
+      <Typography variant="h6" color="text.primary" sx={{ fontWeight: 600, mb: 1 }}>
         Medical AI Assistant
-      </h3>
-      <p className="text-gray-500 max-w-md text-sm leading-relaxed">
-        Ask a question about your patient's health, symptoms, medications, or
-        medical history. The AI will reference their medical records to provide
-        informed responses.
-      </p>
-      <div className="mt-6 flex flex-wrap gap-2 justify-center">
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420, lineHeight: 1.6 }}>
+        Ask a question about your patient&apos;s health, symptoms, medications, or medical history. The
+        AI will reference their medical records to provide informed responses.
+      </Typography>
+      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", justifyContent: "center", mt: 3 }}>
         {[
           "What medications is this patient currently on?",
           "Are there any drug interactions to worry about?",
           "Summarize the patient's medical history",
         ].map((suggestion) => (
-          <span
+          <Chip
             key={suggestion}
-            className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full"
-          >
-            {suggestion}
-          </span>
+            label={suggestion}
+            size="small"
+            variant="outlined"
+            onClick={onSuggestionClick ? () => onSuggestionClick(suggestion) : undefined}
+            sx={{
+              borderColor: "divider",
+              color: "text.secondary",
+              maxWidth: "100%",
+              ...(onSuggestionClick
+                ? { cursor: "pointer", "&:hover": { bgcolor: "action.hover" } }
+                : {}),
+            }}
+          />
         ))}
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 }
 
 const SCROLL_THROTTLE_MS = 100;
 
-export default function MessageList({ messages, isLoading }: MessageListProps) {
+export default function MessageList({
+  messages,
+  isLoading,
+  onSuggestionClick,
+}: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastScrollRef = useRef(0);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -115,23 +185,21 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
 
   if (messages.length === 0 && !isLoading) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <EmptyState />
-      </div>
+      <Box sx={{ display: "flex", minHeight: 0, flex: 1, flexDirection: "column" }}>
+        <EmptyState onSuggestionClick={onSuggestionClick} />
+      </Box>
     );
   }
 
   return (
-    <div className="space-y-4 p-4">
+    <Stack spacing={2} sx={{ p: 2 }}>
       {messages.map((msg, i) =>
         msg.isThinking ? null : (
           <ChatMessage key={`${msg.timestamp}-${i}`} message={msg} />
         )
       )}
-      {showThinking && (
-        <ThinkingIndicator status={lastMessage.thinkingStatus} />
-      )}
+      {showThinking ? <ThinkingIndicator status={lastMessage.thinkingStatus} /> : null}
       <div ref={bottomRef} />
-    </div>
+    </Stack>
   );
 }

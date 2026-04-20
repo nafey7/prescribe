@@ -1,8 +1,10 @@
+import Box from "@mui/material/Box";
 import { useState } from "react";
 import { Outlet, useMatch } from "react-router-dom";
 import DevIdentityBanner from "../components/DevIdentityBanner";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
+import MainContent from "../layout/MainContent";
 import { paths } from "../router/paths";
 
 export default function PatientLayout() {
@@ -10,26 +12,58 @@ export default function PatientLayout() {
   const isChat = !!useMatch({ path: paths.patient.chat, end: true });
 
   return (
-    <div className="flex h-screen min-h-0 flex-col bg-gray-50">
-      {import.meta.env.DEV && <DevIdentityBanner />}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        minHeight: 0,
+        bgcolor: "background.default",
+      }}
+    >
+      {import.meta.env.DEV ? <DevIdentityBanner /> : null}
+      <Box sx={{ display: "flex", minHeight: 0, flex: 1, overflow: "hidden" }}>
         <Sidebar
           mobileOpen={mobileNavOpen}
           onClose={() => setMobileNavOpen(false)}
         />
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <Box
+          sx={{
+            display: "flex",
+            minHeight: 0,
+            minWidth: 0,
+            flex: 1,
+            flexDirection: "column",
+          }}
+        >
           <Header onMenuClick={() => setMobileNavOpen(true)} />
-          <main
-            className={
-              isChat
-                ? "flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50"
-                : "min-h-0 flex-1 overflow-y-auto bg-gray-50 p-6"
-            }
+          <Box
+            component="main"
+            sx={{
+              minHeight: 0,
+              flex: 1,
+              ...(isChat
+                ? {
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
+                    bgcolor: "background.default",
+                  }
+                : {
+                    overflowY: "auto",
+                    bgcolor: "background.default",
+                    py: 3,
+                  }),
+            }}
           >
-            <Outlet />
-          </main>
-        </div>
-      </div>
-    </div>
+            {isChat ? <Outlet /> : (
+              <MainContent>
+                <Outlet />
+              </MainContent>
+            )}
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }

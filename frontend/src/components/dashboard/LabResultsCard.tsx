@@ -1,4 +1,9 @@
 import { FlaskConical } from "lucide-react";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material";
 import type { MedicalHistoryLabReport } from "../../types/patient";
 
 interface Props {
@@ -8,57 +13,99 @@ interface Props {
 function indicator(status: string) {
   const s = status.toLowerCase();
   if (s === "elevated" || s === "critical") {
-    return <span className="text-red-600 font-semibold">↑</span>;
+    return (
+      <Typography component="span" color="error" sx={{ fontWeight: 700 }}>
+        ↑
+      </Typography>
+    );
   }
   if (s === "low") {
-    return <span className="text-blue-600 font-semibold">↓</span>;
+    return (
+      <Typography component="span" sx={{ color: "info.main", fontWeight: 700 }}>
+        ↓
+      </Typography>
+    );
   }
   return null;
 }
 
-function valueClass(status: string) {
-  const s = status.toLowerCase();
-  if (s === "elevated" || s === "critical") return "text-red-700 font-medium";
-  if (s === "low") return "text-blue-700 font-medium";
-  return "text-gray-900";
-}
-
 export default function LabResultsCard({ lab_reports }: Props) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <FlaskConical className="text-emerald-600" size={18} />
-        <h2 className="text-base font-semibold text-gray-900">
+    <Paper variant="outlined" sx={{ p: 2.5 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 1.5, alignItems: "center" }}>
+        <Box sx={{ color: "success.main", display: "flex" }}>
+          <FlaskConical size={18} />
+        </Box>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }}>
           Recent lab results
-        </h2>
-      </div>
+        </Typography>
+      </Stack>
       {lab_reports.length === 0 ? (
-        <p className="text-sm text-gray-500">No lab results in record file.</p>
+        <Typography variant="body2" color="text.secondary">
+          No lab results in record file.
+        </Typography>
       ) : (
-        <div className="space-y-5">
+        <Stack spacing={2.5}>
           {lab_reports.map((report) => (
-            <div key={report.date}>
-              <p className="mb-2 text-sm font-medium text-gray-700">
+            <Box key={report.date}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
                 {report.date}
-              </p>
-              <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-                {report.results.map((r) => (
-                  <li
-                    key={r.name}
-                    className="inline-flex flex-wrap items-center gap-1 rounded-lg bg-gray-50 px-2 py-1"
-                  >
-                    <span className="text-gray-600">{r.name}:</span>
-                    <span className={valueClass(r.status)}>
-                      {r.value}
-                    </span>
-                    {indicator(r.status)}
-                  </li>
-                ))}
-              </ul>
-            </div>
+              </Typography>
+              <Box
+                component="ul"
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 1,
+                  listStyle: "none",
+                  m: 0,
+                  p: 0,
+                }}
+              >
+                {report.results.map((r) => {
+                  const s = r.status.toLowerCase();
+                  const abnormal = s === "elevated" || s === "critical";
+                  const low = s === "low";
+                  return (
+                    <Box
+                      component="li"
+                      key={r.name}
+                      sx={{
+                        display: "inline-flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        gap: 0.5,
+                        borderRadius: 1,
+                        px: 1,
+                        py: 0.5,
+                        bgcolor: (t) => alpha(t.palette.grey[500], 0.08),
+                      }}
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        {r.name}:
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: abnormal || low ? 600 : 400,
+                          color: abnormal
+                            ? "error.main"
+                            : low
+                              ? "info.main"
+                              : "text.primary",
+                        }}
+                      >
+                        {r.value}
+                      </Typography>
+                      {indicator(r.status)}
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
           ))}
-        </div>
+        </Stack>
       )}
-    </section>
+    </Paper>
   );
 }

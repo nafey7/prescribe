@@ -1,4 +1,9 @@
-import { ChevronDown, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
+import Box from "@mui/material/Box";
+import FormControl from "@mui/material/FormControl";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import Typography from "@mui/material/Typography";
 import { usePatients } from "../contexts/PatientContext";
 
 interface PatientSelectorProps {
@@ -16,39 +21,41 @@ export default function PatientSelector({
   const { patients, isLoading } = usePatients();
 
   const selected = patients.find((p) => p.id === selectedId);
+  const selectValue = patients.some((p) => p.id === selectedId) ? selectedId : "";
 
   return (
-    <div className="flex items-center gap-2">
-      <UserRound size={16} className="text-gray-500" />
-      <div className="relative">
-        <select
-          value={selectedId}
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <Box sx={{ color: "text.secondary", display: "flex" }}>
+        <UserRound size={16} aria-hidden />
+      </Box>
+      <FormControl size="small" sx={{ minWidth: 160 }}>
+        <Select
+          value={selectValue}
           onChange={(e) => onChange(e.target.value)}
           disabled={isLoading || patients.length === 0}
-          aria-label={ariaLabel}
-          className="appearance-none bg-white border border-gray-300 rounded-lg pl-3 pr-8 py-1.5 
-                     text-sm font-medium text-gray-700 cursor-pointer
-                     focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-                     hover:border-gray-400 transition-colors
-                     disabled:opacity-60 disabled:cursor-not-allowed"
+          displayEmpty
+          inputProps={{ "aria-label": ariaLabel }}
         >
           {patients.map((p) => (
-            <option key={p.id} value={p.id}>
+            <MenuItem key={p.id} value={p.id}>
               {p.name}
-            </option>
+            </MenuItem>
           ))}
-        </select>
-        <ChevronDown
-          size={14}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-        />
-      </div>
+        </Select>
+      </FormControl>
       {isLoading && (
-        <span className="text-xs text-gray-400">Loading…</span>
+        <Typography variant="caption" color="text.disabled">
+          Loading…
+        </Typography>
       )}
-      {!isLoading && !selected && patients.length > 0 && (
-        <span className="text-xs text-amber-600">Unknown patient</span>
+      {!isLoading &&
+        Boolean(selectedId) &&
+        selectValue === "" &&
+        patients.length > 0 && (
+        <Typography variant="caption" color="warning.main">
+          Unknown patient
+        </Typography>
       )}
-    </div>
+    </Box>
   );
 }

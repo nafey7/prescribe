@@ -1,4 +1,10 @@
-import { FileQuestion, Loader2 } from "lucide-react";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { FileQuestion } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useDeleteDocumentMutation } from "../api/documentsApi";
@@ -111,93 +117,118 @@ export default function DocumentsPage() {
   }, [page, totalPages]);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Documents</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Upload and manage medical files for the selected patient.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setUploadOpen(true)}
-          className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+    <>
+      <Stack spacing={3}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          sx={{
+            alignItems: { xs: "stretch", sm: "flex-end" },
+            justifyContent: "space-between",
+          }}
         >
-          Upload
-        </button>
-      </div>
+          <Box>
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 600 }}>
+              Documents
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Upload and manage medical files for the selected patient.
+            </Typography>
+          </Box>
+          <Button
+            type="button"
+            variant="contained"
+            color="success"
+            onClick={() => setUploadOpen(true)}
+            sx={{ alignSelf: { xs: "stretch", sm: "auto" } }}
+          >
+            Upload
+          </Button>
+        </Stack>
 
-      <div>
+        <Box>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              mb: 1,
+              display: "block",
+              fontWeight: 600,
+              letterSpacing: 0.5,
+            }}
+          >
+            Filter by category
+          </Typography>
+          <CategoryFilter
+            value={category}
+            onChange={(c) => {
+              setCategory(c);
+              setPage(1);
+            }}
+          />
+        </Box>
 
-          <div className="mb-4">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-              Filter by category
-            </p>
-            <CategoryFilter
-              value={category}
-              onChange={(c) => {
-                setCategory(c);
-                setPage(1);
-              }}
-            />
-          </div>
+        {toast && (
+          <Alert severity="success" onClose={() => setToast(null)}>
+            {toast}
+          </Alert>
+        )}
 
-          {toast && (
-            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-              {toast}
-            </div>
-          )}
+        {isLoading && (
+          <Stack sx={{ alignItems: "center", py: 8 }} aria-busy="true">
+            <CircularProgress />
+          </Stack>
+        )}
 
-          {isLoading && (
-            <div className="flex justify-center py-16 text-gray-500">
-              <Loader2 className="animate-spin" size={32} />
-            </div>
-          )}
+        {error && !isLoading && (
+          <Alert severity="error">{error}</Alert>
+        )}
 
-          {error && !isLoading && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-              {error}
-            </div>
-          )}
+        {!isLoading && !error && data && data.documents.length === 0 && (
+          <Box
+            sx={{
+              borderRadius: 2,
+              border: 1,
+              borderStyle: "dashed",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              py: 8,
+              textAlign: "center",
+            }}
+          >
+            <Box sx={{ color: "text.disabled", display: "flex", justifyContent: "center", mb: 1.5 }}>
+              <FileQuestion size={40} strokeWidth={1.25} />
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              No documents yet. Click Upload to add a PDF or image.
+            </Typography>
+          </Box>
+        )}
 
-          {!isLoading && !error && data && data.documents.length === 0 && (
-            <div className="rounded-xl border border-dashed border-gray-200 bg-white py-16 text-center">
-              <FileQuestion
-                className="mx-auto text-gray-400 mb-3"
-                size={40}
-                strokeWidth={1.25}
-              />
-              <p className="text-gray-600 text-sm">
-                No documents yet. Click Upload to add a PDF or image.
-              </p>
-            </div>
-          )}
+        {!isLoading && data && data.documents.length > 0 && (
+          <Stack component="ul" spacing={1.5} sx={{ listStyle: "none", m: 0, p: 0 }}>
+            {data.documents.map((d) => (
+              <Box component="li" key={d.document_id}>
+                <DocumentCard
+                  doc={d}
+                  onView={() => openPreview(d)}
+                  onDownload={() => void handleDownload(d)}
+                  onDelete={() => void handleDelete(d)}
+                />
+              </Box>
+            ))}
+          </Stack>
+        )}
 
-          {!isLoading && data && data.documents.length > 0 && (
-            <ul className="space-y-3">
-              {data.documents.map((d) => (
-                <li key={d.document_id}>
-                  <DocumentCard
-                    doc={d}
-                    onView={() => openPreview(d)}
-                    onDownload={() => void handleDownload(d)}
-                    onDelete={() => void handleDelete(d)}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {data && data.total > 0 && (
-            <DocumentPagination
-              page={page}
-              pageSize={data.page_size}
-              total={data.total}
-              onPageChange={setPage}
-            />
-          )}
-      </div>
+        {data && data.total > 0 && (
+          <DocumentPagination
+            page={page}
+            pageSize={data.page_size}
+            total={data.total}
+            onPageChange={setPage}
+          />
+        )}
+      </Stack>
 
       <UploadModal
         patientId={currentPatientId}
@@ -212,6 +243,6 @@ export default function DocumentsPage() {
           onClose={closePreview}
         />
       )}
-    </div>
+    </>
   );
 }

@@ -1,4 +1,6 @@
 import type { ChangeEvent } from "react";
+import Box from "@mui/material/Box";
+import TextField from "@mui/material/TextField";
 
 type Props = {
   license_number: string;
@@ -7,6 +9,8 @@ type Props = {
   disabled: boolean;
   onChange: (patch: Record<string, unknown>) => void;
 };
+
+const fieldProps = { size: "small" as const, fullWidth: true };
 
 export default function DoctorCredentialsForm({
   license_number,
@@ -21,44 +25,35 @@ export default function DoctorCredentialsForm({
     };
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      <label className="block">
-        <span className="mb-1 block text-xs font-medium text-gray-600">
-          License number
-        </span>
-        <input
-          type="text"
-          value={license_number}
-          onChange={handle("license_number")}
-          disabled={disabled}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-        />
-      </label>
-      <label className="block">
-        <span className="mb-1 block text-xs font-medium text-gray-600">
-          License state
-        </span>
-        <input
-          type="text"
-          value={license_state}
-          onChange={handle("license_state")}
-          disabled={disabled}
-          placeholder="e.g. CA"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-        />
-      </label>
-      <label className="block">
-        <span className="mb-1 block text-xs font-medium text-gray-600">
-          NPI number
-        </span>
-        <input
-          type="text"
-          value={npi_number}
-          onChange={handle("npi_number")}
-          disabled={disabled}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-        />
-      </label>
-    </div>
+    <Box
+      sx={{
+        display: "grid",
+        gap: 2,
+        gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+      }}
+    >
+      <TextField
+        label="License number"
+        value={license_number}
+        onChange={handle("license_number")}
+        disabled={disabled}
+        {...fieldProps}
+      />
+      <TextField
+        label="License state"
+        value={license_state}
+        onChange={handle("license_state")}
+        disabled={disabled}
+        placeholder="e.g. CA"
+        {...fieldProps}
+      />
+      <TextField
+        label="NPI number"
+        value={npi_number}
+        onChange={handle("npi_number")}
+        disabled={disabled}
+        {...fieldProps}
+      />
+    </Box>
   );
 }

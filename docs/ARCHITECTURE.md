@@ -115,6 +115,6 @@ No filesystem dependency, no restart required to pick up new or edited patients 
 | Backend auth | PyJWT, passlib/bcrypt (Phase D) |
 | Backend DB | Motor (async MongoDB), PyMongo |
 | Backend AI | LangGraph, LangChain, langchain-google-genai, langchain-openai |
-| Frontend UI | React 18, Vite 6, TypeScript 5, Tailwind CSS 3 |
-| Frontend rendering | react-markdown, remark-gfm, @tailwindcss/typography |
+| Frontend UI | React 18, Vite 6, TypeScript 5, MUI + Emotion (`frontend/src/theme/`) |
+| Frontend rendering | react-markdown, remark-gfm (theme-aware markdown in `frontend/src/ui/Markdown.tsx`) |
 | Orchestration | Docker Compose, MongoDB 7.0 |

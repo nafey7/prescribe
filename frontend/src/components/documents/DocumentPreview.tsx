@@ -1,3 +1,9 @@
+import Box from "@mui/material/Box";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
 import { X } from "lucide-react";
 import { useMemo } from "react";
 import { getDocumentDownloadUrl } from "../../api/documents";
@@ -28,50 +34,81 @@ export default function DocumentPreview({
   const isImage = doc.content_type.startsWith("image/");
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      open
+      onClose={(_e, reason) => {
+        if (reason === "backdropClick") return;
+        onClose();
+      }}
+      maxWidth="lg"
+      fullWidth
       aria-labelledby="preview-title"
     >
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-          <h2 id="preview-title" className="truncate pr-4 text-lg font-semibold text-gray-900">
-            {doc.description.trim() || doc.filename}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
-            aria-label="Close preview"
-          >
-            <X size={22} />
-          </button>
-        </div>
-        <div className="min-h-[50vh] flex-1 overflow-auto bg-gray-100 p-2">
-          {isPdf && (
-            <iframe
-              title={doc.filename}
+      <DialogTitle
+        id="preview-title"
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+          pr: 1,
+        }}
+      >
+        <Typography component="span" variant="h6" noWrap sx={{ pr: 1 }}>
+          {doc.description.trim() || doc.filename}
+        </Typography>
+        <IconButton
+          type="button"
+          onClick={onClose}
+          aria-label="Close preview"
+          edge="end"
+        >
+          <X size={22} />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent
+        dividers
+        sx={{
+          p: 1,
+          bgcolor: "action.hover",
+          minHeight: "50vh",
+          overflow: "auto",
+        }}
+      >
+        {isPdf && (
+          <Box
+            component="iframe"
+            title={doc.filename}
+            src={url}
+            sx={{
+              width: "100%",
+              height: "min(70vh, 800px)",
+              border: 0,
+              borderRadius: 1,
+              bgcolor: "background.paper",
+            }}
+          />
+        )}
+        {isImage && (
+          <Box sx={{ display: "flex", justifyContent: "center", p: 1 }}>
+            <Box
+              component="img"
               src={url}
-              className="h-[min(70vh,800px)] w-full rounded border-0 bg-white"
+              alt={doc.filename}
+              sx={{
+                maxHeight: "70vh",
+                maxWidth: "100%",
+                objectFit: "contain",
+              }}
             />
-          )}
-          {isImage && (
-            <div className="flex justify-center p-2">
-              <img
-                src={url}
-                alt={doc.filename}
-                className="max-h-[70vh] max-w-full object-contain"
-              />
-            </div>
-          )}
-          {!isPdf && !isImage && (
-            <p className="p-6 text-center text-gray-600">
-              Preview is not available for this file type. Use Download.
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
+          </Box>
+        )}
+        {!isPdf && !isImage && (
+          <Typography align="center" color="text.secondary" sx={{ p: 3 }}>
+            Preview is not available for this file type. Use Download.
+          </Typography>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

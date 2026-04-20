@@ -1,6 +1,11 @@
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { MessageSquare, RotateCcw, UserCircle } from "lucide-react";
 import { useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import { usePatientContext } from "../contexts/PatientContext";
 import { useChat } from "../hooks/useChat";
 import { paths } from "../router/paths";
@@ -22,69 +27,135 @@ export default function ChatPage() {
   );
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col bg-gray-50">
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: 0,
+        width: "100%",
+        flex: 1,
+        flexDirection: "column",
+        bgcolor: "background.default",
+      }}
+    >
       {import.meta.env.DEV ? (
         <DevIdentityBanner />
       ) : (
-        <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-2">
-          <div className="flex w-full justify-end">
+        <Box
+          sx={{
+            flexShrink: 0,
+            borderBottom: 1,
+            borderColor: "divider",
+            bgcolor: "background.paper",
+            px: 2,
+            py: 1,
+          }}
+        >
+          <Stack direction="row" sx={{ justifyContent: "flex-end", width: "100%" }}>
             <PatientSelector
               selectedId={currentPatientId}
               onChange={handlePatientChange}
             />
-          </div>
-        </div>
+          </Stack>
+        </Box>
       )}
 
-      <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
-        <div className="flex w-full flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600">
-              <MessageSquare className="text-white" size={18} />
-            </div>
-            <div>
-              <h1 className="text-base font-semibold text-gray-900">
+      <Box
+        component="header"
+        sx={{
+          flexShrink: 0,
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: "background.paper",
+          px: 2,
+          py: 1.5,
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1.5}
+          sx={{
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: "success.main",
+                color: "success.contrastText",
+              }}
+            >
+              <MessageSquare size={18} />
+            </Box>
+            <Box>
+              <Typography variant="subtitle1" color="text.primary" sx={{ fontWeight: 600 }}>
                 Medical AI Chat
-              </h1>
-              <p className="text-xs text-gray-500">
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
                 Patient record-aware assistant
-              </p>
-            </div>
-          </div>
+              </Typography>
+            </Box>
+          </Stack>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
+          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", alignItems: "center" }}>
+            <Button
+              component={RouterLink}
               to={paths.patient.root}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              variant="outlined"
+              size="small"
+              sx={{ textTransform: "none", fontWeight: 500 }}
             >
               Patient portal
-            </Link>
-            <Link
+            </Button>
+            <Button
+              component={RouterLink}
               to={profileHref}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              variant="outlined"
+              size="small"
+              startIcon={<UserCircle size={16} />}
+              sx={{ textTransform: "none", fontWeight: 500 }}
             >
-              <UserCircle size={16} />
               Profile
-            </Link>
-            <button
+            </Button>
+            <IconButton
               type="button"
               onClick={clearChat}
               title="New conversation"
-              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+              aria-label="New conversation"
+              size="small"
+              sx={{
+                color: "text.disabled",
+                "&:hover": { bgcolor: "action.hover", color: "text.secondary" },
+              }}
             >
               <RotateCcw size={16} />
-            </button>
-          </div>
-        </div>
-      </header>
+            </IconButton>
+          </Stack>
+        </Stack>
+      </Box>
 
-      <main className="flex min-h-0 w-full flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <MessageList messages={messages} isLoading={isLoading} />
-        </div>
-      </main>
+      <Box
+        component="main"
+        sx={{ display: "flex", minHeight: 0, width: "100%", flex: 1, flexDirection: "column" }}
+      >
+        <Box sx={{ display: "flex", minHeight: 0, flex: 1, flexDirection: "column", overflowY: "auto" }}>
+          <MessageList
+            messages={messages}
+            isLoading={isLoading}
+            onSuggestionClick={sendMessage}
+          />
+        </Box>
+      </Box>
 
       <ChatInput onSend={sendMessage} isLoading={isLoading} />
-    </div>
+    </Box>
   );
 }

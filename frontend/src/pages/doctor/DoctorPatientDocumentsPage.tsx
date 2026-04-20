@@ -1,4 +1,9 @@
-import { FileQuestion, Loader2 } from "lucide-react";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { FileQuestion } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import {
@@ -101,92 +106,115 @@ export default function DoctorPatientDocumentsPage() {
 
   if (!currentDoctorId) {
     return (
-      <p className="text-sm text-amber-900">
+      <Typography variant="body2" sx={{ color: "warning.dark" }}>
         Select a doctor in the dev identity bar to view documents.
-      </p>
+      </Typography>
     );
   }
 
   if (!patientId) {
-    return <p className="text-gray-600">Missing patient.</p>;
+    return (
+      <Typography variant="body2" color="text.secondary">
+        Missing patient.
+      </Typography>
+    );
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">
-          Patient documents
-        </h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Read-only view of documents for this connected patient.
-        </p>
-      </div>
+    <>
+      <Stack spacing={3}>
+        <Box>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 600 }}>
+            Patient documents
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Read-only view of documents for this connected patient.
+          </Typography>
+        </Box>
 
-      <div className="mb-4">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-          Filter by category
-        </p>
-        <CategoryFilter
-          value={category}
-          onChange={(c) => {
-            setCategory(c);
-            setPage(1);
-          }}
-        />
-      </div>
+        <Box>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              mb: 1,
+              display: "block",
+              fontWeight: 600,
+              letterSpacing: 0.5,
+            }}
+          >
+            Filter by category
+          </Typography>
+          <CategoryFilter
+            value={category}
+            onChange={(c) => {
+              setCategory(c);
+              setPage(1);
+            }}
+          />
+        </Box>
 
-      {toast && (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          {toast}
-        </div>
-      )}
+        {toast && (
+          <Alert severity="warning" onClose={() => setToast(null)}>
+            {toast}
+          </Alert>
+        )}
 
       {isLoading && (
-        <div className="flex justify-center py-16 text-gray-500">
-          <Loader2 className="animate-spin" size={32} />
-        </div>
+        <Stack sx={{ alignItems: "center", py: 8 }} aria-busy="true">
+          <CircularProgress />
+        </Stack>
       )}
 
-      {error && !isLoading && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {error}
-        </div>
-      )}
+        {error && !isLoading && (
+          <Alert severity="error">{error}</Alert>
+        )}
 
-      {!isLoading && !error && data && data.documents.length === 0 && (
-        <div className="rounded-xl border border-dashed border-gray-200 bg-white py-16 text-center">
-          <FileQuestion
-            className="mx-auto mb-3 text-gray-400"
-            size={40}
-            strokeWidth={1.25}
+        {!isLoading && !error && data && data.documents.length === 0 && (
+          <Box
+            sx={{
+              borderRadius: 2,
+              border: 1,
+              borderStyle: "dashed",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              py: 8,
+              textAlign: "center",
+            }}
+          >
+            <Box sx={{ color: "text.disabled", display: "flex", justifyContent: "center", mb: 1.5 }}>
+              <FileQuestion size={40} strokeWidth={1.25} />
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              No documents for this patient.
+            </Typography>
+          </Box>
+        )}
+
+        {!isLoading && data && data.documents.length > 0 && (
+          <Stack component="ul" spacing={1.5} sx={{ listStyle: "none", m: 0, p: 0 }}>
+            {data.documents.map((d) => (
+              <Box component="li" key={d.document_id}>
+                <DocumentCard
+                  doc={d}
+                  onView={() => openPreview(d)}
+                  onDownload={() => void handleDownload(d)}
+                  readOnly
+                />
+              </Box>
+            ))}
+          </Stack>
+        )}
+
+        {data && data.total > 0 && (
+          <DocumentPagination
+            page={page}
+            pageSize={data.page_size}
+            total={data.total}
+            onPageChange={setPage}
           />
-          <p className="text-sm text-gray-600">No documents for this patient.</p>
-        </div>
-      )}
-
-      {!isLoading && data && data.documents.length > 0 && (
-        <ul className="space-y-3">
-          {data.documents.map((d) => (
-            <li key={d.document_id}>
-              <DocumentCard
-                doc={d}
-                onView={() => openPreview(d)}
-                onDownload={() => void handleDownload(d)}
-                readOnly
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {data && data.total > 0 && (
-        <DocumentPagination
-          page={page}
-          pageSize={data.page_size}
-          total={data.total}
-          onPageChange={setPage}
-        />
-      )}
+        )}
+      </Stack>
 
       {previewDoc && patientId && (
         <DocumentPreview
@@ -196,6 +224,6 @@ export default function DoctorPatientDocumentsPage() {
           fileUrlOverride={previewUrl}
         />
       )}
-    </div>
+    </>
   );
 }

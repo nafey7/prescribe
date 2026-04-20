@@ -1,3 +1,7 @@
+import type { ReactNode } from "react";
+import Box from "@mui/material/Box";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
 import type { Address } from "../../types/patient";
 
 interface Props {
@@ -15,10 +19,7 @@ interface Props {
   onChange: (patch: Record<string, unknown>) => void;
 }
 
-const inputClass =
-  "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 " +
-  "focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 " +
-  "disabled:bg-gray-50 disabled:text-gray-500";
+const fieldProps = { size: "small" as const, fullWidth: true };
 
 export default function PatientDemographicsForm({
   first_name,
@@ -35,115 +36,106 @@ export default function PatientDemographicsForm({
   onChange,
 }: Props) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <label className="block sm:col-span-1">
-        <span className="text-xs font-medium text-gray-600">First name</span>
-        <input
-          className={inputClass}
-          value={first_name}
-          disabled={disabled}
-          onChange={(e) => onChange({ first_name: e.target.value })}
-          required
-        />
-      </label>
-      <label className="block sm:col-span-1">
-        <span className="text-xs font-medium text-gray-600">Last name</span>
-        <input
-          className={inputClass}
-          value={last_name}
-          disabled={disabled}
-          onChange={(e) => onChange({ last_name: e.target.value })}
-          required
-        />
-      </label>
-      <label className="block sm:col-span-2">
-        <span className="text-xs font-medium text-gray-600">Email</span>
-        <input
-          type="email"
-          className={inputClass}
-          value={email}
-          disabled={disabled}
-          onChange={(e) => onChange({ email: e.target.value })}
-          required
-        />
-      </label>
-      <label className="block">
-        <span className="text-xs font-medium text-gray-600">Date of birth</span>
-        <input
-          type="date"
-          className={inputClass}
-          value={date_of_birth}
-          disabled={disabled}
-          onChange={(e) => onChange({ date_of_birth: e.target.value || null })}
-        />
-      </label>
-      <label className="block">
-        <span className="text-xs font-medium text-gray-600">Sex</span>
-        <select
-          className={inputClass}
-          value={sex}
-          disabled={disabled}
-          onChange={(e) => onChange({ sex: e.target.value || null })}
-        >
-          <option value="">—</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-          <option value="other">Other</option>
-        </select>
-      </label>
-      <label className="block">
-        <span className="text-xs font-medium text-gray-600">Blood type</span>
-        <input
-          className={inputClass}
-          value={blood_type}
-          disabled={disabled}
-          onChange={(e) => onChange({ blood_type: e.target.value || null })}
-        />
-      </label>
-      <label className="block">
-        <span className="text-xs font-medium text-gray-600">Weight (kg)</span>
-        <input
-          type="number"
-          step="0.1"
-          className={inputClass}
-          value={weight_kg}
-          disabled={disabled}
-          onChange={(e) =>
-            onChange({
-              weight_kg: e.target.value === "" ? null : Number(e.target.value),
-            })
-          }
-        />
-      </label>
-      <label className="block">
-        <span className="text-xs font-medium text-gray-600">Height (cm)</span>
-        <input
-          type="number"
-          step="0.1"
-          className={inputClass}
-          value={height_cm}
-          disabled={disabled}
-          onChange={(e) =>
-            onChange({
-              height_cm: e.target.value === "" ? null : Number(e.target.value),
-            })
-          }
-        />
-      </label>
-      <label className="block sm:col-span-2">
-        <span className="text-xs font-medium text-gray-600">Phone</span>
-        <input
-          className={inputClass}
-          value={phone}
-          disabled={disabled}
-          onChange={(e) => onChange({ phone: e.target.value || null })}
-        />
-      </label>
-      <div className="sm:col-span-2 space-y-2">
-        <p className="text-xs font-medium text-gray-600">Address</p>
-        <input
+    <Box
+      sx={{
+        display: "grid",
+        gap: 2,
+        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+      }}
+    >
+      <TextField
+        label="First name"
+        value={first_name}
+        disabled={disabled}
+        onChange={(e) => onChange({ first_name: e.target.value })}
+        required
+        {...fieldProps}
+      />
+      <TextField
+        label="Last name"
+        value={last_name}
+        disabled={disabled}
+        onChange={(e) => onChange({ last_name: e.target.value })}
+        required
+        {...fieldProps}
+      />
+      <TextField
+        label="Email"
+        type="email"
+        value={email}
+        disabled={disabled}
+        onChange={(e) => onChange({ email: e.target.value })}
+        required
+        {...fieldProps}
+        sx={{ gridColumn: { sm: "1 / -1" } }}
+      />
+      <TextField
+        label="Date of birth"
+        type="date"
+        value={date_of_birth}
+        disabled={disabled}
+        onChange={(e) => onChange({ date_of_birth: e.target.value || null })}
+        slotProps={{ inputLabel: { shrink: true } }}
+        {...fieldProps}
+      />
+      <TextField
+        label="Sex"
+        select
+        value={sex}
+        disabled={disabled}
+        onChange={(e) => onChange({ sex: e.target.value || null })}
+        {...fieldProps}
+      >
+        <MenuItem value="">—</MenuItem>
+        <MenuItem value="male">Male</MenuItem>
+        <MenuItem value="female">Female</MenuItem>
+        <MenuItem value="other">Other</MenuItem>
+      </TextField>
+      <TextField
+        label="Blood type"
+        value={blood_type}
+        disabled={disabled}
+        onChange={(e) => onChange({ blood_type: e.target.value || null })}
+        {...fieldProps}
+      />
+      <TextField
+        label="Weight (kg)"
+        type="number"
+        slotProps={{ htmlInput: { step: "0.1" } }}
+        value={weight_kg}
+        disabled={disabled}
+        onChange={(e) =>
+          onChange({
+            weight_kg: e.target.value === "" ? null : Number(e.target.value),
+          })
+        }
+        {...fieldProps}
+      />
+      <TextField
+        label="Height (cm)"
+        type="number"
+        slotProps={{ htmlInput: { step: "0.1" } }}
+        value={height_cm}
+        disabled={disabled}
+        onChange={(e) =>
+          onChange({
+            height_cm: e.target.value === "" ? null : Number(e.target.value),
+          })
+        }
+        {...fieldProps}
+      />
+      <TextField
+        label="Phone"
+        value={phone}
+        disabled={disabled}
+        onChange={(e) => onChange({ phone: e.target.value || null })}
+        {...fieldProps}
+        sx={{ gridColumn: { sm: "1 / -1" } }}
+      />
+      <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
+        <TypographyFieldLabel>Address</TypographyFieldLabel>
+        <TextField
           placeholder="Street"
-          className={inputClass}
           value={address.street}
           disabled={disabled}
           onChange={(e) =>
@@ -151,37 +143,54 @@ export default function PatientDemographicsForm({
               address: { ...address, street: e.target.value },
             })
           }
+          {...fieldProps}
+          sx={{ mt: 1 }}
         />
-        <div className="grid gap-2 sm:grid-cols-3">
-          <input
+        <Box
+          sx={{
+            display: "grid",
+            gap: 1,
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+            mt: 1,
+          }}
+        >
+          <TextField
             placeholder="City"
-            className={inputClass}
             value={address.city}
             disabled={disabled}
             onChange={(e) =>
               onChange({ address: { ...address, city: e.target.value } })
             }
+            {...fieldProps}
           />
-          <input
+          <TextField
             placeholder="State"
-            className={inputClass}
             value={address.state}
             disabled={disabled}
             onChange={(e) =>
               onChange({ address: { ...address, state: e.target.value } })
             }
+            {...fieldProps}
           />
-          <input
+          <TextField
             placeholder="ZIP"
-            className={inputClass}
             value={address.zip}
             disabled={disabled}
             onChange={(e) =>
               onChange({ address: { ...address, zip: e.target.value } })
             }
+            {...fieldProps}
           />
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+function TypographyFieldLabel({ children }: { children: ReactNode }) {
+  return (
+    <Box component="span" sx={{ typography: "caption", fontWeight: 600, color: "text.secondary" }}>
+      {children}
+    </Box>
   );
 }

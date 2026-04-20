@@ -1,5 +1,11 @@
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Link from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import {
   useAcceptConnectionMutation,
   useRejectConnectionMutation,
@@ -49,65 +55,96 @@ export default function PendingRequestsCard({
   }
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-semibold text-gray-900">
+    <Paper variant="outlined" sx={{ borderRadius: 4, p: 2.5, boxShadow: 1 }}>
+      <Typography variant="subtitle2" component="h2" sx={{ fontWeight: 600 }}>
         Pending connection requests
-      </h2>
+      </Typography>
       {localError ? (
-        <p className="mt-2 text-sm text-red-600" role="alert">
+        <Typography variant="body2" color="error" role="alert" sx={{ mt: 1 }}>
           {localError}
-        </p>
+        </Typography>
       ) : null}
       {items.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
           No pending requests. Patients who want to connect will appear here.
-        </p>
+        </Typography>
       ) : (
-        <ul className="mt-4 space-y-4">
+        <Stack
+          component="ul"
+          spacing={0}
+          sx={{ listStyle: "none", m: 0, p: 0, mt: 2 }}
+        >
           {items.map((row) => (
-            <li
+            <Box
+              component="li"
               key={row.connection_id}
-              className="flex flex-col gap-3 border-b border-gray-100 pb-4 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                alignItems: { sm: "center" },
+                justifyContent: "space-between",
+                gap: 1.5,
+                py: 2,
+                borderBottom: 1,
+                borderColor: "divider",
+                "&:last-of-type": {
+                  borderBottom: 0,
+                  pb: 0,
+                },
+                "&:first-of-type": {
+                  pt: 0,
+                },
+              }}
             >
-              <div>
-                <p className="font-medium text-gray-900">{row.patient_name}</p>
-                <p className="text-sm text-gray-500">
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {row.patient_name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
                   Wants to connect
                   {row.initiated_at
                     ? ` · ${formatRelativeShort(row.initiated_at)}`
                     : ""}
-                </p>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <button
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                <Button
                   type="button"
+                  size="small"
+                  variant="contained"
+                  color="secondary"
                   disabled={busyId === row.connection_id}
                   onClick={() => void handleAccept(row.connection_id)}
-                  className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
                 >
                   Accept
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  size="small"
+                  variant="outlined"
+                  color="inherit"
                   disabled={busyId === row.connection_id}
                   onClick={() => void handleReject(row.connection_id)}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
                   Reject
-                </button>
-              </div>
-            </li>
+                </Button>
+              </Stack>
+            </Box>
           ))}
-        </ul>
+        </Stack>
       )}
-      <div className="mt-4">
+      <Box sx={{ mt: 2 }}>
         <Link
+          component={RouterLink}
           to={paths.doctor.connections}
-          className="text-sm font-medium text-teal-700 hover:text-teal-800"
+          variant="body2"
+          color="secondary.dark"
+          underline="hover"
+          sx={{ fontWeight: 500 }}
         >
           View all requests →
         </Link>
-      </div>
-    </section>
+      </Box>
+    </Paper>
   );
 }

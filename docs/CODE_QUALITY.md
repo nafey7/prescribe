@@ -74,7 +74,7 @@ types/      → TypeScript interfaces
 | TypeScript interfaces | `PascalCase` | `Message`, `ChatResponse` |
 | TypeScript variables and functions | `camelCase` | `chatId`, `sendMessage` |
 | React components | `PascalCase` | `ChatPage`, `MessageList` |
-| CSS classes | Tailwind utilities | `flex items-center gap-2` |
+| Frontend styling | MUI `sx` / theme tokens | `sx={{ display: "flex", alignItems: "center", gap: 1 }}` |
 | File names (Python) | `snake_case.py` | `chat.py`, `graph.py` |
 | File names (TypeScript) | `camelCase.ts` or `PascalCase.tsx` | `chat.ts`, `ChatPage.tsx` |
 | Patient files | `patient_<first>_<last>.md` | `patient_john_doe.md` |

@@ -1,20 +1,25 @@
-import { useIdentity } from "../../contexts/IdentityContext";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Skeleton from "@mui/material/Skeleton";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import DashboardStatCards from "../../components/doctor/dashboard/DashboardStatCards";
 import DoctorWelcomeBanner from "../../components/doctor/dashboard/DoctorWelcomeBanner";
 import PendingRequestsCard from "../../components/doctor/dashboard/PendingRequestsCard";
 import RecentActivityCard from "../../components/doctor/dashboard/RecentActivityCard";
 import RecentPatientsCard from "../../components/doctor/dashboard/RecentPatientsCard";
+import { useIdentity } from "../../contexts/IdentityContext";
 import { useDoctorDashboard } from "../../hooks/useDoctorDashboard";
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="h-24 animate-pulse rounded-2xl bg-gray-200/80" />
+    <Stack spacing={3}>
+      <Skeleton variant="rounded" height={96} sx={{ borderRadius: 3 }} />
       <DashboardStatCards stats={undefined} />
-      <div className="h-48 animate-pulse rounded-2xl bg-gray-200/80" />
-      <div className="h-56 animate-pulse rounded-2xl bg-gray-200/80" />
-      <div className="h-48 animate-pulse rounded-2xl bg-gray-200/80" />
-    </div>
+      <Skeleton variant="rounded" height={192} sx={{ borderRadius: 3 }} />
+      <Skeleton variant="rounded" height={224} sx={{ borderRadius: 3 }} />
+      <Skeleton variant="rounded" height={192} sx={{ borderRadius: 3 }} />
+    </Stack>
   );
 }
 
@@ -24,41 +29,55 @@ export default function DoctorDashboardPage() {
 
   if (!currentDoctorId) {
     return (
-      <div className="mx-auto max-w-4xl">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-2 text-sm text-amber-800">
+      <>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700 }}>
+          Dashboard
+        </Typography>
+        <Alert severity="warning" sx={{ mt: 1 }}>
           Select a doctor in the dev identity bar to load your overview.
-        </p>
-      </div>
+        </Alert>
+      </>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <h1 className="sr-only">Doctor dashboard</h1>
+    <>
+      <Box
+        component="h1"
+        sx={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          p: 0,
+          m: -1,
+          overflow: "hidden",
+          clip: "rect(0,0,0,0)",
+          whiteSpace: "nowrap",
+          border: 0,
+        }}
+      >
+        Doctor dashboard
+      </Box>
 
       {error ? (
-        <div
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-          role="alert"
-        >
+        <Alert severity="error" sx={{ mb: 3 }} role="alert">
           {error}
-        </div>
+        </Alert>
       ) : null}
 
       {isLoading ? (
         <DashboardSkeleton />
       ) : (
-        <>
+        <Stack spacing={3}>
           <DoctorWelcomeBanner data={data} />
           <DashboardStatCards stats={data?.stats} />
-          <div className="grid gap-6 lg:grid-cols-1">
+          <Stack spacing={3}>
             <PendingRequestsCard items={data?.pending_requests ?? []} />
             <RecentPatientsCard patients={data?.recent_patients ?? []} />
             <RecentActivityCard items={data?.recent_activity ?? []} />
-          </div>
-        </>
+          </Stack>
+        </Stack>
       )}
-    </div>
+    </>
   );
 }

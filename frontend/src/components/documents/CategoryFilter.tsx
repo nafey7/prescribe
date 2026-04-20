@@ -1,3 +1,5 @@
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import type { DocumentCategory } from "../../types/document";
 import { DOCUMENT_CATEGORY_LABELS } from "../../types/document";
 
@@ -17,32 +19,34 @@ interface Props {
 
 export default function CategoryFilter({ value, onChange }: Props) {
   return (
-    <div className="flex flex-wrap gap-2">
-      <button
-        type="button"
-        onClick={() => onChange("all")}
-        className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-          value === "all"
-            ? "bg-emerald-600 text-white"
-            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-        }`}
-      >
-        All
-      </button>
+    <ToggleButtonGroup
+      value={value}
+      exclusive
+      color="success"
+      size="small"
+      onChange={(_, next) => {
+        if (next !== null) onChange(next);
+      }}
+      sx={{
+        flexWrap: "wrap",
+        gap: 1,
+        "& .MuiToggleButtonGroup-grouped": {
+          borderRadius: 999,
+          border: "none",
+          mx: 0,
+          "&:not(:first-of-type)": {
+            borderRadius: 999,
+            borderLeft: "none",
+          },
+        },
+      }}
+    >
+      <ToggleButton value="all">All</ToggleButton>
       {ORDER.map((cat) => (
-        <button
-          key={cat}
-          type="button"
-          onClick={() => onChange(cat)}
-          className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-            value === cat
-              ? "bg-emerald-600 text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-          }`}
-        >
+        <ToggleButton key={cat} value={cat}>
           {DOCUMENT_CATEGORY_LABELS[cat]}
-        </button>
+        </ToggleButton>
       ))}
-    </div>
+    </ToggleButtonGroup>
   );
 }

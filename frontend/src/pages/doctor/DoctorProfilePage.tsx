@@ -1,5 +1,12 @@
-import { Loader2, Pencil, Save, X } from "lucide-react";
+import { Pencil, Save, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import DoctorContactForm from "../../components/doctor/profile/DoctorContactForm";
 import DoctorCredentialsForm from "../../components/doctor/profile/DoctorCredentialsForm";
 import DoctorEducationEditor from "../../components/doctor/profile/DoctorEducationEditor";
@@ -109,12 +116,16 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
+    <Paper variant="outlined" sx={{ p: 2.5 }}>
+      <Typography
+        variant="overline"
+        color="text.secondary"
+        sx={{ display: "block", mb: 2, letterSpacing: 1 }}
+      >
         {title}
-      </h2>
+      </Typography>
       {children}
-    </section>
+    </Paper>
   );
 }
 
@@ -201,88 +212,92 @@ export default function DoctorProfilePage() {
 
   if (!currentDoctorId) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Select a doctor in the dev identity banner (doctor role) to view a profile.
-        </div>
-      </div>
+      <Alert severity="warning">
+        Select a doctor in the dev identity banner (doctor role) to view a profile.
+      </Alert>
     );
   }
 
   if (loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
-      </div>
+      <Box
+        sx={{
+          minHeight: "40vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <CircularProgress color="primary" />
+      </Box>
     );
   }
 
   if (!profile || !draft) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {loadErrorMessage ||
-            "Profile not found. Seed doctors or create one via the API."}
-        </div>
-      </div>
+      <Alert severity="error">
+        {loadErrorMessage ||
+          "Profile not found. Seed doctors or create one via the API."}
+      </Alert>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
+    <>
+      <Stack
+        direction="row"
+        spacing={1}
+        useFlexGap
+        sx={{ mb: 3, justifyContent: "flex-end", flexWrap: "wrap" }}
+      >
         {!editing ? (
-          <button
+          <Button
             type="button"
+            variant="contained"
+            startIcon={<Pencil size={16} />}
             onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
           >
-            <Pencil size={16} />
             Edit profile
-          </button>
+          </Button>
         ) : (
           <>
-            <button
+            <Button
               type="button"
+              variant="outlined"
+              startIcon={<X size={16} />}
               onClick={cancelEdit}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
-              <X size={16} />
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="contained"
+              startIcon={saving ? undefined : <Save size={16} />}
               onClick={() => void save()}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
             >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save size={16} />
-              )}
-              Save
-            </button>
+              {saving ? "Saving…" : "Save"}
+            </Button>
           </>
         )}
-      </div>
+      </Stack>
 
-      <div className="space-y-6">
-        {error && editing && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            {error}
-          </div>
-        )}
+      <Stack spacing={3}>
+        {error && editing && <Alert severity="error">{error}</Alert>}
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-semibold text-gray-900">{displayName}</h1>
-          <p className="mt-1 text-sm text-gray-500">
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Typography variant="h5" component="h1">
+            {displayName}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             {profile.specialization}
             {profile.institution ? ` · ${profile.institution}` : ""}
-          </p>
-          <p className="mt-1 text-sm text-gray-500">{profile.email}</p>
-        </div>
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {profile.email}
+          </Typography>
+        </Paper>
 
         <Section title="Professional">
           <DoctorProfessionalForm
@@ -335,7 +350,7 @@ export default function DoctorProfilePage() {
             onChange={handleDemoChange}
           />
         </Section>
-      </div>
-    </div>
+      </Stack>
+    </>
   );
 }

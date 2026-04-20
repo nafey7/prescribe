@@ -1,5 +1,14 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useMemo, useState } from "react";
+import Button from "@mui/material/Button";
+import Paper from "@mui/material/Paper";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Typography from "@mui/material/Typography";
 import type { MedicalHistoryMedication } from "../../types/patient";
 
 type SortKey = "name" | "dosage" | "frequency" | "since";
@@ -34,82 +43,88 @@ export default function MedicationsTable({ medications }: Props) {
   };
 
   const icon = (key: SortKey) => {
-    if (sortKey !== key) return <ArrowUpDown size={14} className="opacity-40" />;
-    return sortDir === "asc" ? (
-      <ArrowUp size={14} />
-    ) : (
-      <ArrowDown size={14} />
-    );
+    if (sortKey !== key) {
+      return <ArrowUpDown size={14} style={{ opacity: 0.4 }} />;
+    }
+    return sortDir === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
   };
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-3 text-base font-semibold text-gray-900">
+    <Paper variant="outlined" sx={{ p: 2.5 }}>
+      <Typography variant="subtitle1" component="h2" sx={{ mb: 1.5, fontWeight: 600 }}>
         Current medications
-      </h2>
+      </Typography>
       {medications.length === 0 ? (
-        <p className="text-sm text-gray-500">No medications listed.</p>
+        <Typography variant="body2" color="text.secondary">
+          No medications listed.
+        </Typography>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 text-gray-600">
-                <th className="pb-2 pr-2 font-medium">
-                  <button
+        <TableContainer sx={{ overflowX: "auto" }}>
+          <Table size="small" sx={{ minWidth: 520 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600, color: "text.secondary" }}>
+                  <Button
                     type="button"
+                    size="small"
                     onClick={() => toggle("name")}
-                    className="inline-flex items-center gap-1 hover:text-gray-900"
+                    endIcon={icon("name")}
+                    sx={{ color: "text.secondary", textTransform: "none", p: 0, minWidth: 0 }}
                   >
-                    Medication {icon("name")}
-                  </button>
-                </th>
-                <th className="pb-2 pr-2 font-medium">
-                  <button
+                    Medication
+                  </Button>
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600, color: "text.secondary" }}>
+                  <Button
                     type="button"
+                    size="small"
                     onClick={() => toggle("dosage")}
-                    className="inline-flex items-center gap-1 hover:text-gray-900"
+                    endIcon={icon("dosage")}
+                    sx={{ color: "text.secondary", textTransform: "none", p: 0, minWidth: 0 }}
                   >
-                    Dosage {icon("dosage")}
-                  </button>
-                </th>
-                <th className="pb-2 pr-2 font-medium">
-                  <button
+                    Dosage
+                  </Button>
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600, color: "text.secondary" }}>
+                  <Button
                     type="button"
+                    size="small"
                     onClick={() => toggle("frequency")}
-                    className="inline-flex items-center gap-1 hover:text-gray-900"
+                    endIcon={icon("frequency")}
+                    sx={{ color: "text.secondary", textTransform: "none", p: 0, minWidth: 0 }}
                   >
-                    Frequency {icon("frequency")}
-                  </button>
-                </th>
-                <th className="pb-2 font-medium">
-                  <button
+                    Frequency
+                  </Button>
+                </TableCell>
+                <TableCell sx={{ fontWeight: 600, color: "text.secondary" }}>
+                  <Button
                     type="button"
+                    size="small"
                     onClick={() => toggle("since")}
-                    className="inline-flex items-center gap-1 hover:text-gray-900"
+                    endIcon={icon("since")}
+                    sx={{ color: "text.secondary", textTransform: "none", p: 0, minWidth: 0 }}
                   >
-                    Since {icon("since")}
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                    Since
+                  </Button>
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {sorted.map((m) => (
-                <tr
+                <TableRow
                   key={`${m.name}-${m.since ?? ""}`}
-                  className="border-b border-gray-100 last:border-0"
+                  sx={{ "&:last-child td": { borderBottom: 0 } }}
                 >
-                  <td className="py-2 pr-2 font-medium text-gray-900">
-                    {m.name}
-                  </td>
-                  <td className="py-2 pr-2 text-gray-700">{m.dosage}</td>
-                  <td className="py-2 pr-2 text-gray-700">{m.frequency}</td>
-                  <td className="py-2 text-gray-600">{m.since ?? "—"}</td>
-                </tr>
+                  <TableCell sx={{ fontWeight: 600 }}>{m.name}</TableCell>
+                  <TableCell>{m.dosage}</TableCell>
+                  <TableCell>{m.frequency}</TableCell>
+                  <TableCell sx={{ color: "text.secondary" }}>{m.since ?? "—"}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
-    </section>
+    </Paper>
   );
 }

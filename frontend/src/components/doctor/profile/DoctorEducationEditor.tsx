@@ -1,5 +1,11 @@
 import { Plus, Trash2 } from "lucide-react";
 import type { ChangeEvent } from "react";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import { alpha } from "@mui/material";
 import type { Education } from "../../../types/doctor";
 
 type Props = {
@@ -7,6 +13,8 @@ type Props = {
   disabled: boolean;
   onChange: (items: Education[]) => void;
 };
+
+const fieldProps = { size: "small" as const, fullWidth: true };
 
 export default function DoctorEducationEditor({
   items,
@@ -40,75 +48,74 @@ export default function DoctorEducationEditor({
   };
 
   return (
-    <div className="space-y-3">
+    <Stack spacing={1.5}>
       {items.map((row, index) => (
-        <div
+        <Paper
           key={index}
-          className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50/80 p-3 sm:flex-row sm:items-end"
+          variant="outlined"
+          sx={(t) => ({
+            p: 1.5,
+            bgcolor: alpha(t.palette.grey[100], 0.65),
+          })}
         >
-          <label className="min-w-0 flex-1">
-            <span className="mb-1 block text-xs font-medium text-gray-600">
-              Degree
-            </span>
-            <input
-              type="text"
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            sx={{ alignItems: { sm: "flex-end" } }}
+          >
+            <TextField
+              label="Degree"
               value={row.degree}
               onChange={(e: ChangeEvent<HTMLInputElement>) =>
                 patch(index, "degree", e.target.value)
               }
               disabled={disabled}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-50"
+              {...fieldProps}
+              sx={{ flex: 1, minWidth: 0 }}
             />
-          </label>
-          <label className="min-w-0 flex-[2]">
-            <span className="mb-1 block text-xs font-medium text-gray-600">
-              Institution
-            </span>
-            <input
-              type="text"
+            <TextField
+              label="Institution"
               value={row.institution}
               onChange={(e: ChangeEvent<HTMLInputElement>) =>
                 patch(index, "institution", e.target.value)
               }
               disabled={disabled}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-50"
+              {...fieldProps}
+              sx={{ flex: 2, minWidth: 0 }}
             />
-          </label>
-          <label className="w-24 shrink-0">
-            <span className="mb-1 block text-xs font-medium text-gray-600">
-              Year
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
+            <TextField
+              label="Year"
               value={row.year ?? ""}
               onChange={(e: ChangeEvent<HTMLInputElement>) =>
                 patch(index, "year", e.target.value)
               }
               disabled={disabled}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-50"
+              slotProps={{ htmlInput: { inputMode: "numeric" } }}
+              {...fieldProps}
+              sx={{ width: { xs: "100%", sm: 96 }, flexShrink: 0 }}
             />
-          </label>
-          <button
-            type="button"
-            onClick={() => remove(index)}
-            disabled={disabled}
-            className="inline-flex shrink-0 items-center justify-center rounded-lg border border-gray-300 p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-50"
-            aria-label="Remove education row"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
+            <IconButton
+              type="button"
+              onClick={() => remove(index)}
+              disabled={disabled}
+              aria-label="Remove education row"
+              sx={{ border: 1, borderColor: "divider" }}
+            >
+              <Trash2 size={16} />
+            </IconButton>
+          </Stack>
+        </Paper>
       ))}
-      <button
+      <Button
         type="button"
         onClick={add}
         disabled={disabled}
-        className="inline-flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        variant="outlined"
+        startIcon={<Plus size={16} />}
+        sx={{ alignSelf: "flex-start" }}
       >
-        <Plus size={16} />
         Add education
-      </button>
-    </div>
+      </Button>
+    </Stack>
   );
 }

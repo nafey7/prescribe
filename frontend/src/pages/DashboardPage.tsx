@@ -1,3 +1,5 @@
+import Alert from "@mui/material/Alert";
+import Grid from "@mui/material/Grid";
 import AllergiesCard from "../components/dashboard/AllergiesCard";
 import ConditionsCard from "../components/dashboard/ConditionsCard";
 import DashboardSkeleton from "../components/dashboard/DashboardSkeleton";
@@ -14,47 +16,52 @@ export default function DashboardPage() {
   const { data, isLoading, error } = useMedicalHistory();
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <>
       {error && (
-        <div
-          className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-          role="alert"
-        >
+        <Alert severity="error" sx={{ mb: 3 }} role="alert">
           {error}
-        </div>
+        </Alert>
       )}
 
       {isLoading && <DashboardSkeleton />}
 
       {!isLoading && data && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-          <div className="lg:col-span-2">
+        <Grid container spacing={{ xs: 2, lg: 2.5 }}>
+          <Grid size={12}>
             <PatientSummaryCard summary={data.summary} />
-          </div>
+          </Grid>
 
-          <ConditionsCard conditions={data.conditions} />
-          <AllergiesCard allergies={data.allergies} />
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <ConditionsCard conditions={data.conditions} />
+          </Grid>
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <AllergiesCard allergies={data.allergies} />
+          </Grid>
 
-          <div className="lg:col-span-2">
+          <Grid size={12}>
             <MedicationsTable medications={data.medications} />
-          </div>
+          </Grid>
 
-          <div className="lg:col-span-2">
+          <Grid size={12}>
             <LabResultsCard lab_reports={data.lab_reports} />
-          </div>
+          </Grid>
 
-          <div className="lg:col-span-2">
+          <Grid size={12}>
             <MedicalTimeline events={data.medical_events} />
-          </div>
+          </Grid>
 
-          <div className="lg:col-span-2">
+          <Grid size={12}>
             <RecentDocumentsCard documents={data.recent_documents} />
-          </div>
+          </Grid>
 
-          <FamilyHistoryCard family_history={data.family_history} />
-          <LifestyleCard lifestyle={data.lifestyle} />
-        </div>
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <FamilyHistoryCard family_history={data.family_history} />
+          </Grid>
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <LifestyleCard lifestyle={data.lifestyle} />
+          </Grid>
+        </Grid>
       )}
-    </div>
+    </>
   );
 }

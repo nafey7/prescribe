@@ -1,4 +1,9 @@
 import { Plus, Trash2 } from "lucide-react";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
 import type { Allergy } from "../../types/patient";
 
 interface Props {
@@ -7,8 +12,7 @@ interface Props {
   onChange: (items: Allergy[]) => void;
 }
 
-const inputClass =
-  "w-full rounded border border-gray-200 px-2 py-1.5 text-sm disabled:bg-gray-50";
+const fieldProps = { size: "small" as const, fullWidth: true };
 
 export default function AllergiesEditor({ items, disabled, onChange }: Props) {
   const update = (index: number, patch: Partial<Allergy>) => {
@@ -17,51 +21,52 @@ export default function AllergiesEditor({ items, disabled, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-2">
+    <Stack spacing={1.5}>
       {items.map((a, i) => (
-        <div
-          key={i}
-          className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 sm:flex-row sm:items-end"
-        >
-          <label className="flex-1">
-            <span className="text-xs text-gray-500">Substance</span>
-            <input
-              className={inputClass}
+        <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            sx={{ alignItems: { sm: "flex-end" } }}
+          >
+            <TextField
+              label="Substance"
               value={a.substance}
               disabled={disabled}
               onChange={(e) => update(i, { substance: e.target.value })}
+              {...fieldProps}
+              sx={{ flex: 1 }}
             />
-          </label>
-          <label className="flex-1">
-            <span className="text-xs text-gray-500">Reaction</span>
-            <input
-              className={inputClass}
+            <TextField
+              label="Reaction"
               value={a.reaction}
               disabled={disabled}
               onChange={(e) => update(i, { reaction: e.target.value })}
+              {...fieldProps}
+              sx={{ flex: 1 }}
             />
-          </label>
-          <label className="w-full sm:w-32">
-            <span className="text-xs text-gray-500">Documented</span>
-            <input
-              className={inputClass}
+            <TextField
+              label="Documented"
               value={a.documented_date}
               disabled={disabled}
               onChange={(e) => update(i, { documented_date: e.target.value })}
+              {...fieldProps}
+              sx={{ width: { xs: "100%", sm: 128 } }}
             />
-          </label>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange(items.filter((_, j) => j !== i))}
-            className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
-            aria-label="Remove allergy"
-          >
-            <Trash2 size={18} />
-          </button>
-        </div>
+            <IconButton
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(items.filter((_, j) => j !== i))}
+              aria-label="Remove allergy"
+              color="error"
+              sx={{ alignSelf: { xs: "flex-end", sm: "center" } }}
+            >
+              <Trash2 size={18} />
+            </IconButton>
+          </Stack>
+        </Paper>
       ))}
-      <button
+      <Button
         type="button"
         disabled={disabled}
         onClick={() =>
@@ -70,10 +75,12 @@ export default function AllergiesEditor({ items, disabled, onChange }: Props) {
             { substance: "", reaction: "", documented_date: "" },
           ])
         }
-        className="inline-flex items-center gap-1 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-600 hover:border-primary-400 hover:text-primary-700"
+        variant="outlined"
+        startIcon={<Plus size={16} />}
+        sx={{ alignSelf: "flex-start", borderStyle: "dashed" }}
       >
-        <Plus size={16} /> Add allergy
-      </button>
-    </div>
+        Add allergy
+      </Button>
+    </Stack>
   );
 }

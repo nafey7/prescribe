@@ -1,4 +1,9 @@
 import type { ChangeEvent } from "react";
+import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
 
 type Props = {
   institution: string;
@@ -9,6 +14,8 @@ type Props = {
   onChange: (patch: Record<string, unknown>) => void;
 };
 
+const fieldProps = { size: "small" as const, fullWidth: true };
+
 export default function DoctorInstitutionForm({
   institution,
   department,
@@ -18,66 +25,58 @@ export default function DoctorInstitutionForm({
   onChange,
 }: Props) {
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-gray-600">
-            Institution
-          </span>
-          <input
-            type="text"
-            value={institution}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              onChange({ institution: e.target.value })
-            }
-            disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-gray-600">
-            Department
-          </span>
-          <input
-            type="text"
-            value={department}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              onChange({ department: e.target.value })
-            }
-            disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-          />
-        </label>
-      </div>
-      <div className="flex flex-wrap items-end gap-6">
-        <label className="block w-40">
-          <span className="mb-1 block text-xs font-medium text-gray-600">
-            Years of experience
-          </span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={years_of_experience}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              onChange({ years_of_experience: e.target.value })
-            }
-            disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-          />
-        </label>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={accepting_new_patients}
-            onChange={(e) =>
-              onChange({ accepting_new_patients: e.target.checked })
-            }
-            disabled={disabled}
-            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-          />
-          Accepting new patients
-        </label>
-      </div>
-    </div>
+    <Stack spacing={2}>
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+        }}
+      >
+        <TextField
+          label="Institution"
+          value={institution}
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            onChange({ institution: e.target.value })
+          }
+          disabled={disabled}
+          {...fieldProps}
+        />
+        <TextField
+          label="Department"
+          value={department}
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            onChange({ department: e.target.value })
+          }
+          disabled={disabled}
+          {...fieldProps}
+        />
+      </Box>
+      <Stack direction="row" spacing={3} sx={{ flexWrap: "wrap", alignItems: "center" }}>
+        <TextField
+          label="Years of experience"
+          value={years_of_experience}
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            onChange({ years_of_experience: e.target.value })
+          }
+          disabled={disabled}
+          slotProps={{ htmlInput: { inputMode: "numeric" } }}
+          {...fieldProps}
+          sx={{ width: { xs: "100%", sm: 160 } }}
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={accepting_new_patients}
+              onChange={(e) =>
+                onChange({ accepting_new_patients: e.target.checked })
+              }
+              disabled={disabled}
+            />
+          }
+          label="Accepting new patients"
+        />
+      </Stack>
+    </Stack>
   );
 }

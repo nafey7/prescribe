@@ -1,13 +1,30 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import FormControl from "@mui/material/FormControl";
+import IconButton from "@mui/material/IconButton";
+import InputLabel from "@mui/material/InputLabel";
+import LinearProgress from "@mui/material/LinearProgress";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+import { alpha, useTheme } from "@mui/material";
 import {
   Check,
   CheckCircle2,
   FileText,
-  Loader2,
   PackageOpen,
   Sparkles,
   X,
 } from "lucide-react";
+import type { ComponentProps } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { uploadDocument } from "../../api/documents";
 import {
   useAcceptAllSuggestionsMutation,
@@ -54,6 +71,7 @@ export default function UploadModal({
   onClose,
   onUploaded,
 }: Props) {
+  const theme = useTheme();
   const [step, setStep] = useState<Step>(1);
   const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState<DocumentCategory>("other");
@@ -166,8 +184,6 @@ export default function UploadModal({
     },
     [patientId, triggerListSuggestions]
   );
-
-  if (!open) return null;
 
   const handleContinue = async () => {
     if (!file) {
@@ -295,371 +311,463 @@ export default function UploadModal({
   const step2Label = aiSuggestionsEnabled ? "Review" : "Upload";
   const stepDone = (n: number) => step > n || (n === 2 && uploadDone);
 
+  const handleDialogClose: NonNullable<
+    ComponentProps<typeof Dialog>["onClose"]
+  > = (_event, reason) => {
+    if (reason === "backdropClick") return;
+    if (submitting) return;
+    handleDone();
+  };
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      open={open}
+      onClose={handleDialogClose}
+      maxWidth="sm"
+      fullWidth
       aria-labelledby="upload-modal-title"
     >
-      <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl bg-white shadow-xl">
-        {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3">
-          <h2
-            id="upload-modal-title"
-            className="text-lg font-semibold text-gray-900"
-          >
-            Upload document
-          </h2>
-          <button
-            type="button"
-            onClick={() => !submitting && handleDone()}
-            disabled={submitting}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-50"
-            aria-label="Close"
-          >
-            <X size={22} />
-          </button>
-        </div>
+      <DialogTitle
+        id="upload-modal-title"
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+          pr: 1,
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Typography component="span" variant="h6">
+          Upload document
+        </Typography>
+        <IconButton
+          type="button"
+          onClick={() => !submitting && handleDone()}
+          disabled={submitting}
+          aria-label="Close"
+          edge="end"
+        >
+          <X size={22} />
+        </IconButton>
+      </DialogTitle>
 
-        {/* Stepper indicator */}
-        <div className="flex shrink-0 items-center gap-3 px-6 pt-4 pb-2">
-          <StepIndicator
-            num={1}
-            label="Select file"
-            active={step === 1}
-            done={stepDone(1)}
-          />
-          <div className="h-px flex-1 bg-gray-200" />
-          <StepIndicator
-            num={2}
-            label={step2Label}
-            active={step === 2}
-            done={stepDone(2)}
-          />
-        </div>
+      <Stack
+        direction="row"
+        spacing={1.5}
+        sx={{
+          px: 3,
+          pt: 2,
+          pb: 1,
+          flexShrink: 0,
+          alignItems: "center",
+        }}
+      >
+        <StepIndicator
+          num={1}
+          label="Select file"
+          active={step === 1}
+          done={stepDone(1)}
+        />
+        <Box sx={{ flex: 1, height: 1, bgcolor: "divider" }} />
+        <StepIndicator
+          num={2}
+          label={step2Label}
+          active={step === 2}
+          done={stepDone(2)}
+        />
+      </Stack>
 
-        {/* Scrollable body */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-2">
-          {/* ─── Step 1: File selection ─── */}
-          {step === 1 && (
-            <div className="space-y-4">
-              <UploadDropzone
-                file={file}
-                onFile={setFile}
-                error={null}
-                disabled={false}
-              />
+      <DialogContent
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+          pt: 1,
+          overflow: "auto",
+        }}
+      >
+        {step === 1 && (
+          <Stack spacing={2}>
+            <UploadDropzone
+              file={file}
+              onFile={setFile}
+              error={null}
+              disabled={false}
+            />
 
-              {previewUrl && (
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-                  <img
-                    src={previewUrl}
-                    alt="Selected file preview"
-                    className="mx-auto max-h-48 w-full object-contain"
-                  />
-                </div>
-              )}
-              {file && !previewUrl && isPdf && (
-                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                  <FileText className="text-gray-500" size={18} />
-                  PDF ready to upload
-                </div>
-              )}
-
-              <div>
-                <label
-                  htmlFor="doc-category"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Category
-                </label>
-                <select
-                  id="doc-category"
-                  value={category}
-                  onChange={(e) =>
-                    setCategory(e.target.value as DocumentCategory)
-                  }
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {DOCUMENT_CATEGORY_LABELS[c]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="doc-desc"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Notes{" "}
-                  <span className="font-normal text-gray-500">(optional)</span>
-                </label>
-                <textarea
-                  id="doc-desc"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={2}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                  placeholder="e.g. Lab panel from January visit"
+            {previewUrl && (
+              <Box
+                sx={{
+                  overflow: "hidden",
+                  borderRadius: 1,
+                  border: 1,
+                  borderColor: "divider",
+                  bgcolor: "action.hover",
+                }}
+              >
+                <Box
+                  component="img"
+                  src={previewUrl}
+                  alt="Selected file preview"
+                  sx={{
+                    display: "block",
+                    mx: "auto",
+                    maxHeight: 192,
+                    width: "100%",
+                    objectFit: "contain",
+                  }}
                 />
-              </div>
+              </Box>
+            )}
+            {file && !previewUrl && isPdf && (
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  alignItems: "center",
+                  borderRadius: 1,
+                  border: 1,
+                  borderColor: "divider",
+                  bgcolor: "action.hover",
+                  px: 1.5,
+                  py: 1,
+                }}
+              >
+                <FileText size={18} color={theme.palette.text.secondary} />
+                <Typography variant="body2" color="text.primary">
+                  PDF ready to upload
+                </Typography>
+              </Stack>
+            )}
 
-              {error && (
-                <p className="text-sm text-red-600" role="alert">
-                  {error}
-                </p>
-              )}
+            <FormControl fullWidth size="small">
+              <InputLabel id="doc-category-label">Category</InputLabel>
+              <Select<DocumentCategory>
+                labelId="doc-category-label"
+                id="doc-category"
+                label="Category"
+                value={category}
+                onChange={(e) =>
+                  setCategory(e.target.value as DocumentCategory)
+                }
+              >
+                {CATEGORIES.map((c) => (
+                  <MenuItem key={c} value={c}>
+                    {DOCUMENT_CATEGORY_LABELS[c]}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleContinue()}
-                  disabled={!file}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          )}
+            <TextField
+              id="doc-desc"
+              label="Notes (optional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              multiline
+              minRows={2}
+              size="small"
+              placeholder="e.g. Lab panel from January visit"
+            />
 
-          {/* ─── Step 2: Upload + AI suggestions ─── */}
-          {step === 2 && (
-            <div className="space-y-4 py-2">
-              {/* Uploading */}
-              {submitting && (
-                <div className="flex flex-col items-center py-6">
-                  <Loader2
-                    size={36}
-                    className="animate-spin text-emerald-600"
+            {error && (
+              <Typography variant="body2" color="error" role="alert">
+                {error}
+              </Typography>
+            )}
+
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ pt: 1, justifyContent: "flex-end" }}
+            >
+              <Button type="button" onClick={onClose} color="inherit">
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="contained"
+                color="success"
+                onClick={() => void handleContinue()}
+                disabled={!file}
+              >
+                Continue
+              </Button>
+            </Stack>
+          </Stack>
+        )}
+
+        {step === 2 && (
+          <Stack spacing={2} sx={{ py: 1 }}>
+            {submitting && (
+              <Stack sx={{ alignItems: "center", py: 3 }}>
+                <CircularProgress color="success" size={36} />
+                <Typography variant="body2" sx={{ mt: 1.5, fontWeight: 600 }}>
+                  Uploading your document...
+                </Typography>
+                <Box sx={{ mt: 1.5, width: "100%", maxWidth: 280 }}>
+                  <LinearProgress
+                    variant="determinate"
+                    value={progress || 8}
+                    color="success"
                   />
-                  <p className="mt-3 text-sm font-medium text-gray-700">
-                    Uploading your document...
-                  </p>
-                  <div className="mt-3 w-full max-w-xs">
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                      <div
-                        className="h-full bg-emerald-600 transition-all duration-300"
-                        style={{ width: `${progress || 8}%` }}
-                      />
-                    </div>
-                    <p className="mt-1 text-center text-xs text-gray-500">
-                      {progress}%
-                    </p>
-                  </div>
-                </div>
-              )}
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mt: 0.5, display: "block", textAlign: "center" }}
+                  >
+                    {progress}%
+                  </Typography>
+                </Box>
+              </Stack>
+            )}
 
-              {/* Upload error */}
-              {!submitting && error && (
-                <div className="flex flex-col items-center py-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-                    <X size={24} className="text-red-600" />
-                  </div>
-                  <p className="mt-3 text-sm font-medium text-red-700">
-                    Upload failed
-                  </p>
-                  <p className="mt-1 text-sm text-gray-600">{error}</p>
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleBack}
-                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      Go back
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleContinue()}
-                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                </div>
-              )}
+            {!submitting && error && (
+              <Stack sx={{ alignItems: "center", py: 3 }}>
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    bgcolor: alpha(theme.palette.error.main, 0.12),
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <X size={24} color={theme.palette.error.main} />
+                </Box>
+                <Typography variant="body2" color="error" sx={{ mt: 1.5, fontWeight: 600 }}>
+                  Upload failed
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
+                  {error}
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+                  <Button type="button" variant="outlined" onClick={handleBack}>
+                    Go back
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="contained"
+                    color="success"
+                    onClick={() => void handleContinue()}
+                  >
+                    Retry
+                  </Button>
+                </Stack>
+              </Stack>
+            )}
 
-              {/* Upload succeeded */}
-              {!submitting && uploadDone && (
-                <div className="space-y-4">
-                  {/* Success header */}
-                  <div className="flex items-center gap-3 rounded-lg bg-emerald-50 px-4 py-3">
-                    <CheckCircle2
-                      size={20}
-                      className="shrink-0 text-emerald-600"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-emerald-800">
-                        Document uploaded successfully
-                      </p>
-                      {file && (
-                        <p className="text-xs text-emerald-600">{file.name}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* AI analyzing state */}
-                  {aiSuggestionsEnabled && analyzing && (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-                        <Sparkles size={20} className="shrink-0 text-blue-600" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-blue-800">
-                            AI is analyzing your document...
-                          </p>
-                          <p className="text-xs text-blue-600">
-                            Looking for conditions, medications, allergies, and
-                            lab results
-                          </p>
-                        </div>
-                        <Loader2
-                          size={16}
-                          className="shrink-0 animate-spin text-blue-500"
-                        />
-                      </div>
-
-                      <div className="flex justify-end gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={handleSkipSuggestions}
-                          className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100"
-                        >
-                          Skip — I'll review later
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Suggestions loaded with results */}
-                  {aiSuggestionsEnabled &&
-                    suggestionsLoaded &&
-                    !allResolved &&
-                    suggestions.length > 0 && (
-                      <div className="space-y-3">
-                        {suggestionError && (
-                          <p
-                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-                            role="alert"
-                          >
-                            {suggestionError}
-                          </p>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-gray-900">
-                            <Sparkles
-                              size={14}
-                              className="mr-1.5 inline text-emerald-600"
-                            />
-                            {suggestions.length} suggestion
-                            {suggestions.length !== 1 ? "s" : ""} found
-                          </p>
-                          {suggestions.length > 1 && (
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => void handleRejectAll()}
-                                className="text-xs font-medium text-gray-500 hover:text-gray-700"
-                              >
-                                Dismiss all
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleAcceptAll()}
-                                className="text-xs font-medium text-emerald-600 hover:text-emerald-700"
-                              >
-                                Accept all
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="space-y-3">
-                          {suggestions.map((s) => (
-                            <SuggestionCard
-                              key={s.suggestion_id}
-                              suggestion={s}
-                              onAccept={handleAccept}
-                              onReject={handleReject}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="flex justify-end pt-2">
-                          <button
-                            type="button"
-                            onClick={handleDone}
-                            className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-                          >
-                            Done
-                          </button>
-                        </div>
-                      </div>
+            {!submitting && uploadDone && (
+              <Stack spacing={2}>
+                <Stack
+                  direction="row"
+                  spacing={1.5}
+                  sx={{
+                    alignItems: "center",
+                    borderRadius: 1,
+                    bgcolor: alpha(theme.palette.success.main, 0.12),
+                    px: 2,
+                    py: 1.5,
+                  }}
+                >
+                  <CheckCircle2
+                    size={20}
+                    color={theme.palette.success.main}
+                    style={{ flexShrink: 0 }}
+                  />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: "success.dark" }}>
+                      Document uploaded successfully
+                    </Typography>
+                    {file && (
+                      <Typography variant="caption" color="success.main">
+                        {file.name}
+                      </Typography>
                     )}
+                  </Box>
+                </Stack>
 
-                  {/* All suggestions resolved */}
-                  {aiSuggestionsEnabled &&
-                    suggestionsLoaded &&
-                    allResolved && (
-                      <div className="flex flex-col items-center py-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
-                          <Check size={24} className="text-emerald-600" />
-                        </div>
-                        <p className="mt-3 text-sm font-medium text-gray-900">
-                          All suggestions reviewed
-                        </p>
-                        <p className="mt-0.5 text-xs text-gray-500">
-                          Your profile has been updated
-                        </p>
-                        <button
+                {aiSuggestionsEnabled && analyzing && (
+                  <Stack spacing={1.5}>
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      sx={{
+                        alignItems: "center",
+                        borderRadius: 2,
+                        border: 1,
+                        borderColor: alpha(theme.palette.info.main, 0.35),
+                        bgcolor: alpha(theme.palette.info.main, 0.08),
+                        px: 2,
+                        py: 1.5,
+                      }}
+                    >
+                      <Sparkles
+                        size={20}
+                        color={theme.palette.info.main}
+                        style={{ flexShrink: 0 }}
+                      />
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: "info.main" }}>
+                          AI is analyzing your document...
+                        </Typography>
+                        <Typography variant="caption" color="info.main">
+                          Looking for conditions, medications, allergies, and lab results
+                        </Typography>
+                      </Box>
+                      <CircularProgress size={16} sx={{ color: "info.main", flexShrink: 0 }} />
+                    </Stack>
+                    <Stack direction="row" sx={{ pt: 0.5, justifyContent: "flex-end" }}>
+                      <Button type="button" color="inherit" onClick={handleSkipSuggestions}>
+                        Skip — I&apos;ll review later
+                      </Button>
+                    </Stack>
+                  </Stack>
+                )}
+
+                {aiSuggestionsEnabled &&
+                  suggestionsLoaded &&
+                  !allResolved &&
+                  suggestions.length > 0 && (
+                    <Stack spacing={1.5}>
+                      {suggestionError && (
+                        <Alert severity="error">{suggestionError}</Alert>
+                      )}
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        useFlexGap
+                        sx={{
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <Typography variant="body2" color="text.primary" sx={{ fontWeight: 700 }}>
+                          <Sparkles
+                            size={14}
+                            style={{
+                              display: "inline",
+                              verticalAlign: "middle",
+                              marginRight: 6,
+                              color: theme.palette.success.main,
+                            }}
+                          />
+                          {suggestions.length} suggestion
+                          {suggestions.length !== 1 ? "s" : ""} found
+                        </Typography>
+                        {suggestions.length > 1 && (
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              type="button"
+                              size="small"
+                              color="inherit"
+                              onClick={() => void handleRejectAll()}
+                            >
+                              Dismiss all
+                            </Button>
+                            <Button
+                              type="button"
+                              size="small"
+                              color="success"
+                              onClick={() => void handleAcceptAll()}
+                            >
+                              Accept all
+                            </Button>
+                          </Stack>
+                        )}
+                      </Stack>
+
+                      <Stack spacing={1.5}>
+                        {suggestions.map((s) => (
+                          <SuggestionCard
+                            key={s.suggestion_id}
+                            suggestion={s}
+                            onAccept={handleAccept}
+                            onReject={handleReject}
+                          />
+                        ))}
+                      </Stack>
+
+                      <Stack direction="row" sx={{ pt: 1, justifyContent: "flex-end" }}>
+                        <Button
                           type="button"
+                          variant="contained"
+                          color="success"
                           onClick={handleDone}
-                          className="mt-4 rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700"
                         >
                           Done
-                        </button>
-                      </div>
-                    )}
-
-                  {/* No suggestions found (or feature off, or skipped) */}
-                  {((!aiSuggestionsEnabled && uploadDone) ||
-                    (aiSuggestionsEnabled &&
-                      suggestionsLoaded &&
-                      !allResolved &&
-                      suggestions.length === 0)) && (
-                    <div className="flex flex-col items-center py-4">
-                      <PackageOpen size={32} className="text-gray-300" />
-                      <p className="mt-2 text-sm text-gray-500">
-                        {aiSuggestionsEnabled
-                          ? "No suggestions were found in this document"
-                          : "Upload complete"}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleDone}
-                        className="mt-4 rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-                      >
-                        Done
-                      </button>
-                    </div>
+                        </Button>
+                      </Stack>
+                    </Stack>
                   )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+
+                {aiSuggestionsEnabled && suggestionsLoaded && allResolved && (
+                  <Stack sx={{ alignItems: "center", py: 2 }}>
+                    <Box
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: "50%",
+                        bgcolor: alpha(theme.palette.success.main, 0.15),
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Check size={24} color={theme.palette.success.main} />
+                    </Box>
+                    <Typography variant="body2" sx={{ mt: 1.5, fontWeight: 600 }}>
+                      All suggestions reviewed
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Your profile has been updated
+                    </Typography>
+                    <Button
+                      type="button"
+                      variant="contained"
+                      color="success"
+                      onClick={handleDone}
+                      sx={{ mt: 2 }}
+                    >
+                      Done
+                    </Button>
+                  </Stack>
+                )}
+
+                {((!aiSuggestionsEnabled && uploadDone) ||
+                  (aiSuggestionsEnabled &&
+                    suggestionsLoaded &&
+                    !allResolved &&
+                    suggestions.length === 0)) && (
+                  <Stack sx={{ alignItems: "center", py: 2 }}>
+                    <PackageOpen size={32} color={theme.palette.action.disabled} />
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      {aiSuggestionsEnabled
+                        ? "No suggestions were found in this document"
+                        : "Upload complete"}
+                    </Typography>
+                    <Button
+                      type="button"
+                      variant="contained"
+                      color="success"
+                      onClick={handleDone}
+                      sx={{ mt: 2 }}
+                    >
+                      Done
+                    </Button>
+                  </Stack>
+                )}
+              </Stack>
+            )}
+          </Stack>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -675,25 +783,30 @@ function StepIndicator({
   done: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <div
-        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-          done
-            ? "bg-emerald-600 text-white"
-            : active
-              ? "bg-emerald-600 text-white"
-              : "bg-gray-200 text-gray-500"
-        }`}
+    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+      <Box
+        sx={{
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "0.75rem",
+          fontWeight: 700,
+          bgcolor: done || active ? "success.main" : "action.hover",
+          color: done || active ? "success.contrastText" : "text.secondary",
+        }}
       >
         {done ? <Check size={14} /> : num}
-      </div>
-      <span
-        className={`text-sm ${
-          active || done ? "font-medium text-gray-900" : "text-gray-500"
-        }`}
+      </Box>
+      <Typography
+        variant="body2"
+        color={active || done ? "text.primary" : "text.secondary"}
+        sx={{ fontWeight: active || done ? 600 : 400 }}
       >
         {label}
-      </span>
-    </div>
+      </Typography>
+    </Stack>
   );
 }

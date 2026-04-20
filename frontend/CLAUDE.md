@@ -1,11 +1,15 @@
 # Frontend — CLAUDE.md
 
-React + Vite + Tailwind chat UI for the medical AI chat. Start at the root [`CLAUDE.md`](../CLAUDE.md) for overall orientation.
+React + Vite + MUI chat UI for the medical AI chat. Start at the root [`CLAUDE.md`](../CLAUDE.md) for overall orientation.
 
 ## Folder map
 
 ```
 frontend/src/
+├── theme/                   # Design tokens + `createTheme` → `appTheme`
+├── providers/
+│   └── AppThemeProvider.tsx # ThemeProvider + CssBaseline + GlobalStyles (tablet sidebar rail)
+├── ui/                      # Reusable primitives (e.g. Markdown)
 ├── App.tsx                  # FeatureFlagProvider + RouterProvider
 ├── router/
 │   ├── paths.ts             # Single source of truth for SPA paths (`/patient/*`, `/doctor/*`)
@@ -13,8 +17,8 @@ frontend/src/
 │   ├── authLanding.ts       # `isPublicAuthSurfacePath`, `authInterruptNavigateTo` (refresh → `/?returnUrl=`)
 │   └── rolePortalRedirect.ts # Role vs URL namespace guard (used by ProtectedAppShell)
 ├── router.tsx               # createBrowserRouter + `appRouteTree` (memory-router tests, redirects)
-├── main.tsx                 # Redux Provider + React DOM mount
-├── index.css                # Tailwind + patient shell sidebar (tablet rail) utilities
+├── main.tsx                 # Redux Provider + AppThemeProvider + App mount
+├── index.css                # Minimal global CSS (reduced-motion); theme handles the rest
 ├── store/
 │   ├── index.ts             # configureStore, baseApi middleware, setupListeners
 │   └── hooks.ts             # useAppDispatch, useAppSelector
@@ -103,7 +107,7 @@ Redux store → baseApi middleware → fetch (JSON)
 - **Single hook for chat UX:** `useChat(patientId)` owns messages, chatId, loading, and error; it uses streaming helpers and may invalidate chat tags when a turn completes.
 - **SSE streaming:** `sendMessageStream` / doctor variants in `chatStream.ts` use `fetch` + `ReadableStream`. No EventSource library.
 - **RAF token buffering:** Tokens are batched in a `requestAnimationFrame` buffer to limit re-renders during fast streaming.
-- **Markdown rendering:** `ChatMessage` uses `react-markdown` + `remark-gfm` + `@tailwindcss/typography`.
+- **Markdown rendering:** `ChatMessage` uses `react-markdown` + `remark-gfm` via `ui/Markdown.tsx` (theme-aware typography).
 - **Tests:** `npm run test` / `npm run test:run` (Vitest + jsdom). API tests live next to modules (e.g. `api/client.test.ts`, `api/baseApi.test.ts`).
 
 ## Dependencies
@@ -113,9 +117,10 @@ Redux store → baseApi middleware → fetch (JSON)
 
 ## Styling
 
-- Tailwind CSS 3 with the typography plugin for markdown content
-- No component library — custom components with Tailwind utility classes
-- `lucide-react` for icons
+- **MUI** (`@mui/material`) + **Emotion** (`sx`, `styled`, `theme.components` overrides)
+- Central **`theme/`** (`palette`, `typography`, `shape`, per-component overrides); **`AppThemeProvider`** wraps the tree in `main.tsx`
+- **`ui/`** for shared compositions (e.g. `Markdown.tsx`); feature UI stays under `components/` and `pages/`
+- **`lucide-react`** for icons (not `@mui/icons-material` unless we adopt it later)
 
 ## Deep docs
 

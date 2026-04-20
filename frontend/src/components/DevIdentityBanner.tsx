@@ -1,4 +1,10 @@
-import { ChevronDown, ShieldAlert, Stethoscope, UserRound } from "lucide-react";
+import Box from "@mui/material/Box";
+import FormControl from "@mui/material/FormControl";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material";
+import { ShieldAlert, Stethoscope, UserRound } from "lucide-react";
 import PatientSelector from "./PatientSelector";
 import { useAuth } from "../contexts/AuthContext";
 import { useFeatureFlags } from "../contexts/FeatureFlagContext";
@@ -30,59 +36,141 @@ export default function DevIdentityBanner() {
   }
 
   return (
-    <div className="sticky top-0 z-50 shrink-0 border-b border-amber-300 bg-amber-100 px-4 py-2 shadow-sm">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2 text-amber-950">
-          <ShieldAlert size={16} className="shrink-0" aria-hidden />
-          <p className="text-xs">
-            <strong>DEV MODE</strong> — Role:{" "}
-            <span className="text-amber-800">
+    <Box
+      sx={{
+        position: "sticky",
+        top: 0,
+        zIndex: (theme) => theme.zIndex.appBar,
+        flexShrink: 0,
+        borderBottom: 1,
+        borderColor: (theme) => alpha(theme.palette.warning.dark, 0.45),
+        bgcolor: "warning.light",
+        px: 2,
+        py: 1,
+        boxShadow: 1,
+      }}
+    >
+      <Box
+        sx={{
+          mx: "auto",
+          display: "flex",
+          maxWidth: "72rem",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1.5,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            minWidth: 0,
+            flex: 1,
+            alignItems: "center",
+            gap: 1,
+            color: "warning.dark",
+          }}
+        >
+          <ShieldAlert size={16} aria-hidden />
+          <Typography variant="caption" component="p" sx={{ color: "warning.dark", m: 0 }}>
+            <Box component="strong" sx={{ fontWeight: 700 }}>
+              DEV MODE
+            </Box>{" "}
+            — Role:{" "}
+            <Box component="span" sx={{ color: "warning.main" }}>
               (picker only, not authentication). Educational prototype.
-            </span>
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1">
-            <span className="text-xs font-medium text-amber-900">Role</span>
-            <div className="relative">
-              <select
+            </Box>
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            flexShrink: 0,
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Typography variant="caption" color="warning.dark" sx={{ fontWeight: 600 }}>
+              Role
+            </Typography>
+            <FormControl size="small" variant="outlined">
+              <Select
                 value={currentRole}
                 onChange={(e) =>
                   setCurrentRole(e.target.value as "patient" | "doctor")
                 }
-                aria-label="Switch dev role"
-                className="appearance-none rounded-lg border border-amber-400/80 bg-white py-1.5 pl-2 pr-7 text-xs font-medium text-amber-950 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+                inputProps={{ "aria-label": "Switch dev role" }}
+                sx={{
+                  minWidth: 100,
+                  bgcolor: "background.paper",
+                  typography: "caption",
+                  fontWeight: 600,
+                  color: "warning.dark",
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: (theme) => alpha(theme.palette.warning.main, 0.55),
+                  },
+                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "warning.main",
+                  },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "warning.main",
+                  },
+                }}
               >
-                <option value="patient">Patient</option>
-                <option value="doctor">Doctor</option>
-              </select>
-              <ChevronDown
-                size={14}
-                className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-amber-800/70"
-              />
-            </div>
-          </div>
+                <MenuItem value="patient">Patient</MenuItem>
+                <MenuItem value="doctor">Doctor</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
 
-          {currentRole === "patient" && (
-            <div className="flex items-center gap-2 border-l border-amber-300/80 pl-2">
-              <span className="hidden text-xs font-medium text-amber-900 sm:inline">
+          {currentRole === "patient" ? (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                borderLeft: 1,
+                borderColor: (theme) => alpha(theme.palette.warning.main, 0.45),
+                pl: 1,
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="warning.dark"
+                sx={{ display: { xs: "none", sm: "inline" }, fontWeight: 600 }}
+              >
                 Acting as
-              </span>
-              <UserRound size={16} className="text-amber-900/80" aria-hidden />
+              </Typography>
+              <UserRound size={16} aria-hidden style={{ opacity: 0.85 }} />
               <PatientSelector
                 selectedId={currentPatientId}
                 onChange={setCurrentPatientId}
                 ariaLabel="Switch active patient"
               />
-            </div>
-          )}
+            </Box>
+          ) : null}
 
-          {currentRole === "doctor" && (
-            <div className="flex items-center gap-2 border-l border-amber-300/80 pl-2">
-              <span className="hidden text-xs font-medium text-amber-900 sm:inline">
+          {currentRole === "doctor" ? (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                borderLeft: 1,
+                borderColor: (theme) => alpha(theme.palette.warning.main, 0.45),
+                pl: 1,
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="warning.dark"
+                sx={{ display: { xs: "none", sm: "inline" }, fontWeight: 600 }}
+              >
                 Acting as
-              </span>
-              <Stethoscope size={16} className="text-amber-900/80" aria-hidden />
+              </Typography>
+              <Stethoscope size={16} aria-hidden style={{ opacity: 0.85 }} />
               <DoctorIdentityPicker
                 doctors={doctors}
                 selectedId={currentDoctorId ?? ""}
@@ -91,11 +179,11 @@ export default function DevIdentityBanner() {
                 error={doctorsError}
                 currentDoctor={currentDoctor}
               />
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+            </Box>
+          ) : null}
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
@@ -117,42 +205,62 @@ function DoctorIdentityPicker({
   const selected = doctors.find((d) => d.id === selectedId);
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative">
-        <select
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <FormControl size="small" variant="outlined">
+        <Select
           value={selectedId}
           onChange={(e) => onChange(e.target.value)}
           disabled={isLoading || doctors.length === 0}
-          aria-label="Switch active doctor"
-          className="appearance-none rounded-lg border border-gray-300 bg-white py-1.5 pl-3 pr-8 text-sm font-medium text-gray-700 transition-colors hover:border-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-60"
+          inputProps={{ "aria-label": "Switch active doctor" }}
+          sx={{
+            minWidth: 160,
+            typography: "body2",
+            fontWeight: 500,
+          }}
         >
           {doctors.map((d) => (
-            <option key={d.id} value={d.id}>
+            <MenuItem key={d.id} value={d.id}>
               {d.name}
               {d.specialization ? ` — ${d.specialization}` : ""}
               {d.institution ? ` · ${d.institution}` : ""}
-            </option>
+            </MenuItem>
           ))}
-        </select>
-        <ChevronDown
-          size={14}
-          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
-        />
-      </div>
-      {isLoading && <span className="text-xs text-gray-500">Loading…</span>}
-      {error && (
-        <span className="max-w-[140px] truncate text-xs text-red-600" title={error}>
+        </Select>
+      </FormControl>
+      {isLoading ? (
+        <Typography variant="caption" color="text.secondary">
+          Loading…
+        </Typography>
+      ) : null}
+      {error ? (
+        <Typography
+          variant="caption"
+          color="error"
+          title={error}
+          sx={{ maxWidth: 140 }}
+          noWrap
+        >
           {error}
-        </span>
-      )}
-      {!isLoading && !selected && doctors.length > 0 && (
-        <span className="text-xs text-amber-600">Unknown doctor</span>
-      )}
-      {!isLoading && currentDoctor && (
-        <span className="hidden max-w-[180px] truncate text-xs text-amber-900/90 lg:inline">
+        </Typography>
+      ) : null}
+      {!isLoading && !selected && doctors.length > 0 ? (
+        <Typography variant="caption" color="warning.main">
+          Unknown doctor
+        </Typography>
+      ) : null}
+      {!isLoading && currentDoctor ? (
+        <Typography
+          variant="caption"
+          color="warning.dark"
+          sx={{
+            display: { xs: "none", lg: "inline" },
+            maxWidth: 180,
+          }}
+          noWrap
+        >
           {currentDoctor.specialization}
-        </span>
-      )}
-    </div>
+        </Typography>
+      ) : null}
+    </Box>
   );
 }

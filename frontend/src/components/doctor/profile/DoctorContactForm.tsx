@@ -1,4 +1,7 @@
 import type { ChangeEvent } from "react";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
 import type { OfficeAddress } from "../../../types/doctor";
 
 type Props = {
@@ -8,6 +11,8 @@ type Props = {
   disabled: boolean;
   onChange: (patch: Record<string, unknown>) => void;
 };
+
+const fieldProps = { size: "small" as const, fullWidth: true };
 
 export default function DoctorContactForm({
   email,
@@ -24,80 +29,79 @@ export default function DoctorContactForm({
     };
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block sm:col-span-2">
-          <span className="mb-1 block text-xs font-medium text-gray-600">
-            Email <span className="text-red-500">*</span>
-          </span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              onChange({ email: e.target.value })
-            }
-            disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-          />
-        </label>
-        <label className="block sm:col-span-2">
-          <span className="mb-1 block text-xs font-medium text-gray-600">
-            Phone
-          </span>
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              onChange({ phone: e.target.value })
-            }
-            disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-          />
-        </label>
-      </div>
-      <p className="text-xs font-medium text-gray-600">Office address</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block sm:col-span-2">
-          <span className="mb-1 block text-xs text-gray-500">Street</span>
-          <input
-            type="text"
-            value={office_address.street}
-            onChange={addr("street")}
-            disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-gray-500">City</span>
-          <input
-            type="text"
-            value={office_address.city}
-            onChange={addr("city")}
-            disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-gray-500">State</span>
-          <input
-            type="text"
-            value={office_address.state}
-            onChange={addr("state")}
-            disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-          />
-        </label>
-        <label className="block sm:col-span-2">
-          <span className="mb-1 block text-xs text-gray-500">ZIP</span>
-          <input
-            type="text"
-            value={office_address.zip}
-            onChange={addr("zip")}
-            disabled={disabled}
-            className="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
-          />
-        </label>
-      </div>
-    </div>
+    <Stack spacing={2}>
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+        }}
+      >
+        <TextField
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            onChange({ email: e.target.value })
+          }
+          disabled={disabled}
+          required
+          {...fieldProps}
+          sx={{ gridColumn: { sm: "1 / -1" } }}
+        />
+        <TextField
+          label="Phone"
+          type="tel"
+          value={phone}
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            onChange({ phone: e.target.value })
+          }
+          disabled={disabled}
+          {...fieldProps}
+          sx={{ gridColumn: { sm: "1 / -1" } }}
+        />
+      </Box>
+      <Box component="p" sx={{ typography: "caption", fontWeight: 600, color: "text.secondary", m: 0 }}>
+        Office address
+      </Box>
+      <Box
+        sx={{
+          display: "grid",
+          gap: 1.5,
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+        }}
+      >
+        <TextField
+          label="Street"
+          value={office_address.street}
+          onChange={addr("street")}
+          disabled={disabled}
+          {...fieldProps}
+          sx={{ gridColumn: { sm: "1 / -1" } }}
+        />
+        <TextField
+          label="City"
+          value={office_address.city}
+          onChange={addr("city")}
+          disabled={disabled}
+          {...fieldProps}
+        />
+        <TextField
+          label="State"
+          value={office_address.state}
+          onChange={addr("state")}
+          disabled={disabled}
+          {...fieldProps}
+        />
+        <TextField
+          label="ZIP"
+          value={office_address.zip}
+          onChange={addr("zip")}
+          disabled={disabled}
+          {...fieldProps}
+          sx={{ maxWidth: { sm: 200 } }}
+        />
+      </Box>
+    </Stack>
   );
 }

@@ -1,14 +1,24 @@
+import Box from "@mui/material/Box";
+import Skeleton from "@mui/material/Skeleton";
+import Stack from "@mui/material/Stack";
+
 export default function DashboardSkeleton() {
   return (
-    <div className="animate-pulse space-y-4">
-      <div className="h-28 rounded-xl bg-gray-200" />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="h-40 rounded-xl bg-gray-200" />
-        <div className="h-40 rounded-xl bg-gray-200" />
-      </div>
-      <div className="h-48 rounded-xl bg-gray-200" />
-      <div className="h-40 rounded-xl bg-gray-200" />
-      <div className="h-56 rounded-xl bg-gray-200" />
-    </div>
+    <Stack spacing={2}>
+      <Skeleton variant="rounded" height={112} sx={{ borderRadius: 2 }} />
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: { xs: "1fr", lg: "repeat(2, 1fr)" },
+        }}
+      >
+        <Skeleton variant="rounded" height={160} sx={{ borderRadius: 2 }} />
+        <Skeleton variant="rounded" height={160} sx={{ borderRadius: 2 }} />
+      </Box>
+      <Skeleton variant="rounded" height={192} sx={{ borderRadius: 2 }} />
+      <Skeleton variant="rounded" height={160} sx={{ borderRadius: 2 }} />
+      <Skeleton variant="rounded" height={224} sx={{ borderRadius: 2 }} />
+    </Stack>
   );
 }

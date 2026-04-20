@@ -1,4 +1,10 @@
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import PatientCard from "../../components/doctor/PatientCard";
 import PatientSearchBar from "../../components/doctor/PatientSearchBar";
@@ -45,26 +51,37 @@ export default function DoctorPatientListPage() {
 
   if (!currentDoctorId) {
     return (
-      <div className="mx-auto max-w-4xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+      <Alert severity="warning">
         Select a doctor in the dev identity bar to view connected patients.
-      </div>
+      </Alert>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">
+    <>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={2}
+        sx={{
+          alignItems: { sm: "center" },
+          justifyContent: "space-between",
+        }}
+      >
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
           My Patients
           {data != null && (
-            <span className="ml-2 text-lg font-normal text-gray-500">
+            <Typography component="span" variant="h6" color="text.secondary" sx={{ ml: 1, fontWeight: 400 }}>
               ({data.total})
-            </span>
+            </Typography>
           )}
-        </h1>
-      </div>
+        </Typography>
+      </Stack>
 
-      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={2}
+        sx={{ mt: 3, flexWrap: "wrap", alignItems: { sm: "flex-end" } }}
+      >
         <PatientSearchBar
           id="doctor-patient-search"
           value={searchInput}
@@ -75,65 +92,68 @@ export default function DoctorPatientListPage() {
           value={sort}
           onChange={setSort}
         />
-      </div>
+      </Stack>
 
       {error && (
-        <div
-          className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-          role="alert"
-        >
+        <Alert severity="error" sx={{ mt: 2 }} role="alert">
           {error}
-        </div>
+        </Alert>
       )}
 
       {isLoading && (
-        <div className="mt-10 flex justify-center text-gray-500">
-          <Loader2 className="animate-spin" size={36} />
-        </div>
+        <Box sx={{ mt: 5, display: "flex", justifyContent: "center", color: "text.secondary" }}>
+          <CircularProgress size={36} />
+        </Box>
       )}
 
       {!isLoading && data && data.patients.length === 0 && (
-        <p className="mt-10 text-center text-gray-600">
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 5, textAlign: "center" }}>
           No connected patients match your filters. Connect with patients from
           the Connections page.
-        </p>
+        </Typography>
       )}
 
       {!isLoading && data && data.patients.length > 0 && (
-        <ul className="mt-8 space-y-3">
+        <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0, mt: 4 }}>
           {data.patients.map((p) => (
-            <li key={p.patient_id}>
+            <Box component="li" key={p.patient_id} sx={{ mb: 1.5 }}>
               <PatientCard patient={p} />
-            </li>
+            </Box>
           ))}
-        </ul>
+        </Box>
       )}
 
       {!isLoading && data && data.total > PAGE_SIZE && (
-        <div className="mt-8 flex items-center justify-center gap-4 text-sm text-gray-600">
-          <button
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{ mt: 4, alignItems: "center", justifyContent: "center" }}
+        >
+          <Button
             type="button"
-            className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 font-medium hover:bg-gray-50 disabled:opacity-40"
+            variant="outlined"
+            size="small"
+            startIcon={<ChevronLeft size={18} />}
             disabled={page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
-            <ChevronLeft size={18} />
             Previous
-          </button>
-          <span>
+          </Button>
+          <Typography variant="body2" color="text.secondary">
             Page {page} of {totalPages}
-          </span>
-          <button
+          </Typography>
+          <Button
             type="button"
-            className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 font-medium hover:bg-gray-50 disabled:opacity-40"
+            variant="outlined"
+            size="small"
+            endIcon={<ChevronRight size={18} />}
             disabled={page >= totalPages}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           >
             Next
-            <ChevronRight size={18} />
-          </button>
-        </div>
+          </Button>
+        </Stack>
       )}
-    </div>
+    </>
   );
 }

@@ -1,9 +1,12 @@
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
 import { Menu } from "lucide-react";
 import { useState } from "react";
 import { Outlet, useMatch } from "react-router-dom";
 import DevIdentityBanner from "../components/DevIdentityBanner";
 import DoctorSidebar from "../components/doctor/DoctorSidebar";
 import PatientContextBar from "../components/doctor/PatientContextBar";
+import MainContent from "../layout/MainContent";
 import { paths } from "../router/paths";
 
 export default function DoctorLayout() {
@@ -19,38 +22,82 @@ export default function DoctorLayout() {
   });
 
   return (
-    <div className="flex h-screen min-h-0 flex-col bg-gray-50">
-      {import.meta.env.DEV && <DevIdentityBanner />}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        minHeight: 0,
+        bgcolor: "background.default",
+      }}
+    >
+      {import.meta.env.DEV ? <DevIdentityBanner /> : null}
+      <Box sx={{ display: "flex", minHeight: 0, flex: 1, overflow: "hidden" }}>
         <DoctorSidebar
           mobileOpen={mobileNavOpen}
           onClose={() => setMobileNavOpen(false)}
         />
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-          <button
-            type="button"
-            className="fixed bottom-4 left-4 z-40 rounded-lg border border-gray-200 bg-white p-2 text-gray-700 shadow-sm hover:bg-gray-50 md:hidden"
+        <Box
+          sx={{
+            position: "relative",
+            display: "flex",
+            minHeight: 0,
+            minWidth: 0,
+            flex: 1,
+            flexDirection: "column",
+          }}
+        >
+          <IconButton
             aria-label="Open navigation menu"
             onClick={() => setMobileNavOpen(true)}
+            sx={{
+              display: { xs: "inline-flex", md: "none" },
+              position: "fixed",
+              bottom: (theme) => theme.spacing(2),
+              left: (theme) => theme.spacing(2),
+              zIndex: (theme) => theme.zIndex.speedDial,
+              bgcolor: "background.paper",
+              border: 1,
+              borderColor: "divider",
+              boxShadow: 1,
+              "&:hover": { bgcolor: "action.hover" },
+            }}
+            size="small"
           >
             <Menu size={22} aria-hidden />
-          </button>
+          </IconButton>
           {patientId ? (
-            <div className="relative z-30 shrink-0">
+            <Box sx={{ position: "relative", zIndex: 30, flexShrink: 0 }}>
               <PatientContextBar patientId={patientId} />
-            </div>
+            </Box>
           ) : null}
-          <main
-            className={
-              isDoctorChat
-                ? "relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-                : "relative z-0 min-h-0 flex-1 overflow-y-auto p-6"
-            }
+          <Box
+            component="main"
+            sx={{
+              position: "relative",
+              zIndex: 0,
+              minHeight: 0,
+              flex: 1,
+              ...(isDoctorChat
+                ? {
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
+                  }
+                : {
+                    overflowY: "auto",
+                    py: 3,
+                  }),
+            }}
           >
-            <Outlet />
-          </main>
-        </div>
-      </div>
-    </div>
+            {isDoctorChat ? <Outlet /> : (
+              <MainContent>
+                <Outlet />
+              </MainContent>
+            )}
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }

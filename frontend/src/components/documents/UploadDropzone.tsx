@@ -1,4 +1,7 @@
-import { useCallback, useState } from "react";
+import { alpha, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { useCallback, useId, useState } from "react";
 import { Upload } from "lucide-react";
 
 const ACCEPT =
@@ -45,6 +48,8 @@ export default function UploadDropzone({
   error,
   disabled,
 }: Props) {
+  const theme = useTheme();
+  const inputId = useId();
   const [drag, setDrag] = useState(false);
   const [localErr, setLocalErr] = useState<string | null>(null);
 
@@ -67,13 +72,35 @@ export default function UploadDropzone({
   const combinedError = error || localErr;
 
   return (
-    <div>
-      <label
-        className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors cursor-pointer ${
-          drag
-            ? "border-emerald-500 bg-emerald-50"
-            : "border-gray-300 bg-gray-50 hover:border-gray-400"
-        } ${disabled ? "opacity-50 pointer-events-none" : ""}`}
+    <Box>
+      <Box
+        component="label"
+        htmlFor={inputId}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 1,
+          px: 2,
+          py: 4,
+          borderRadius: 1,
+          borderWidth: 2,
+          borderStyle: "dashed",
+          borderColor: drag ? "success.main" : "divider",
+          bgcolor: drag
+            ? alpha(theme.palette.success.main, 0.08)
+            : alpha(theme.palette.text.primary, 0.04),
+          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.5 : 1,
+          pointerEvents: disabled ? "none" : "auto",
+          transition: theme.transitions.create(["border-color", "background-color"], {
+            duration: theme.transitions.duration.shorter,
+          }),
+          "&:hover": {
+            borderColor: disabled ? undefined : "text.secondary",
+          },
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDrag(true);
@@ -85,33 +112,50 @@ export default function UploadDropzone({
           handleFiles(e.dataTransfer.files);
         }}
       >
-        <Upload className="text-gray-400" size={28} />
-        <span className="text-sm text-gray-700">
+        <Upload
+          size={28}
+          color={theme.palette.text.disabled}
+          aria-hidden
+        />
+        <Typography variant="body2" color="text.primary">
           Drag a file here or{" "}
-          <span className="font-medium text-emerald-700">browse</span>
-        </span>
-        <span className="text-xs text-gray-500">
+          <Box component="span" sx={{ fontWeight: 600, color: "success.dark" }}>
+            browse
+          </Box>
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
           PDF (max 10 MB) · JPEG / PNG (max 5 MB)
-        </span>
+        </Typography>
         <input
+          id={inputId}
           type="file"
-          className="sr-only"
           accept={ACCEPT}
           disabled={disabled}
           onChange={(e) => handleFiles(e.target.files)}
+          style={{
+            position: "absolute",
+            width: 1,
+            height: 1,
+            padding: 0,
+            margin: -1,
+            overflow: "hidden",
+            clip: "rect(0, 0, 0, 0)",
+            whiteSpace: "nowrap",
+            border: 0,
+          }}
         />
-      </label>
+      </Box>
       {file && (
-        <p className="mt-2 text-sm text-gray-700">
+        <Typography variant="body2" color="text.primary" sx={{ mt: 1 }}>
           Selected: <strong>{file.name}</strong> ({formatBytes(file.size)})
-        </p>
+        </Typography>
       )}
       {combinedError && (
-        <p className="mt-2 text-sm text-red-600" role="alert">
+        <Typography variant="body2" color="error" role="alert" sx={{ mt: 1 }}>
           {combinedError}
-        </p>
+        </Typography>
       )}
-    </div>
+    </Box>
   );
 }
 

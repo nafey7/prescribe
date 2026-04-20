@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -71,6 +72,13 @@ export function PatientProvider({ children }: { children: ReactNode }) {
 
   const [triggerList] = useLazyListPatientsQuery();
   const [triggerForChat] = useLazyGetPatientsForChatQuery();
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     registerPatientIdGetter(() => currentPatientId);
@@ -93,27 +101,34 @@ export function PatientProvider({ children }: { children: ReactNode }) {
   }, [status, user]);
 
   const refreshPatients = useCallback(async () => {
+    const canUpdate = () =>
+      typeof globalThis.window !== "undefined" && mountedRef.current;
+    if (!canUpdate()) return;
     setIsLoading(true);
     setError(null);
     try {
       const res = await triggerList({ skip: 0, limit: 200 }).unwrap();
       if (res.items.length > 0) {
-        setPatients(mapProfilesToPatients(res.items));
+        if (canUpdate()) setPatients(mapProfilesToPatients(res.items));
         return;
       }
       const fallback = await triggerForChat().unwrap();
-      setPatients(fallback);
+      if (canUpdate()) setPatients(fallback);
     } catch (e) {
       try {
         const fallback = await triggerForChat().unwrap();
-        setPatients(fallback);
-        setError(null);
+        if (canUpdate()) {
+          setPatients(fallback);
+          setError(null);
+        }
       } catch {
-        setPatients([]);
-        setError(e instanceof Error ? e.message : "Failed to load patients");
+        if (canUpdate()) {
+          setPatients([]);
+          setError(e instanceof Error ? e.message : "Failed to load patients");
+        }
       }
     } finally {
-      setIsLoading(false);
+      if (canUpdate()) setIsLoading(false);
     }
   }, [triggerList, triggerForChat]);
 

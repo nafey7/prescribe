@@ -1,10 +1,15 @@
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+
 export default function DoctorPrescriptionsPage() {
   return (
-    <div className="mx-auto max-w-4xl">
-      <h1 className="text-2xl font-bold text-gray-900">Prescriptions</h1>
-      <p className="mt-2 text-gray-500">
+    <Stack spacing={1}>
+      <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
+        Prescriptions
+      </Typography>
+      <Typography variant="body1" color="text.secondary">
         Prescription management for this patient will appear here. (Feature 8)
-      </p>
-    </div>
+      </Typography>
+    </Stack>
   );
 }

@@ -1,4 +1,8 @@
 import { Users } from "lucide-react";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import type { FamilyHistoryEntry } from "../../types/patient";
 
 interface Props {
@@ -7,25 +11,31 @@ interface Props {
 
 export default function FamilyHistoryCard({ family_history }: Props) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm h-full">
-      <div className="mb-3 flex items-center gap-2">
-        <Users className="text-emerald-600" size={18} />
-        <h2 className="text-base font-semibold text-gray-900">
+    <Paper variant="outlined" sx={{ p: 2.5, height: "100%" }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 1.5, alignItems: "center" }}>
+        <Box sx={{ color: "success.main", display: "flex" }}>
+          <Users size={18} />
+        </Box>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }}>
           Family history
-        </h2>
-      </div>
+        </Typography>
+      </Stack>
       {family_history.length === 0 ? (
-        <p className="text-sm text-gray-500">None recorded.</p>
+        <Typography variant="body2" color="text.secondary">
+          None recorded.
+        </Typography>
       ) : (
-        <ul className="space-y-2 text-sm">
+        <Stack component="ul" spacing={1} sx={{ listStyle: "none", m: 0, p: 0 }}>
           {family_history.map((f) => (
-            <li key={`${f.relation}-${f.condition}`}>
-              <span className="font-medium text-gray-800">{f.relation}:</span>{" "}
-              <span className="text-gray-700">{f.condition}</span>
-            </li>
+            <Typography component="li" key={`${f.relation}-${f.condition}`} variant="body2">
+              <Box component="span" sx={{ fontWeight: 600 }}>
+                {f.relation}:
+              </Box>{" "}
+              {f.condition}
+            </Typography>
           ))}
-        </ul>
+        </Stack>
       )}
-    </section>
+    </Paper>
   );
 }

@@ -1,4 +1,9 @@
 import { Activity } from "lucide-react";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import type { Condition } from "../../types/patient";
 
 interface Props {
@@ -7,37 +12,42 @@ interface Props {
 
 export default function ConditionsCard({ conditions }: Props) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm h-full">
-      <div className="mb-3 flex items-center gap-2">
-        <Activity className="text-emerald-600" size={18} />
-        <h2 className="text-base font-semibold text-gray-900">
+    <Paper variant="outlined" sx={{ p: 2.5, height: "100%" }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 1.5, alignItems: "center" }}>
+        <Box sx={{ color: "success.main", display: "flex" }}>
+          <Activity size={18} />
+        </Box>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }}>
           Active conditions
-        </h2>
-      </div>
+        </Typography>
+      </Stack>
       {conditions.length === 0 ? (
-        <p className="text-sm text-gray-500">No active conditions recorded.</p>
+        <Typography variant="body2" color="text.secondary">
+          No active conditions recorded.
+        </Typography>
       ) : (
-        <ul className="space-y-2">
+        <Stack component="ul" spacing={1} sx={{ listStyle: "none", m: 0, p: 0 }}>
           {conditions.map((c) => (
-            <li
+            <Box
+              component="li"
               key={`${c.name}-${c.diagnosed_year ?? ""}`}
-              className="flex flex-wrap items-baseline gap-2"
+              sx={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 1 }}
             >
-              <span className="font-medium text-gray-900">{c.name}</span>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {c.name}
+              </Typography>
               {c.status && (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
-                  {c.status}
-                </span>
+                <Chip label={c.status} size="small" color="success" variant="outlined" />
               )}
               {c.diagnosed_year != null && (
-                <span className="text-xs text-gray-500">
+                <Typography variant="caption" color="text.secondary">
                   since {c.diagnosed_year}
-                </span>
+                </Typography>
               )}
-            </li>
+            </Box>
           ))}
-        </ul>
+        </Stack>
       )}
-    </section>
+    </Paper>
   );
 }

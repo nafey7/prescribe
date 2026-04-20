@@ -1,56 +1,62 @@
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { Check, X, FlaskConical, Pill, AlertTriangle, HeartPulse } from "lucide-react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import type { Suggestion, SuggestionCategory } from "../../types/suggestion";
 import ConfidenceBadge from "./ConfidenceBadge";
 import DuplicateIndicator from "./DuplicateIndicator";
 
 const CATEGORY_CONFIG: Record<
   SuggestionCategory,
-  { icon: typeof FlaskConical; label: string; color: string }
+  { icon: typeof FlaskConical; label: string; color: "primary" | "secondary" | "warning" | "error" | "info" }
 > = {
-  lab_result: { icon: FlaskConical, label: "Lab Result", color: "text-violet-600" },
-  medication: { icon: Pill, label: "Medication", color: "text-blue-600" },
-  allergy: { icon: AlertTriangle, label: "Allergy", color: "text-amber-600" },
-  condition: { icon: HeartPulse, label: "Condition", color: "text-rose-600" },
+  lab_result: { icon: FlaskConical, label: "Lab Result", color: "info" },
+  medication: { icon: Pill, label: "Medication", color: "primary" },
+  allergy: { icon: AlertTriangle, label: "Allergy", color: "warning" },
+  condition: { icon: HeartPulse, label: "Condition", color: "error" },
 };
 
 function formatExtractedData(
   category: SuggestionCategory,
   data: Record<string, unknown>
-): React.ReactNode {
+): ReactNode {
   if (category === "condition") {
     const year = data.diagnosed_year ? ` (${data.diagnosed_year})` : "";
     const status = data.status ? ` — ${data.status}` : "";
     return (
-      <div>
-        <p className="font-medium text-gray-900">
+      <Box>
+        <Typography variant="body2" color="text.primary" sx={{ fontWeight: 600 }}>
           {String(data.name || "Unknown")}
           {year}
-        </p>
+        </Typography>
         {(Boolean(status) || (data.notes != null && String(data.notes) !== "")) && (
-          <p className="mt-0.5 text-sm text-gray-600">
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             {status.trim()}
             {data.notes != null && data.notes !== ""
               ? ` ${String(data.notes)}`
               : ""}
-          </p>
+          </Typography>
         )}
-      </div>
+      </Box>
     );
   }
 
   if (category === "allergy") {
     return (
-      <div>
-        <p className="font-medium text-gray-900">
+      <Box>
+        <Typography variant="body2" color="text.primary" sx={{ fontWeight: 600 }}>
           {String(data.substance || "Unknown")}
-        </p>
+        </Typography>
         {data.reaction != null && String(data.reaction) !== "" && (
-          <p className="mt-0.5 text-sm text-gray-600">
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Reaction: {String(data.reaction)}
-          </p>
+          </Typography>
         )}
-      </div>
+      </Box>
     );
   }
 
@@ -59,52 +65,68 @@ function formatExtractedData(
       .filter(Boolean)
       .map(String);
     return (
-      <div>
-        <p className="font-medium text-gray-900">{parts.join(" — ")}</p>
+      <Box>
+        <Typography variant="body2" color="text.primary" sx={{ fontWeight: 600 }}>
+          {parts.join(" — ")}
+        </Typography>
         {data.since != null && String(data.since) !== "" && (
-          <p className="mt-0.5 text-sm text-gray-600">
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Since: {String(data.since)}
-          </p>
+          </Typography>
         )}
-      </div>
+      </Box>
     );
   }
 
   if (category === "lab_result") {
     const results = Array.isArray(data.results) ? data.results : [];
     return (
-      <div>
+      <Box>
         {data.date != null && String(data.date) !== "" && (
-          <p className="mb-1 text-sm font-medium text-gray-700">
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 600 }}>
             Date: {String(data.date)}
-          </p>
+          </Typography>
         )}
         {results.map((r: Record<string, unknown>, i: number) => (
-          <div key={i} className="flex items-baseline gap-2 text-sm">
-            <span className="font-medium text-gray-900">
+          <Stack
+            key={i}
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "baseline", flexWrap: "wrap", typography: "body2" }}
+          >
+            <Typography component="span" sx={{ fontWeight: 600 }}>
               {String(r.name || "")}:
-            </span>
-            <span
-              className={
+            </Typography>
+            <Typography
+              component="span"
+              color={
                 r.status === "elevated" || r.status === "abnormal"
-                  ? "font-semibold text-red-600"
-                  : "text-gray-700"
+                  ? "error"
+                  : "text.primary"
               }
+              sx={{
+                fontWeight:
+                  r.status === "elevated" || r.status === "abnormal" ? 700 : 400,
+              }}
             >
               {String(r.value || "")}
-            </span>
+            </Typography>
             {r.reference_range != null && String(r.reference_range) !== "" && (
-              <span className="text-gray-400">
+              <Typography component="span" color="text.disabled">
                 (ref: {String(r.reference_range)})
-              </span>
+              </Typography>
             )}
-          </div>
+          </Stack>
         ))}
-      </div>
+      </Box>
     );
   }
 
-  return <pre className="text-xs text-gray-600">{JSON.stringify(data, null, 2)}</pre>;
+  return (
+    <Typography variant="caption" color="text.secondary" component="pre" sx={{ whiteSpace: "pre-wrap", m: 0 }}>
+      {JSON.stringify(data, null, 2)}
+    </Typography>
+  );
 }
 
 interface Props {
@@ -139,78 +161,118 @@ export default function SuggestionCard({ suggestion, onAccept, onReject }: Props
   };
 
   return (
-    <div
-      className={`rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 ${
-        exiting ? "scale-95 opacity-0" : "scale-100 opacity-100"
-      }`}
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        transition: (t) =>
+          t.transitions.create(["opacity", "transform"], { duration: 200 }),
+        opacity: exiting ? 0 : 1,
+        transform: exiting ? "scale(0.96)" : "none",
+      }}
     >
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon size={18} className={cfg.color} />
-          <span className={`text-sm font-semibold ${cfg.color}`}>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ mb: 1.5, alignItems: "center", justifyContent: "space-between" }}
+      >
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          <Box sx={{ color: `${cfg.color}.main`, display: "flex" }}>
+            <Icon size={18} />
+          </Box>
+          <Typography variant="body2" color={cfg.color} sx={{ fontWeight: 700 }}>
             {cfg.label}
-          </span>
-        </div>
+          </Typography>
+        </Stack>
         <ConfidenceBadge level={suggestion.confidence} />
-      </div>
+      </Stack>
 
-      <div className="mb-3">
+      <Box sx={{ mb: 1.5 }}>
         {formatExtractedData(suggestion.category, suggestion.extracted_data)}
-      </div>
+      </Box>
 
       {isDuplicate && (
-        <div className="mb-3">
+        <Box sx={{ mb: 1.5 }}>
           <DuplicateIndicator description={suggestion.duplicate_of!} />
-        </div>
+        </Box>
       )}
 
       {suggestion.source_text && (
-        <details className="mb-3 text-sm">
-          <summary className="cursor-pointer text-gray-500 hover:text-gray-700">
+        <Box component="details" sx={{ mb: 1.5 }}>
+          <Box
+            component="summary"
+            sx={{
+              typography: "body2",
+              color: "text.secondary",
+              cursor: "pointer",
+            }}
+          >
             View source text
-          </summary>
-          <p className="mt-1 rounded-lg bg-gray-50 px-3 py-2 text-xs italic text-gray-600">
+          </Box>
+          <Box
+            sx={(t) => ({
+              mt: 0.5,
+              borderRadius: 1,
+              px: 1.5,
+              py: 1,
+              typography: "caption",
+              fontStyle: "italic",
+              color: "text.secondary",
+              bgcolor: t.palette.action.hover,
+            })}
+          >
             &ldquo;{suggestion.source_text}&rdquo;
-          </p>
-        </details>
+          </Box>
+        </Box>
       )}
 
-      <div className="flex items-center justify-end gap-2">
+      <Stack
+        direction="row"
+        spacing={1}
+        useFlexGap
+        sx={{ alignItems: "center", justifyContent: "flex-end", flexWrap: "wrap" }}
+      >
         {isDuplicate ? (
           <>
-            <span className="mr-auto text-xs text-gray-400">Already added</span>
-            <button
+            <Typography variant="caption" color="text.disabled" sx={{ mr: "auto" }}>
+              Already added
+            </Typography>
+            <Button
               type="button"
+              size="small"
+              variant="outlined"
               onClick={() => void handleAction("reject")}
               disabled={acting !== null}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               Dismiss
-            </button>
+            </Button>
           </>
         ) : (
           <>
-            <button
+            <Button
               type="button"
+              size="small"
+              variant="outlined"
+              startIcon={<X size={14} />}
               onClick={() => void handleAction("reject")}
               disabled={acting !== null}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
-              <X size={14} />
               Reject
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="small"
+              variant="contained"
+              color="success"
+              startIcon={<Check size={14} />}
               onClick={() => void handleAction("accept")}
               disabled={acting !== null}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              <Check size={14} />
               Accept
-            </button>
+            </Button>
           </>
         )}
-      </div>
-    </div>
+      </Stack>
+    </Paper>
   );
 }

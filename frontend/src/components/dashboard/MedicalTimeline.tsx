@@ -1,4 +1,9 @@
 import { History } from "lucide-react";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material";
 import type { MedicalHistoryEvent } from "../../types/patient";
 
 interface Props {
@@ -7,30 +12,51 @@ interface Props {
 
 export default function MedicalTimeline({ events }: Props) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <History className="text-emerald-600" size={18} />
-        <h2 className="text-base font-semibold text-gray-900">
+    <Paper variant="outlined" sx={{ p: 2.5 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 1.5, alignItems: "center" }}>
+        <Box sx={{ color: "success.main", display: "flex" }}>
+          <History size={18} />
+        </Box>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }}>
           Medical history
-        </h2>
-      </div>
+        </Typography>
+      </Stack>
       {events.length === 0 ? (
-        <p className="text-sm text-gray-500">No past events listed.</p>
+        <Typography variant="body2" color="text.secondary">
+          No past events listed.
+        </Typography>
       ) : (
-        <ul className="space-y-3">
+        <Stack component="ul" spacing={1.5} sx={{ listStyle: "none", m: 0, p: 0 }}>
           {events.map((e) => (
-            <li
+            <Box
+              component="li"
               key={`${e.year}-${e.description}`}
-              className="flex gap-3 border-l-2 border-emerald-200 pl-3"
+              sx={{
+                display: "flex",
+                gap: 1.5,
+                pl: 1.5,
+                borderLeft: (t) => `2px solid ${alpha(t.palette.success.main, 0.35)}`,
+              }}
             >
-              <span className="w-14 shrink-0 text-sm font-semibold tabular-nums text-emerald-800">
+              <Typography
+                variant="body2"
+                sx={{
+                  width: 56,
+                  flexShrink: 0,
+                  fontVariantNumeric: "tabular-nums",
+                  color: "success.dark",
+                  fontWeight: 600,
+                }}
+              >
                 {e.year}
-              </span>
-              <span className="text-sm text-gray-800">{e.description}</span>
-            </li>
+              </Typography>
+              <Typography variant="body2" color="text.primary">
+                {e.description}
+              </Typography>
+            </Box>
           ))}
-        </ul>
+        </Stack>
       )}
-    </section>
+    </Paper>
   );
 }

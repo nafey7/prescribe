@@ -1,3 +1,6 @@
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import TextField from "@mui/material/TextField";
 import { SendHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -8,7 +11,7 @@ interface ChatInputProps {
 
 export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
   const [text, setText] = useState("");
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -19,10 +22,6 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
     if (!trimmed || isLoading) return;
     onSend(trimmed);
     setText("");
-    // Reset textarea height
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -32,47 +31,85 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
     }
   };
 
-  const handleInput = () => {
-    const el = inputRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = `${Math.min(el.scrollHeight, 150)}px`;
-    }
-  };
-
   return (
-    <div className="border-t border-gray-200 bg-white p-4">
-      <div className="flex w-full items-end gap-3">
-        <textarea
-          ref={inputRef}
+    <Box
+      sx={{
+        borderTop: 1,
+        borderColor: "divider",
+        bgcolor: "background.paper",
+        p: 2,
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          width: "100%",
+          alignItems: "center",
+          gap: 1,
+        }}
+      >
+        <TextField
+          inputRef={inputRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          onInput={handleInput}
           placeholder={
             isLoading
               ? "Waiting for response..."
               : "Ask about the patient's symptoms, medications, or history..."
           }
           disabled={isLoading}
-          rows={1}
-          className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm 
-                     focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     placeholder:text-gray-400 transition-shadow"
+          fullWidth
+          variant="outlined"
+          size="medium"
+          color="secondary"
+          sx={(theme) => {
+            const control = theme.spacing(5);
+            return {
+              flex: 1,
+              minWidth: 0,
+              "& .MuiOutlinedInput-root": {
+                // MUI: numeric radius is × theme.shape.borderRadius — use `1` (~8px), not raw `shape.borderRadius`
+                borderRadius: 1,
+                height: control,
+                minHeight: control,
+                boxSizing: "border-box",
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderWidth: 1,
+                },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderWidth: 1,
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderWidth: 1,
+                },
+              },
+            };
+          }}
         />
-        <button
+        <IconButton
+          type="button"
           onClick={handleSubmit}
           disabled={!text.trim() || isLoading}
-          className="flex-shrink-0 w-11 h-11 rounded-xl bg-primary-600 text-white 
-                     flex items-center justify-center
-                     hover:bg-primary-700 active:bg-primary-800
-                     disabled:opacity-40 disabled:cursor-not-allowed
-                     transition-colors"
+          color="secondary"
+          size="medium"
+          sx={(theme) => {
+            const control = theme.spacing(5);
+            return {
+              flexShrink: 0,
+              width: control,
+              height: control,
+              borderRadius: 1,
+              bgcolor: "secondary.main",
+              color: "secondary.contrastText",
+              "&:hover": { bgcolor: "secondary.dark" },
+              "&.Mui-disabled": { bgcolor: "action.disabledBackground", color: "action.disabled" },
+            };
+          }}
         >
           <SendHorizontal size={18} />
-        </button>
-      </div>
-    </div>
+        </IconButton>
+      </Box>
+    </Box>
   );
 }

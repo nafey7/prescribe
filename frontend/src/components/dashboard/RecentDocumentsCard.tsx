@@ -1,5 +1,10 @@
 import { FileText, ExternalLink } from "lucide-react";
-import { Link } from "react-router-dom";
+import Box from "@mui/material/Box";
+import Link from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { Link as RouterLink } from "react-router-dom";
 import { paths } from "../../router/paths";
 import type { DocumentSummary } from "../../types/patient";
 
@@ -14,47 +19,80 @@ export default function RecentDocumentsCard({
   viewAllTo = paths.patient.documents,
 }: Props) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <FileText className="text-emerald-600" size={18} />
-          <h2 className="text-base font-semibold text-gray-900">
+    <Paper variant="outlined" sx={{ p: 2.5 }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ mb: 1.5, alignItems: "center", justifyContent: "space-between" }}
+      >
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          <Box sx={{ color: "success.main", display: "flex" }}>
+            <FileText size={18} />
+          </Box>
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }}>
             Recent documents
-          </h2>
-        </div>
+          </Typography>
+        </Stack>
         <Link
+          component={RouterLink}
           to={viewAllTo}
-          className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:text-emerald-800"
+          underline="hover"
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.5,
+            typography: "body2",
+            fontWeight: 600,
+            color: "success.main",
+          }}
         >
           View all
           <ExternalLink size={14} />
         </Link>
-      </div>
+      </Stack>
       {documents.length === 0 ? (
-        <p className="text-sm text-gray-500">
+        <Typography variant="body2" color="text.secondary">
           No uploaded documents yet. Uploads will appear here when available.
-        </p>
+        </Typography>
       ) : (
-        <ul className="space-y-2">
+        <Stack component="ul" spacing={1} sx={{ listStyle: "none", m: 0, p: 0 }}>
           {documents.map((d) => (
-            <li key={d.document_id}>
+            <Box component="li" key={d.document_id}>
               <Link
+                component={RouterLink}
                 to={
                   viewAllTo.includes("?")
                     ? `${viewAllTo}&doc=${encodeURIComponent(d.document_id)}`
                     : `${viewAllTo}?doc=${encodeURIComponent(d.document_id)}`
                 }
-                className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-gray-50"
+                underline="none"
+                color="inherit"
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  gap: 1,
+                  borderRadius: 1,
+                  px: 1,
+                  py: 0.75,
+                  typography: "body2",
+                  "&:hover": { bgcolor: "action.hover" },
+                }}
               >
-                <span className="font-medium text-gray-900">{d.filename}</span>
+                <Typography component="span" sx={{ fontWeight: 600 }}>
+                  {d.filename}
+                </Typography>
                 {d.uploaded_at && (
-                  <span className="text-xs text-gray-500">{d.uploaded_at}</span>
+                  <Typography component="span" variant="caption" color="text.secondary">
+                    {d.uploaded_at}
+                  </Typography>
                 )}
               </Link>
-            </li>
+            </Box>
           ))}
-        </ul>
+        </Stack>
       )}
-    </section>
+    </Paper>
   );
 }

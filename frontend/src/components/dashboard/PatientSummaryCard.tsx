@@ -1,4 +1,8 @@
 import { User } from "lucide-react";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import type { PatientSummary } from "../../types/patient";
 
 interface Props {
@@ -13,36 +17,63 @@ export default function PatientSummaryCard({ summary }: Props) {
   if (summary.blood_type) parts.push(`Blood ${summary.blood_type}`);
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+    <Paper variant="outlined" sx={{ p: 2.5 }}>
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: "flex-start" }}>
+        <Box
+          sx={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            borderRadius: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: (t) => t.palette.success.light,
+            color: "success.dark",
+          }}
+        >
           <User size={22} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold text-gray-900">{name}</h2>
+        </Box>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography variant="h6" component="h2">
+            {name}
+          </Typography>
           {parts.length > 0 && (
-            <p className="mt-0.5 text-sm text-gray-600">{parts.join(" · ")}</p>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+              {parts.join(" · ")}
+            </Typography>
           )}
-          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
-            {summary.weight_kg != null && (
-              <div>
-                <dt className="text-gray-500">Weight</dt>
-                <dd className="font-medium text-gray-900">
-                  {summary.weight_kg} kg
-                </dd>
-              </div>
-            )}
-            {summary.height_cm != null && (
-              <div>
-                <dt className="text-gray-500">Height</dt>
-                <dd className="font-medium text-gray-900">
-                  {summary.height_cm} cm
-                </dd>
-              </div>
-            )}
-          </dl>
-        </div>
-      </div>
-    </section>
+          {(summary.weight_kg != null || summary.height_cm != null) && (
+            <Stack
+              direction="row"
+              spacing={3}
+              useFlexGap
+              sx={{ mt: 1.5, flexWrap: "wrap" }}
+            >
+              {summary.weight_kg != null && (
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Weight
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {summary.weight_kg} kg
+                  </Typography>
+                </Box>
+              )}
+              {summary.height_cm != null && (
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Height
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {summary.height_cm} cm
+                  </Typography>
+                </Box>
+              )}
+            </Stack>
+          )}
+        </Box>
+      </Stack>
+    </Paper>
   );
 }

@@ -6,9 +6,16 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import Box from "@mui/material/Box";
+import Drawer from "@mui/material/Drawer";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import { alpha, useTheme } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { matchPath, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { paths } from "../../router/paths";
+import { SidebarNavItemButton } from "../../ui/SidebarNavItemButton";
 
 export type DoctorNavItem = {
   path: string;
@@ -34,13 +41,189 @@ const defaultDoctorNavItems: DoctorNavItem[] = [
   { path: paths.doctor.profile, label: "My Profile", icon: UserCircle },
 ];
 
-function linkClass(active: boolean): string {
-  return [
-    "doctor-sidebar-nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200",
-    active
-      ? "bg-teal-50 font-medium text-teal-800"
-      : "text-gray-700 hover:bg-gray-100",
-  ].join(" ");
+function DoctorSidebarInner({
+  items,
+  onClose,
+  showMobileClose,
+}: {
+  items: DoctorNavItem[];
+  onClose: () => void;
+  showMobileClose: boolean;
+}) {
+  const location = useLocation();
+  const { logout, status } = useAuth();
+
+  const nav = items.map((item) => {
+    const Icon = item.icon;
+    const selected = Boolean(
+      matchPath({ path: item.path, end: item.end ?? false }, location.pathname)
+    );
+    const badge =
+      item.badge != null && item.badge > 0 ? (
+        <Box
+          component="span"
+          sx={{
+            ml: "auto",
+            flexShrink: 0,
+            px: 1,
+            py: 0.25,
+            borderRadius: 5,
+            typography: "caption",
+            fontWeight: 600,
+            bgcolor: (t) => alpha(t.palette.secondary.main, 0.15),
+            color: "secondary.dark",
+          }}
+        >
+          {item.badge > 99 ? "99+" : item.badge}
+        </Box>
+      ) : null;
+
+    return (
+      <SidebarNavItemButton
+        key={item.path}
+        $accent="secondary"
+        component={NavLink}
+        to={item.path}
+        end={item.end}
+        onClick={onClose}
+        selected={selected}
+        className="doctor-sidebar-nav-link"
+      >
+        <Box
+          component="span"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            flexShrink: 0,
+            color: "inherit",
+          }}
+        >
+          <Icon size={20} aria-hidden />
+        </Box>
+        <Typography
+          component="span"
+          variant="body2"
+          className="doctor-sidebar-label"
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            fontWeight: "inherit",
+            color: "inherit",
+          }}
+          noWrap
+        >
+          {item.label}
+        </Typography>
+        {badge}
+      </SidebarNavItemButton>
+    );
+  });
+
+  return (
+    <>
+      {showMobileClose ? (
+        <Box
+          sx={{
+            display: { xs: "flex", md: "none" },
+            height: 56,
+            flexShrink: 0,
+            alignItems: "center",
+            justifyContent: "flex-end",
+            px: 1,
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
+        >
+          <IconButton aria-label="Close menu" onClick={onClose} size="small">
+            <X size={20} />
+          </IconButton>
+        </Box>
+      ) : null}
+
+      <Box
+        className="doctor-sidebar-brand-row"
+        sx={{
+          height: 56,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          px: 1.5,
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Box sx={{ display: "flex", minWidth: 0, alignItems: "center", gap: 1 }}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 1.5,
+              bgcolor: "secondary.dark",
+              color: "secondary.contrastText",
+              typography: "subtitle1",
+              lineHeight: 1,
+            }}
+          >
+            🩺
+          </Box>
+          <Box className="doctor-sidebar-brand" sx={{ minWidth: 0 }}>
+            <Typography variant="body2" noWrap color="text.primary" sx={{ fontWeight: 600 }}>
+              Doctor portal
+            </Typography>
+            <Typography variant="caption" noWrap color="text.secondary">
+              Clinical workspace
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+
+      <Box
+        component="nav"
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.5,
+          overflowY: "auto",
+          p: 1.5,
+        }}
+      >
+        {nav}
+      </Box>
+
+      {status === "authenticated" ? (
+        <Box sx={{ flexShrink: 0, borderTop: 1, borderColor: "divider", p: 1.5 }}>
+          <SidebarNavItemButton
+            className="doctor-sidebar-nav-link"
+            $accent="secondary"
+            onClick={() => void logout()}
+            sx={{ width: "100%" }}
+          >
+            <Box
+              component="span"
+              sx={{ display: "flex", alignItems: "center", flexShrink: 0, color: "inherit" }}
+            >
+              <LogOut size={20} aria-hidden />
+            </Box>
+            <Typography
+              component="span"
+              variant="body2"
+              className="doctor-sidebar-label"
+              sx={{ flex: 1, minWidth: 0, fontWeight: "inherit", color: "inherit" }}
+              noWrap
+            >
+              Log out
+            </Typography>
+          </SidebarNavItemButton>
+        </Box>
+      ) : null}
+    </>
+  );
 }
 
 export default function DoctorSidebar({
@@ -52,100 +235,75 @@ export default function DoctorSidebar({
   onClose: () => void;
   items?: DoctorNavItem[];
 }) {
-  const { logout, status } = useAuth();
+  const theme = useTheme();
+  const isMdUp = useMediaQuery(theme.breakpoints.up("md"));
 
-  const nav = items.map((item) => {
-    const Icon = item.icon;
-    const badge =
-      item.badge != null && item.badge > 0 ? (
-        <span className="ml-auto shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-900">
-          {item.badge > 99 ? "99+" : item.badge}
-        </span>
-      ) : null;
-
-    return (
-      <NavLink
-        key={item.path}
-        to={item.path}
-        end={item.end}
-        className={({ isActive }) => linkClass(isActive)}
-        onClick={onClose}
-      >
-        <Icon size={20} className="shrink-0" aria-hidden />
-        <span className="doctor-sidebar-label min-w-0 truncate">{item.label}</span>
-        {badge}
-      </NavLink>
-    );
-  });
+  const asideSx = {
+    willChange: "transform, width",
+    display: { xs: "none", md: "flex" },
+    flexDirection: "column" as const,
+    flexShrink: 0,
+    borderRight: 1,
+    borderColor: "divider",
+    bgcolor: "background.paper",
+    transition: theme.transitions.create(["width", "box-shadow"], {
+      duration: 200,
+      easing: theme.transitions.easing.easeOut,
+    }),
+    [theme.breakpoints.only("md")]: {
+      width: 64,
+      overflowX: "hidden",
+      "&:hover": {
+        width: 240,
+        boxShadow: theme.shadows[4],
+      },
+    },
+    [theme.breakpoints.up("lg")]: {
+      width: 240,
+    },
+  };
 
   return (
     <>
-      <div
-        className={`fixed inset-0 z-40 bg-black/30 transition-opacity md:hidden ${
-          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-        aria-hidden={!mobileOpen}
-        onClick={onClose}
-      />
-
-      <aside
-        className={[
-          "doctor-sidebar-shell flex shrink-0 flex-col border-r border-gray-200 bg-white",
-          "transition-all duration-200 ease-out",
-          "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[240px]",
-          mobileOpen
-            ? "max-md:translate-x-0"
-            : "max-md:-translate-x-full",
-          "md:static md:z-0 md:translate-x-0",
-          "md:w-16 md:max-lg:overflow-x-hidden md:max-lg:hover:w-[240px] md:max-lg:hover:shadow-lg",
-          "lg:w-[240px]",
-        ].join(" ")}
+      <Drawer
+        anchor="left"
+        open={mobileOpen}
+        onClose={onClose}
+        variant="temporary"
+        sx={{
+          display: { xs: "block", md: "none" },
+          "& .MuiDrawer-paper": {
+            width: 240,
+            boxSizing: "border-box",
+          },
+        }}
       >
-        <div className="flex h-14 shrink-0 items-center justify-end border-b border-gray-200 px-2 md:hidden">
-          <button
-            type="button"
-            className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
-            aria-label="Close menu"
-            onClick={onClose}
-          >
-            <X size={20} />
-          </button>
-        </div>
+        <Box
+          className="doctor-sidebar-shell"
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+            bgcolor: "background.paper",
+          }}
+        >
+          <DoctorSidebarInner
+            items={items}
+            onClose={onClose}
+            showMobileClose
+          />
+        </Box>
+      </Drawer>
 
-        <div className="doctor-sidebar-brand-row flex h-14 shrink-0 items-center border-b border-gray-200 px-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-lg leading-none text-white">
-              🩺
-            </div>
-            <div className="doctor-sidebar-brand min-w-0">
-              <p className="truncate text-sm font-semibold text-gray-900">
-                Doctor portal
-              </p>
-              <p className="truncate text-xs text-gray-500">Clinical workspace</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
-          {nav}
-        </nav>
-
-        {status === "authenticated" ? (
-          <div className="shrink-0 border-t border-gray-200 p-3">
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className={[
-                "doctor-sidebar-nav-link flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm",
-                "text-gray-700 transition-colors duration-200 hover:bg-gray-100",
-              ].join(" ")}
-            >
-              <LogOut size={20} className="shrink-0" aria-hidden />
-              <span className="doctor-sidebar-label min-w-0 truncate">Log out</span>
-            </button>
-          </div>
-        ) : null}
-      </aside>
+      {isMdUp ? (
+        <Box component="aside" className="doctor-sidebar-shell" sx={asideSx}>
+          <DoctorSidebarInner
+            items={items}
+            onClose={onClose}
+            showMobileClose={false}
+          />
+        </Box>
+      ) : null}
     </>
   );
 }

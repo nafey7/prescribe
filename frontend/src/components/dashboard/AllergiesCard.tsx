@@ -1,4 +1,9 @@
 import { AlertTriangle } from "lucide-react";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material";
 import type { Allergy } from "../../types/patient";
 
 interface Props {
@@ -7,25 +12,46 @@ interface Props {
 
 export default function AllergiesCard({ allergies }: Props) {
   return (
-    <section className="rounded-xl border border-amber-200 bg-amber-50/80 p-5 shadow-sm h-full">
-      <div className="mb-3 flex items-center gap-2 text-amber-900">
+    <Paper
+      variant="outlined"
+      sx={(t) => ({
+        p: 2.5,
+        height: "100%",
+        borderColor: t.palette.warning.light,
+        bgcolor: alpha(t.palette.warning.light, 0.35),
+      })}
+    >
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ mb: 1.5, alignItems: "center", color: "warning.dark" }}
+      >
         <AlertTriangle size={18} />
-        <h2 className="text-base font-semibold">Allergies</h2>
-      </div>
+        <Typography variant="subtitle1" component="h2" color="warning.dark" sx={{ fontWeight: 600 }}>
+          Allergies
+        </Typography>
+      </Stack>
       {allergies.length === 0 ? (
-        <p className="text-sm text-amber-900/70">No known allergies recorded.</p>
+        <Typography variant="body2" color="warning.dark" sx={{ opacity: 0.85 }}>
+          No known allergies recorded.
+        </Typography>
       ) : (
-        <ul className="space-y-2">
+        <Stack component="ul" spacing={1} sx={{ listStyle: "none", m: 0, p: 0 }}>
           {allergies.map((a) => (
-            <li key={a.substance} className="text-sm">
-              <span className="font-semibold text-amber-950">{a.substance}</span>
-              {a.reaction ? (
-                <span className="text-amber-900/90"> — {a.reaction}</span>
-              ) : null}
-            </li>
+            <Typography
+              component="li"
+              key={a.substance}
+              variant="body2"
+              sx={{ color: "warning.dark" }}
+            >
+              <Box component="span" sx={{ fontWeight: 700 }}>
+                {a.substance}
+              </Box>
+              {a.reaction ? ` — ${a.reaction}` : null}
+            </Typography>
           ))}
-        </ul>
+        </Stack>
       )}
-    </section>
+    </Paper>
   );
 }

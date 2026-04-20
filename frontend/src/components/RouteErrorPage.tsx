@@ -1,3 +1,7 @@
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 import { isRouteErrorResponse, Link, useRouteError } from "react-router-dom";
 import { paths } from "../router/paths";
 
@@ -16,19 +20,46 @@ export default function RouteErrorPage() {
   const message = errorMessage(error);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-        <h1 className="text-lg font-semibold text-gray-900">Something went wrong</h1>
-        <p className="mt-2 text-sm text-gray-600" role="alert">
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "background.default",
+        px: 2,
+      }}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          width: "100%",
+          maxWidth: 420,
+          borderRadius: 3,
+          border: 1,
+          borderColor: "divider",
+          p: 4,
+          boxShadow: 1,
+        }}
+      >
+        <Typography variant="h6" color="text.primary" sx={{ fontWeight: 600 }}>
+          Something went wrong
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }} role="alert">
           {message}
-        </p>
-        <Link
+        </Typography>
+        <Button
+          component={Link}
           to={paths.root}
-          className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-700"
+          variant="contained"
+          color="primary"
+          fullWidth
+          sx={{ mt: 3, py: 1.25 }}
         >
           Back to home
-        </Link>
-      </div>
-    </div>
+        </Button>
+      </Paper>
+    </Box>
   );
 }

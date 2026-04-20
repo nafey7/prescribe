@@ -1,3 +1,13 @@
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import Typography from "@mui/material/Typography";
+import { alpha, useTheme } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { readStoredDevRole } from "../dev/devRoleStorage";
@@ -33,6 +43,7 @@ function signupErrorMessage(err: unknown): string {
 }
 
 export default function LandingPage() {
+  const theme = useTheme();
   const { login, signup, status, user } = useAuth();
   const { authRelaxed, allowDoctorSelfSignup, isLoading: flagsLoading } =
     useFeatureFlags();
@@ -131,11 +142,26 @@ export default function LandingPage() {
     }
   }
 
+  const inputSx = {
+    "& .MuiOutlinedInput-root": {
+      borderRadius: 2,
+    },
+  };
+
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-gray-600">
+      <Box
+        sx={{
+          display: "flex",
+          minHeight: "100vh",
+          alignItems: "center",
+          justifyContent: "center",
+          typography: "body2",
+          color: "text.secondary",
+        }}
+      >
         Loading…
-      </div>
+      </Box>
     );
   }
 
@@ -144,235 +170,274 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 py-12">
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "background.default",
+        px: 2,
+        py: 6,
+      }}
+    >
+      <Box sx={{ mb: 4, textAlign: "center" }}>
+        <Typography variant="h5" component="h1" color="text.primary" sx={{ fontWeight: 600 }}>
           Prescribe
-        </h1>
-        <p className="mt-1 text-sm text-gray-600">
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           Patient and doctor health portal
-        </p>
-      </div>
+        </Typography>
+      </Box>
 
-      <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-        <div className="flex rounded-lg bg-gray-100 p-1">
-          <button
+      <Paper
+        elevation={0}
+        sx={{
+          width: "100%",
+          maxWidth: 400,
+          p: 4,
+          border: 1,
+          borderColor: "divider",
+          borderRadius: 3,
+          boxShadow: 1,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            borderRadius: 2,
+            bgcolor: alpha(theme.palette.grey[500], 0.12),
+            p: 0.5,
+          }}
+        >
+          <Button
             type="button"
+            fullWidth
             onClick={() => setMode("login")}
-            className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
-              mode === "login"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
+            sx={{
+              py: 1,
+              textTransform: "none",
+              fontWeight: 500,
+              fontSize: "0.875rem",
+              borderRadius: 1.5,
+              ...(mode === "login"
+                ? {
+                    bgcolor: "background.paper",
+                    color: "text.primary",
+                    boxShadow: 1,
+                  }
+                : { color: "text.secondary" }),
+            }}
           >
             Sign in
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            fullWidth
             onClick={() => setMode("signup")}
-            className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
-              mode === "signup"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
+            sx={{
+              py: 1,
+              textTransform: "none",
+              fontWeight: 500,
+              fontSize: "0.875rem",
+              borderRadius: 1.5,
+              ...(mode === "signup"
+                ? {
+                    bgcolor: "background.paper",
+                    color: "text.primary",
+                    boxShadow: 1,
+                  }
+                : { color: "text.secondary" }),
+            }}
           >
             Create account
-          </button>
-        </div>
+          </Button>
+        </Box>
 
         {mode === "login" ? (
           <>
-            <p className="mt-6 text-center text-sm text-gray-500">
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mt: 3, textAlign: "center" }}
+            >
               Use your account email.
-            </p>
-            <form className="mt-4 space-y-4" onSubmit={onSubmitLogin}>
-              <div>
-                <label
-                  htmlFor="landing-login-email"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Email
-                </label>
-                <input
+            </Typography>
+            <Box component="form" onSubmit={onSubmitLogin} sx={{ mt: 2 }}>
+              <Stack spacing={2}>
+                <TextField
                   id="landing-login-email"
+                  label="Email"
                   type="email"
                   autoComplete="email"
                   required
+                  fullWidth
+                  size="small"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                  sx={inputSx}
                 />
-              </div>
-              <div>
-                <label
-                  htmlFor="landing-login-password"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Password
-                </label>
-                <input
+                <TextField
                   id="landing-login-password"
+                  label="Password"
                   type="password"
                   autoComplete="current-password"
                   required
+                  fullWidth
+                  size="small"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                  sx={inputSx}
                 />
-              </div>
-              {error ? (
-                <p className="text-sm text-red-600" role="alert">
-                  {error}
-                </p>
-              ) : null}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full rounded-lg bg-primary-600 py-2.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-60"
-              >
-                {submitting ? "Signing in…" : "Sign in"}
-              </button>
-            </form>
+                {error ? (
+                  <Alert severity="error" role="alert">
+                    {error}
+                  </Alert>
+                ) : null}
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={submitting}
+                  fullWidth
+                  sx={{ py: 1.25, textTransform: "none", fontWeight: 500 }}
+                >
+                  {submitting ? "Signing in…" : "Sign in"}
+                </Button>
+              </Stack>
+            </Box>
           </>
         ) : (
           <>
             {allowDoctorSelfSignup ? (
-              <div className="mt-6 flex rounded-lg bg-gray-100 p-1">
-                <button
-                  type="button"
-                  onClick={() => setSignupRole("patient")}
-                  className={`flex-1 rounded-md py-2 text-xs font-medium transition-colors sm:text-sm ${
-                    signupRole === "patient"
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
+              <ToggleButtonGroup
+                exclusive
+                fullWidth
+                value={signupRole}
+                onChange={(_, v) => v && setSignupRole(v)}
+                sx={{
+                  mt: 3,
+                  borderRadius: 2,
+                  bgcolor: alpha(theme.palette.grey[500], 0.12),
+                  p: 0.5,
+                  gap: 0,
+                  "& .MuiToggleButtonGroup-grouped": {
+                    border: 0,
+                    borderRadius: `${
+                      (typeof theme.shape.borderRadius === "number"
+                        ? theme.shape.borderRadius
+                        : 8) * 1.5
+                    }px !important`,
+                  },
+                }}
+              >
+                <ToggleButton value="patient" sx={{ textTransform: "none", flex: 1 }}>
                   Patient
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSignupRole("doctor")}
-                  className={`flex-1 rounded-md py-2 text-xs font-medium transition-colors sm:text-sm ${
-                    signupRole === "doctor"
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
+                </ToggleButton>
+                <ToggleButton value="doctor" sx={{ textTransform: "none", flex: 1 }}>
                   Doctor
-                </button>
-              </div>
+                </ToggleButton>
+              </ToggleButtonGroup>
             ) : null}
-            <p className="mt-4 text-center text-sm text-gray-500">
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                mt: allowDoctorSelfSignup ? 2 : 3,
+                textAlign: "center",
+              }}
+            >
               {signupRole === "doctor"
                 ? "Doctor signup — you will complete your clinical profile after sign-up."
                 : "Patient signup — at least 8 characters, one letter and one number."}
-            </p>
-            <form className="mt-4 space-y-4" onSubmit={onSubmitSignup}>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="landing-signup-first-name"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    First name
-                  </label>
-                  <input
+            </Typography>
+            <Box component="form" onSubmit={onSubmitSignup} sx={{ mt: 2 }}>
+              <Stack spacing={2}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={2}
+                  useFlexGap
+                >
+                  <TextField
                     id="landing-signup-first-name"
-                    type="text"
+                    label="First name"
                     autoComplete="given-name"
                     required
+                    fullWidth
+                    size="small"
                     value={signupFirstName}
                     onChange={(e) => setSignupFirstName(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                    sx={inputSx}
                   />
-                </div>
-                <div>
-                  <label
-                    htmlFor="landing-signup-last-name"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Last name
-                  </label>
-                  <input
+                  <TextField
                     id="landing-signup-last-name"
-                    type="text"
+                    label="Last name"
                     autoComplete="family-name"
                     required
+                    fullWidth
+                    size="small"
                     value={signupLastName}
                     onChange={(e) => setSignupLastName(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                    sx={inputSx}
                   />
-                </div>
-              </div>
-              <div>
-                <label
-                  htmlFor="landing-signup-email"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Email
-                </label>
-                <input
+                </Stack>
+                <TextField
                   id="landing-signup-email"
+                  label="Email"
                   type="email"
                   autoComplete="email"
                   required
+                  fullWidth
+                  size="small"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                  sx={inputSx}
                 />
-              </div>
-              <div>
-                <label
-                  htmlFor="landing-signup-password"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Password
-                </label>
-                <input
+                <TextField
                   id="landing-signup-password"
+                  label="Password"
                   type="password"
                   autoComplete="new-password"
                   required
-                  minLength={8}
+                  fullWidth
+                  size="small"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                  sx={inputSx}
+                  slotProps={{ htmlInput: { minLength: 8 } }}
                 />
-              </div>
-              <div>
-                <label
-                  htmlFor="landing-signup-confirm-password"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Confirm password
-                </label>
-                <input
+                <TextField
                   id="landing-signup-confirm-password"
+                  label="Confirm password"
                   type="password"
                   autoComplete="new-password"
                   required
-                  minLength={8}
+                  fullWidth
+                  size="small"
                   value={signupConfirmPassword}
                   onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                  sx={inputSx}
+                  slotProps={{ htmlInput: { minLength: 8 } }}
                 />
-              </div>
-              {error ? (
-                <p className="text-sm text-red-600" role="alert">
-                  {error}
-                </p>
-              ) : null}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full rounded-lg bg-primary-600 py-2.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-60"
-              >
-                {submitting ? "Creating account…" : "Sign up"}
-              </button>
-            </form>
+                {error ? (
+                  <Alert severity="error" role="alert">
+                    {error}
+                  </Alert>
+                ) : null}
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={submitting}
+                  fullWidth
+                  sx={{ py: 1.25, textTransform: "none", fontWeight: 500 }}
+                >
+                  {submitting ? "Creating account…" : "Sign up"}
+                </Button>
+              </Stack>
+            </Box>
           </>
         )}
-      </div>
-    </div>
+      </Paper>
+    </Box>
   );
 }

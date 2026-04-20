@@ -1,3 +1,4 @@
+import Box from "@mui/material/Box";
 import AllergiesCard from "../dashboard/AllergiesCard";
 import ConditionsCard from "../dashboard/ConditionsCard";
 import FamilyHistoryCard from "../dashboard/FamilyHistoryCard";
@@ -21,35 +22,41 @@ export default function PatientOverviewTab({ data, patientId }: Props) {
   );
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-      <div className="lg:col-span-2">
+    <Box
+      sx={{
+        display: "grid",
+        gap: { xs: 2, lg: 2.5 },
+        gridTemplateColumns: { xs: "1fr", lg: "repeat(2, 1fr)" },
+      }}
+    >
+      <Box sx={{ gridColumn: { lg: "1 / -1" } }}>
         <PatientSummaryCard summary={data.summary} />
-      </div>
+      </Box>
 
       <ConditionsCard conditions={data.conditions} />
       <AllergiesCard allergies={data.allergies} />
 
-      <div className="lg:col-span-2">
+      <Box sx={{ gridColumn: { lg: "1 / -1" } }}>
         <MedicationsTable medications={data.medications} />
-      </div>
+      </Box>
 
-      <div className="lg:col-span-2">
+      <Box sx={{ gridColumn: { lg: "1 / -1" } }}>
         <LabResultsCard lab_reports={data.lab_reports} />
-      </div>
+      </Box>
 
-      <div className="lg:col-span-2">
+      <Box sx={{ gridColumn: { lg: "1 / -1" } }}>
         <MedicalTimeline events={data.medical_events} />
-      </div>
+      </Box>
 
-      <div className="lg:col-span-2">
+      <Box sx={{ gridColumn: { lg: "1 / -1" } }}>
         <RecentDocumentsCard
           documents={data.recent_documents}
           viewAllTo={docsBase}
         />
-      </div>
+      </Box>
 
       <FamilyHistoryCard family_history={data.family_history} />
       <LifestyleCard lifestyle={data.lifestyle} />
-    </div>
+    </Box>
   );
 }

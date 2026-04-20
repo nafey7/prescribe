@@ -1,3 +1,6 @@
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useFeatureFlags } from "../contexts/FeatureFlagContext";
@@ -14,9 +17,20 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
 
   if (flagsLoading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-gray-600">
-        Loading…
-      </div>
+      <Box
+        sx={{
+          display: "flex",
+          minHeight: "40vh",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 1.5,
+        }}
+      >
+        <CircularProgress size={22} color="primary" />
+        <Typography variant="body2" color="text.secondary">
+          Loading…
+        </Typography>
+      </Box>
     );
   }
 
@@ -26,9 +40,20 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-gray-600">
-        Loading…
-      </div>
+      <Box
+        sx={{
+          display: "flex",
+          minHeight: "40vh",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 1.5,
+        }}
+      >
+        <CircularProgress size={22} color="primary" />
+        <Typography variant="body2" color="text.secondary">
+          Loading…
+        </Typography>
+      </Box>
     );
   }
 

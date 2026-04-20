@@ -1,12 +1,9 @@
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  renderWithProviders,
+  screen,
+} from "../../test-utils/renderWithProviders";
 import LandingPage from "../LandingPage";
 
 const mockUseAuth = vi.fn();
@@ -21,11 +18,9 @@ vi.mock("../../contexts/FeatureFlagContext", () => ({
 }));
 
 function renderLanding(initial: string) {
-  return render(
-    <MemoryRouter initialEntries={[initial]}>
-      <LandingPage />
-    </MemoryRouter>
-  );
+  return renderWithProviders(<LandingPage />, {
+    router: { initialEntries: [initial] },
+  });
 }
 
 describe("LandingPage", () => {

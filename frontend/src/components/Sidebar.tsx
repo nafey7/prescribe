@@ -1,6 +1,13 @@
 import { FileText, LayoutDashboard, Stethoscope, User, X } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import Box from "@mui/material/Box";
+import Drawer from "@mui/material/Drawer";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { matchPath, NavLink, useLocation } from "react-router-dom";
 import { paths } from "../router/paths";
+import { SidebarNavItemButton } from "../ui/SidebarNavItemButton";
 
 export type SidebarNavItem = {
   path: string;
@@ -21,13 +28,138 @@ export const patientNavItems: SidebarNavItem[] = [
   { path: paths.patient.doctors, label: "My Doctors", icon: Stethoscope },
 ];
 
-function linkClass(active: boolean): string {
-  return [
-    "sidebar-nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200",
-    active
-      ? "bg-blue-50 font-medium text-blue-700"
-      : "text-gray-700 hover:bg-gray-100",
-  ].join(" ");
+function SidebarInner({
+  onClose,
+  showMobileClose,
+}: {
+  onClose: () => void;
+  showMobileClose: boolean;
+}) {
+  const location = useLocation();
+
+  const items = patientNavItems.map((item) => {
+    const Icon = item.icon;
+    const selected = Boolean(
+      matchPath({ path: item.path, end: item.end ?? false }, location.pathname)
+    );
+    return (
+      <SidebarNavItemButton
+        key={item.path}
+        $accent="primary"
+        component={NavLink}
+        to={item.path}
+        end={item.end}
+        onClick={onClose}
+        selected={selected}
+        className="sidebar-nav-link"
+      >
+        <Box
+          component="span"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            flexShrink: 0,
+            color: "inherit",
+          }}
+        >
+          <Icon size={20} aria-hidden />
+        </Box>
+        <Typography
+          component="span"
+          variant="body2"
+          className="sidebar-label"
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            fontWeight: "inherit",
+            color: "inherit",
+          }}
+          noWrap
+        >
+          {item.label}
+        </Typography>
+      </SidebarNavItemButton>
+    );
+  });
+
+  return (
+    <>
+      {showMobileClose ? (
+        <Box
+          sx={{
+            display: { xs: "flex", md: "none" },
+            height: 56,
+            flexShrink: 0,
+            alignItems: "center",
+            justifyContent: "flex-end",
+            px: 1,
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
+        >
+          <IconButton aria-label="Close menu" onClick={onClose} size="small">
+            <X size={20} />
+          </IconButton>
+        </Box>
+      ) : null}
+
+      <Box
+        className="sidebar-brand-row"
+        sx={{
+          height: 56,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          px: 1.5,
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Box sx={{ display: "flex", minWidth: 0, alignItems: "center", gap: 1 }}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 1.5,
+              bgcolor: "primary.main",
+              color: "primary.contrastText",
+              typography: "subtitle1",
+              lineHeight: 1,
+            }}
+          >
+            🩺
+          </Box>
+          <Box className="sidebar-brand" sx={{ minWidth: 0 }}>
+            <Typography variant="body2" noWrap color="text.primary" sx={{ fontWeight: 600 }}>
+              Patient portal
+            </Typography>
+            <Typography variant="caption" noWrap color="text.secondary">
+              Health overview
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+
+      <Box
+        component="nav"
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.5,
+          overflowY: "auto",
+          p: 1.5,
+        }}
+      >
+        {items}
+      </Box>
+    </>
+  );
 }
 
 export default function Sidebar({
@@ -37,79 +169,68 @@ export default function Sidebar({
   mobileOpen: boolean;
   onClose: () => void;
 }) {
-  const items = patientNavItems.map((item) => {
-    const Icon = item.icon;
-    return (
-      <NavLink
-        key={item.path}
-        to={item.path}
-        end={item.end}
-        className={({ isActive }) => linkClass(isActive)}
-        onClick={onClose}
-      >
-        <Icon size={20} className="shrink-0" aria-hidden />
-        <span className="sidebar-label min-w-0 truncate">{item.label}</span>
-      </NavLink>
-    );
-  });
+  const theme = useTheme();
+  const isMdUp = useMediaQuery(theme.breakpoints.up("md"));
+
+  const asideSx = {
+    willChange: "transform, width",
+    display: { xs: "none", md: "flex" },
+    flexDirection: "column" as const,
+    flexShrink: 0,
+    borderRight: 1,
+    borderColor: "divider",
+    bgcolor: "background.paper",
+    transition: theme.transitions.create(["width", "box-shadow"], {
+      duration: 200,
+      easing: theme.transitions.easing.easeOut,
+    }),
+    [theme.breakpoints.only("md")]: {
+      width: 64,
+      overflowX: "hidden",
+      "&:hover": {
+        width: 240,
+        boxShadow: theme.shadows[4],
+      },
+    },
+    [theme.breakpoints.up("lg")]: {
+      width: 240,
+    },
+  };
 
   return (
     <>
-      {/* Mobile (max-md): dim background when drawer open */}
-      <div
-        className={`fixed inset-0 z-40 bg-black/30 transition-opacity md:hidden ${
-          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-        aria-hidden={!mobileOpen}
-        onClick={onClose}
-      />
-
-      <aside
-        className={[
-          "sidebar-shell flex shrink-0 flex-col border-r border-gray-200 bg-white",
-          "transition-all duration-200 ease-out",
-          /* Mobile: slide-over drawer */
-          "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[240px]",
-          mobileOpen
-            ? "max-md:translate-x-0"
-            : "max-md:-translate-x-full",
-          /* Tablet & desktop: in layout */
-          "md:static md:z-0 md:translate-x-0",
-          /* Tablet 768–1023: narrow rail, expand width on hover */
-          "md:w-16 md:max-lg:overflow-x-hidden md:max-lg:hover:w-[240px] md:max-lg:hover:shadow-lg",
-          /* Desktop ≥1024: full width rail */
-          "lg:w-[240px]",
-        ].join(" ")}
+      <Drawer
+        anchor="left"
+        open={mobileOpen}
+        onClose={onClose}
+        variant="temporary"
+        sx={{
+          display: { xs: "block", md: "none" },
+          "& .MuiDrawer-paper": {
+            width: 240,
+            boxSizing: "border-box",
+          },
+        }}
       >
-        <div className="flex h-14 shrink-0 items-center justify-end border-b border-gray-200 px-2 md:hidden">
-          <button
-            type="button"
-            className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
-            aria-label="Close menu"
-            onClick={onClose}
-          >
-            <X size={20} />
-          </button>
-        </div>
+        <Box
+          className="sidebar-shell"
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+            width: "100%",
+            bgcolor: "background.paper",
+          }}
+        >
+          <SidebarInner onClose={onClose} showMobileClose />
+        </Box>
+      </Drawer>
 
-        <div className="sidebar-brand-row flex h-14 shrink-0 items-center border-b border-gray-200 px-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-lg leading-none text-white">
-              🩺
-            </div>
-            <div className="sidebar-brand min-w-0">
-              <p className="truncate text-sm font-semibold text-gray-900">
-                Patient portal
-              </p>
-              <p className="truncate text-xs text-gray-500">Health overview</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
-          {items}
-        </nav>
-      </aside>
+      {isMdUp ? (
+        <Box component="aside" className="sidebar-shell" sx={asideSx}>
+          <SidebarInner onClose={onClose} showMobileClose={false} />
+        </Box>
+      ) : null}
     </>
   );
 }

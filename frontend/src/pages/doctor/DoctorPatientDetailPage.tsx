@@ -1,5 +1,8 @@
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import DashboardSkeleton from "../../components/dashboard/DashboardSkeleton";
 import PatientOverviewTab from "../../components/doctor/PatientOverviewTab";
 import { useIdentity } from "../../contexts/IdentityContext";
@@ -39,43 +42,46 @@ export default function DoctorPatientDetailPage() {
 
   if (!currentDoctorId) {
     return (
-      <p className="text-sm text-amber-900">
+      <Typography variant="body2" color="warning.dark">
         Select a doctor in the dev identity bar to view this patient.
-      </p>
+      </Typography>
     );
   }
 
   if (!patientId) {
-    return <p className="text-gray-600">Missing patient.</p>;
+    return (
+      <Typography variant="body2" color="text.secondary">
+        Missing patient.
+      </Typography>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <>
       {error && (
-        <div
-          className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-          role="alert"
-        >
+        <Alert severity="error" sx={{ mb: 3 }} role="alert">
           {error}
-        </div>
+        </Alert>
       )}
 
       {isLoading && <DashboardSkeleton />}
 
       {!isLoading && profile && (
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
+        <Box component="header" sx={{ mb: 3 }}>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
             {`${profile.first_name} ${profile.last_name}`.trim() || "Patient"}
-          </h1>
+          </Typography>
           {subtitle && (
-            <p className="mt-1 text-sm text-gray-600">{subtitle}</p>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              {subtitle}
+            </Typography>
           )}
-        </header>
+        </Box>
       )}
 
       {!isLoading && history && patientId && (
         <PatientOverviewTab data={history} patientId={patientId} />
       )}
-    </div>
+    </>
   );
 }

@@ -1,9 +1,45 @@
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { alpha, styled } from "@mui/material";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { getConnectedPatientProfile } from "../../api/doctors";
 import { useIdentity } from "../../contexts/IdentityContext";
 import { paths } from "../../router/paths";
+
+const PatientTabLink = styled(NavLink)(({ theme }) => ({
+  borderRadius: theme.shape.borderRadius,
+  padding: theme.spacing(0.75, 1.5),
+  fontSize: theme.typography.body2.fontSize,
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+  color: theme.palette.text.secondary,
+  "&:hover": {
+    color: theme.palette.text.primary,
+    backgroundColor: theme.palette.action.hover,
+  },
+  '&[aria-current="page"]': {
+    fontWeight: 600,
+    color: theme.palette.secondary.dark,
+    backgroundColor: alpha(theme.palette.secondary.main, 0.12),
+  },
+}));
+
+const BackLink = styled(NavLink)(({ theme }) => ({
+  display: "inline-flex",
+  flexShrink: 0,
+  alignItems: "center",
+  gap: theme.spacing(0.5),
+  fontSize: theme.typography.body2.fontSize,
+  fontWeight: 500,
+  textDecoration: "none",
+  color: theme.palette.secondary.dark,
+  "&:hover": {
+    color: theme.palette.secondary.main,
+  },
+}));
 
 /**
  * Sub-navigation when viewing a specific patient under `/doctor/patients/:patientId/*`.
@@ -33,55 +69,75 @@ export default function PatientContextBar({ patientId }: { patientId: string }) 
     };
   }, [currentDoctorId, patientId]);
 
-  const tabClass = ({ isActive }: { isActive: boolean }) =>
-    [
-      "rounded-md px-3 py-1.5 text-sm transition-colors",
-      isActive
-        ? "bg-teal-100 font-medium text-teal-900"
-        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
-    ].join(" ");
-
   const label =
     displayName ||
     (patientId.length > 12 ? `${patientId.slice(0, 8)}…` : patientId);
 
   return (
-    <div className="relative isolate shrink-0 border-b border-teal-100 bg-teal-50/80 px-4 py-3">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <NavLink
-            to={paths.doctor.patients}
-            className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-teal-900 hover:text-teal-700"
-          >
+    <Box
+      sx={(theme) => ({
+        position: "relative",
+        isolation: "isolate",
+        flexShrink: 0,
+        borderBottom: 1,
+        borderColor: alpha(theme.palette.secondary.main, 0.2),
+        bgcolor: alpha(theme.palette.secondary.main, 0.06),
+        px: 2,
+        py: 1.5,
+      })}
+    >
+      <Box
+        sx={{
+          mx: "auto",
+          maxWidth: "72rem",
+          display: "grid",
+          gap: 1.5,
+          gridTemplateColumns: { xs: "1fr", sm: "minmax(0,1fr) auto" },
+          alignItems: { sm: "center" },
+        }}
+      >
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", alignItems: "center", minWidth: 0 }}>
+          <BackLink to={paths.doctor.patients}>
             <ArrowLeft size={16} aria-hidden />
             Back to Patients
-          </NavLink>
-          <span className="hidden text-gray-300 sm:inline" aria-hidden>
+          </BackLink>
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{ display: { xs: "none", sm: "inline" }, color: "divider" }}
+            aria-hidden
+          >
             |
-          </span>
-          <p className="min-w-0 truncate text-sm text-gray-700">
-            <span className="font-medium text-gray-900">Viewing:</span>{" "}
-            <span title={patientId}>{label}</span>
-          </p>
-        </div>
-        <nav
-          className="flex min-w-0 shrink-0 flex-wrap justify-start gap-1 sm:justify-end"
+          </Typography>
+          <Typography variant="body2" color="text.primary" noWrap sx={{ minWidth: 0 }}>
+            <Typography component="span" sx={{ fontWeight: 600 }}>
+              Viewing:
+            </Typography>{" "}
+            <Box component="span" title={patientId}>
+              {label}
+            </Box>
+          </Typography>
+        </Stack>
+        <Stack
+          component="nav"
+          direction="row"
+          spacing={0.5}
           aria-label="Patient section"
+          sx={{
+            flexWrap: "wrap",
+            minWidth: 0,
+            flexShrink: 0,
+            justifyContent: { xs: "flex-start", sm: "flex-end" },
+          }}
         >
-          <NavLink to={base} end className={tabClass}>
+          <PatientTabLink to={base} end>
             Overview
-          </NavLink>
-          <NavLink to={`${base}/chat`} className={tabClass}>
-            AI
-          </NavLink>
-          <NavLink to={`${base}/documents`} className={tabClass}>
-            Documents
-          </NavLink>
-          <NavLink to={`${base}/prescriptions`} className={tabClass}>
-            Prescriptions
-          </NavLink>
-        </nav>
-      </div>
-    </div>
+          </PatientTabLink>
+          <PatientTabLink to={`${base}/chat`}>AI</PatientTabLink>
+          <PatientTabLink to={`${base}/documents`}>Documents</PatientTabLink>
+          <PatientTabLink to={`${base}/prescriptions`}>Prescriptions</PatientTabLink>
+        </Stack>
+      </Box>
+    </Box>
   );
 }

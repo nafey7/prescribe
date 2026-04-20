@@ -1,3 +1,6 @@
+import Box from "@mui/material/Box";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
 import type { Lifestyle } from "../../types/patient";
 
 interface Props {
@@ -6,68 +9,66 @@ interface Props {
   onChange: (next: Lifestyle) => void;
 }
 
-const inputClass =
-  "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50";
-const taClass =
-  "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50 min-h-[72px]";
+const fieldProps = { size: "small" as const, fullWidth: true };
 
 export default function LifestyleEditor({ value, disabled, onChange }: Props) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <label className="block">
-        <span className="text-xs font-medium text-gray-600">Smoking status</span>
-        <select
-          className={inputClass}
-          value={value.smoking_status}
-          disabled={disabled}
-          onChange={(e) =>
-            onChange({ ...value, smoking_status: e.target.value })
-          }
-        >
-          <option value="unknown">Unknown</option>
-          <option value="never">Never</option>
-          <option value="former">Former</option>
-          <option value="current">Current</option>
-        </select>
-      </label>
-      <label className="block sm:col-span-2">
-        <span className="text-xs font-medium text-gray-600">Smoking notes</span>
-        <textarea
-          className={taClass}
-          value={value.smoking_notes}
-          disabled={disabled}
-          onChange={(e) =>
-            onChange({ ...value, smoking_notes: e.target.value })
-          }
-        />
-      </label>
-      <label className="block sm:col-span-2">
-        <span className="text-xs font-medium text-gray-600">Alcohol</span>
-        <input
-          className={inputClass}
-          value={value.alcohol}
-          disabled={disabled}
-          onChange={(e) => onChange({ ...value, alcohol: e.target.value })}
-        />
-      </label>
-      <label className="block sm:col-span-2">
-        <span className="text-xs font-medium text-gray-600">Exercise</span>
-        <input
-          className={inputClass}
-          value={value.exercise}
-          disabled={disabled}
-          onChange={(e) => onChange({ ...value, exercise: e.target.value })}
-        />
-      </label>
-      <label className="block sm:col-span-2">
-        <span className="text-xs font-medium text-gray-600">Diet notes</span>
-        <textarea
-          className={taClass}
-          value={value.diet_notes}
-          disabled={disabled}
-          onChange={(e) => onChange({ ...value, diet_notes: e.target.value })}
-        />
-      </label>
-    </div>
+    <Box
+      sx={{
+        display: "grid",
+        gap: 1.5,
+        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+      }}
+    >
+      <TextField
+        label="Smoking status"
+        select
+        value={value.smoking_status}
+        disabled={disabled}
+        onChange={(e) => onChange({ ...value, smoking_status: e.target.value })}
+        {...fieldProps}
+      >
+        <MenuItem value="unknown">Unknown</MenuItem>
+        <MenuItem value="never">Never</MenuItem>
+        <MenuItem value="former">Former</MenuItem>
+        <MenuItem value="current">Current</MenuItem>
+      </TextField>
+      <TextField
+        label="Smoking notes"
+        value={value.smoking_notes}
+        disabled={disabled}
+        onChange={(e) => onChange({ ...value, smoking_notes: e.target.value })}
+        multiline
+        minRows={3}
+        {...fieldProps}
+        sx={{ gridColumn: { sm: "1 / -1" } }}
+      />
+      <TextField
+        label="Alcohol"
+        value={value.alcohol}
+        disabled={disabled}
+        onChange={(e) => onChange({ ...value, alcohol: e.target.value })}
+        {...fieldProps}
+        sx={{ gridColumn: { sm: "1 / -1" } }}
+      />
+      <TextField
+        label="Exercise"
+        value={value.exercise}
+        disabled={disabled}
+        onChange={(e) => onChange({ ...value, exercise: e.target.value })}
+        {...fieldProps}
+        sx={{ gridColumn: { sm: "1 / -1" } }}
+      />
+      <TextField
+        label="Diet notes"
+        value={value.diet_notes}
+        disabled={disabled}
+        onChange={(e) => onChange({ ...value, diet_notes: e.target.value })}
+        multiline
+        minRows={3}
+        {...fieldProps}
+        sx={{ gridColumn: { sm: "1 / -1" } }}
+      />
+    </Box>
   );
 }

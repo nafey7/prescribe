@@ -1,3 +1,8 @@
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material";
 import { Menu } from "lucide-react";
 import { useMemo } from "react";
 import { useLocation } from "react-router-dom";
@@ -45,65 +50,137 @@ export default function Header({
   }, [patients, currentPatientId]);
 
   return (
-    <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
-      <div className="mx-auto flex max-w-6xl items-center gap-3">
-        <button
-          type="button"
-          className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 md:hidden"
+    <Box
+      component="header"
+      sx={{
+        flexShrink: 0,
+        borderBottom: 1,
+        borderColor: "divider",
+        bgcolor: "background.paper",
+        px: 2,
+        py: 1.5,
+      }}
+    >
+      <Box
+        sx={{
+          mx: "auto",
+          display: "flex",
+          maxWidth: "72rem",
+          alignItems: "center",
+          gap: 1.5,
+        }}
+      >
+        <IconButton
           aria-label="Open navigation menu"
           onClick={onMenuClick}
+          size="small"
+          sx={{
+            display: { xs: "inline-flex", md: "none" },
+          }}
         >
           <Menu size={22} />
-        </button>
+        </IconButton>
 
-        <div className="hidden min-w-0 max-w-[40%] items-center gap-2 md:flex">
-          <span className="truncate text-sm font-semibold text-gray-900">
+        <Box
+          sx={{
+            display: { xs: "none", md: "flex" },
+            minWidth: 0,
+            maxWidth: "40%",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <Typography variant="body2" noWrap color="text.primary" sx={{ fontWeight: 600 }}>
             {patientName}
-          </span>
-          <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
+          </Typography>
+          <Typography
+            component="span"
+            variant="caption"
+            sx={{
+              flexShrink: 0,
+              borderRadius: 10,
+              px: 1,
+              py: 0.25,
+              fontWeight: 600,
+              bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
+              color: (theme) => theme.palette.success.dark,
+            }}
+          >
             Patient
-          </span>
-        </div>
+          </Typography>
+        </Box>
 
-        <h2 className="min-w-0 flex-1 truncate text-center text-sm font-medium text-gray-800">
+        <Typography
+          component="h2"
+          variant="body2"
+          color="text.primary"
+          sx={{
+            minWidth: 0,
+            flex: 1,
+            textAlign: "center",
+            fontWeight: 500,
+          }}
+          noWrap
+        >
           {title}
-        </h2>
+        </Typography>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {!import.meta.env.DEV && (
+        <Box sx={{ display: "flex", flexShrink: 0, alignItems: "center", gap: 1 }}>
+          {!import.meta.env.DEV ? (
             <PatientSelector
               selectedId={currentPatientId}
               onChange={setCurrentPatientId}
             />
-          )}
+          ) : null}
           {status === "authenticated" ? (
-            <button
+            <Button
               type="button"
+              variant="outlined"
+              size="small"
               onClick={() => void logout()}
-              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              sx={{ typography: "caption", fontWeight: 600, px: 1.5, py: 0.5 }}
             >
               Log out
-            </button>
+            </Button>
           ) : null}
-          <button
-            type="button"
-            className="hidden rounded-full border border-gray-200 p-2 text-gray-400 sm:inline-flex"
+          <IconButton
             aria-label="Notifications (coming soon)"
             disabled
             title="Coming in a later phase"
+            size="small"
+            sx={{
+              display: { xs: "none", sm: "inline-flex" },
+              border: 1,
+              borderColor: "divider",
+              borderRadius: "50%",
+            }}
           >
-            <span className="sr-only">Notifications</span>
-            <span className="text-xs">🔔</span>
-          </button>
-          <div
-            className="hidden h-9 w-9 shrink-0 rounded-full border border-dashed border-gray-300 bg-gray-50 sm:flex sm:items-center sm:justify-center"
+            <Typography component="span" variant="caption" aria-hidden sx={{ opacity: 0.6 }}>
+              🔔
+            </Typography>
+          </IconButton>
+          <Box
             title="Account (Phase E)"
             aria-hidden
+            sx={{
+              display: { xs: "none", sm: "flex" },
+              width: 36,
+              height: 36,
+              flexShrink: 0,
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              border: "1px dashed",
+              borderColor: "divider",
+              bgcolor: "action.hover",
+            }}
           >
-            <span className="text-xs text-gray-400">👤</span>
-          </div>
-        </div>
-      </div>
-    </header>
+            <Typography variant="caption" color="text.secondary">
+              👤
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }
