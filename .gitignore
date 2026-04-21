@@ -1,4 +1,6 @@
 # Python
+# Local pip --target / smoke-test deps (e.g. duckduckgo_search + lxml); do not commit.
+backend/.deps_smoke/
 __pycache__/
 *.py[cod]
 *$py.class
