@@ -87,6 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshRef = useRef(refreshToken);
   accessRef.current = accessToken;
   refreshRef.current = refreshToken;
+  /** Sync so children (and their effects) never send requests before Bearer is wired. */
+  registerAccessTokenGetter(() => accessRef.current);
 
   const navigateToLoginWithReturn = useCallback(() => {
     if (isPublicAuthSurfacePath(location.pathname)) {
@@ -122,10 +124,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return () => configureAuthSession(null);
   }, [clearSession, navigateToLoginWithReturn]);
-
-  useEffect(() => {
-    registerAccessTokenGetter(() => accessToken);
-  }, [accessToken]);
 
   useEffect(() => {
     return subscribeLogoutFromOtherTabs(() => {

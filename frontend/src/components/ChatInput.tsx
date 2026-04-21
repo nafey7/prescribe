@@ -1,8 +1,11 @@
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
-import { SendHorizontal } from "lucide-react";
+import Tooltip from "@mui/material/Tooltip";
+import { CircleStop, Mic, SendHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useWebSpeechRecognition } from "../hooks/useWebSpeechRecognition";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -12,14 +15,20 @@ interface ChatInputProps {
 export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const { isListening, error, supported, start, stop, clearError } = useWebSpeechRecognition(setText);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    if (isLoading && isListening) stop();
+  }, [isLoading, isListening, stop]);
+
   const handleSubmit = () => {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
+    if (isListening) stop();
     onSend(trimmed);
     setText("");
   };
@@ -31,6 +40,22 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
     }
   };
 
+  const toggleVoice = () => {
+    clearError();
+    if (isListening) {
+      stop();
+      return;
+    }
+    start(() => text);
+  };
+
+  const inputDisabled = isLoading || isListening;
+  const placeholder = isLoading
+    ? "Waiting for response..."
+    : isListening
+      ? "Listening… speak now"
+      : "Ask about the patient's symptoms, medications, or history...";
+
   return (
     <Box
       sx={{
@@ -40,6 +65,11 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
         p: 2,
       }}
     >
+      {error ? (
+        <Alert severity="error" onClose={() => clearError()} sx={{ mb: 1.5 }}>
+          {error}
+        </Alert>
+      ) : null}
       <Box
         sx={{
           display: "flex",
@@ -51,14 +81,13 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
         <TextField
           inputRef={inputRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            clearError();
+            setText(e.target.value);
+          }}
           onKeyDown={handleKeyDown}
-          placeholder={
-            isLoading
-              ? "Waiting for response..."
-              : "Ask about the patient's symptoms, medications, or history..."
-          }
-          disabled={isLoading}
+          placeholder={placeholder}
+          disabled={inputDisabled}
           fullWidth
           variant="outlined"
           size="medium"
@@ -87,6 +116,47 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
             };
           }}
         />
+        {supported ? (
+          <Tooltip title={isListening ? "Stop voice input" : "Voice input (browser)"}>
+            <IconButton
+              type="button"
+              onClick={toggleVoice}
+              disabled={isLoading}
+              color={isListening ? "error" : "default"}
+              aria-label={isListening ? "Stop voice input" : "Start voice input"}
+              aria-pressed={isListening}
+              size="medium"
+              sx={(theme) => {
+                const control = theme.spacing(5);
+                return {
+                  flexShrink: 0,
+                  width: control,
+                  height: control,
+                  borderRadius: isListening ? "50%" : 1,
+                  ...(isListening
+                    ? {
+                        bgcolor: "error.main",
+                        color: "error.contrastText",
+                        "&:hover": { bgcolor: "error.dark" },
+                      }
+                    : {
+                        border: 1,
+                        borderColor: "divider",
+                        color: "text.secondary",
+                        "&:hover": { bgcolor: "action.hover" },
+                      }),
+                  "&.Mui-disabled": {
+                    borderColor: "action.disabledBackground",
+                    color: "action.disabled",
+                    bgcolor: "transparent",
+                  },
+                };
+              }}
+            >
+              {isListening ? <CircleStop size={18} /> : <Mic size={18} />}
+            </IconButton>
+          </Tooltip>
+        ) : null}
         <IconButton
           type="button"
           onClick={handleSubmit}
