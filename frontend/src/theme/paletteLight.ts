@@ -1,25 +1,25 @@
 import type { PaletteOptions } from "@mui/material";
 
 /**
- * Light appearance — values preserved from the pre–color-mode palette.
+ * Light appearance — primary accent is emerald (clinical / growth).
  */
 export const paletteLight: PaletteOptions = {
   mode: "light",
   primary: {
-    main: "#2563eb",
-    light: "#60a5fa",
-    dark: "#1d4ed8",
+    main: "#059669",
+    light: "#34d399",
+    dark: "#047857",
     contrastText: "#ffffff",
-    50: "#eff6ff",
-    100: "#dbeafe",
-    200: "#bfdbfe",
-    300: "#93c5fd",
-    400: "#60a5fa",
-    500: "#3b82f6",
-    600: "#2563eb",
-    700: "#1d4ed8",
-    800: "#1e40af",
-    900: "#1e3a8a",
+    50: "#ecfdf5",
+    100: "#d1fae5",
+    200: "#a7f3d0",
+    300: "#6ee7b7",
+    400: "#34d399",
+    500: "#10b981",
+    600: "#059669",
+    700: "#047857",
+    800: "#065f46",
+    900: "#064e3b",
   },
   /** Doctor portal accent (Tailwind teal scale). */
   secondary: {
@@ -47,7 +47,7 @@ export const paletteLight: PaletteOptions = {
     dark: "#b45309",
   },
   info: {
-    main: "#0284c7",
+    main: "#0d9488",
   },
   success: {
     main: "#16a34a",

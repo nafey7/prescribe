@@ -1,10 +1,6 @@
-import { Navigate, useLocation } from "react-router-dom";
-import { paths } from "../router/paths";
+import AuthPage from "./AuthPage";
 
-/** Legacy `/signup` → landing with create-account selected. */
+/** Sign-up at `/signup` (legacy `/?auth=signup` redirects from the landing page). */
 export default function SignupPage() {
-  const { search } = useLocation();
-  const params = new URLSearchParams(search);
-  params.set("auth", "signup");
-  return <Navigate to={`${paths.root}?${params.toString()}`} replace />;
+  return <AuthPage />;
 }

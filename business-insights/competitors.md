@@ -1,0 +1,32 @@
+# Competitor landscape — prescribe-v2 (Medical AI Chat)
+
+**Project summary:** React + Vite frontend, FastAPI + LangGraph backend, MongoDB for patient profiles and chat. The product positions an LLM to answer symptom-related questions using structured patient context (conditions, medications, allergies, documents). Educational prototype; not a regulated medical device.
+
+**File created:** 2026-04-21  
+**Last updated (new entries):** 2026-04-21
+
+---
+
+**Ada Health** — [https://ada.com](https://ada.com) — Ada offers a widely adopted AI-driven symptom assessment experience (app-first) that maps user-reported symptoms and history to ranked condition possibilities and care guidance. Key features include structured questioning, clinical-rule-style reasoning layered with ML, and emphasis on privacy and evidence-based pathways. Market position: one of the most recognized consumer “AI doctor” style symptom checkers globally. Relevant because it competes on the same user job—turning lay descriptions of illness into triage-style output—though Ada does not mirror this repo’s explicit “full chart in MongoDB” integration pattern.
+
+**Ubie** — [https://ubiehealth.com](https://ubiehealth.com) — Ubie is a Japan-originated, internationally available AI symptom checker that guides users through a short questionnaire and produces a report on possible causes, severity cues, and when to seek care, with physician involvement in product design. Key features: fast questionnaire flow, cause-oriented output, and partnerships with medical institutions. Market position: strong in Asia with growing global presence in AI triage. Relevant as a direct alternative for users who want conversational or quasi-conversational symptom exploration without a personal health record backend.
+
+**Isabel Healthcare** — [https://www.isabelhealthcare.com](https://www.isabelhealthcare.com) — Isabel provides a long-standing symptom checker used by both patients and clinicians, emphasizing breadth of differential diagnoses including rarer conditions. Key features: symptom entry with natural language and structured options, ranked differentials, and professional-facing versions for clinical workflows. Market position: established enterprise and consumer footprint with a reputation for diagnostic breadth. Relevant because it competes on “what could this be?” against any profile-aware medical chat that surfaces differentials.
+
+**Buoy Health** — [https://www.buoyhealth.com](https://www.buoyhealth.com) — Buoy uses conversational AI to triage symptoms and recommend appropriate care settings (self-care, telehealth, urgent care, ER). Key features: chat-style interaction, care navigation, and employer/health-plan distribution channels. Market position: prominent U.S. digital triage vendor embedded in benefits and payer ecosystems. Relevant because its core UX—chat leading to disposition—is close to a medical AI chat, differing mainly in distribution and integration with live benefits rather than a demo MongoDB profile.
+
+**Infermedica** — [https://infermedica.com](https://infermedica.com) — Infermedica sells medically certified AI triage and symptom-checker modules to health systems, insurers, and digital health apps (B2B/API and white-label). Key features: symptom interviews, triage recommendations, regulatory-oriented validation stories, and embeddable widgets. Market position: leading specialty vendor for “symptom checker as a product component.” Relevant as the enterprise analogue to building your own LangGraph triage: buyers compare Infermedica instead of self-building when they need compliance and SLAs.
+
+**Docus AI** — [https://docus.ai](https://docus.ai) — Docus AI markets an AI symptom checker and related health-assistant experiences with natural-language input and guidance on next steps including professional consultation. Key features: consumer-friendly UX, emphasis on actionable insights and escalation to human care. Market position: competes in the crowded direct-to-consumer AI health assistant niche. Relevant as a peer in “LLM + health Q&A + triage,” overlapping this prototype’s positioning if productized for end users.
+
+**Glass Health** — [https://glass.health](https://glass.health) — Glass Health targets clinicians with ambient scribing and AI clinical decision support, generating documentation and differential-style reasoning from encounters. Key features: note generation, CDS-style prompts, workflow integration themes. Market position: rising clinical AI vendor alongside larger incumbents. Relevant because this repo’s “patient context + medical reasoning” pattern is closer to provider-facing CDS than to pure consumer trivia—Glass illustrates how commercial products package similar ideas for licensed users.
+
+**DeepCura** — [https://www.deepcura.com](https://www.deepcura.com) — DeepCura positions as a HIPAA-oriented clinical AI stack with documentation, chat, and EHR-adjacent workflows for practices. Key features: compliance messaging, integrations (e.g., major EHR names in marketing), and “ChatGPT for clinic” style assistants. Market position: mid-market clinical AI suite among many “AI scribe + assistant” vendors. Relevant as a competitor whenever the product story expands from prototype chat to regulated, chart-integrated deployment.
+
+**Kore.ai HealthAssist** — [https://www.kore.ai/ai-for-service/ai-for-healthcare](https://www.kore.ai/ai-for-service/ai-for-healthcare) — Kore.ai offers enterprise conversational AI for hospitals and payers: scheduling, billing FAQs, benefits, and operational workflows, sometimes adjacent to clinical content. Key features: omnichannel bots, workflow automation, enterprise governance. Market position: horizontal conversational AI vendor with a dedicated healthcare practice. Relevant for the “chat layer on top of healthcare data” story at organizational scale rather than single-patient demo scope.
+
+**AMBOSS** — [https://www.amboss.com](https://www.amboss.com) — AMBOSS is a medical education and clinical reference platform; its AI assistants (e.g., LiSA) answer USMLE-style and clinical questions against trusted medical content. Key features: curated knowledge base, study and decision support for trainees and clinicians, guardrailed answers. Market position: dominant among medical students in many regions; expanding AI features. Relevant as a benchmark for “safe” medical Q&A grounded in editorial content versus open-ended LLM chat with MongoDB context.
+
+---
+
+**Total competitors documented:** 10

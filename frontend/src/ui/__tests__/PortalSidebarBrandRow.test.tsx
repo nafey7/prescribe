@@ -32,4 +32,13 @@ describe("PortalSidebarBrandRow", () => {
     expect(row).toBeTruthy();
     expect(window.getComputedStyle(row).height).toBe("56px");
   });
+
+  it("omits subtitle when not provided", () => {
+    const { container } = renderWithTheme(
+      <PortalSidebarBrandRow accent="secondary" title="Doctor portal" />
+    );
+
+    expect(screen.getByText("Doctor portal")).toBeInTheDocument();
+    expect(container.querySelectorAll(".MuiTypography-caption")).toHaveLength(0);
+  });
 });

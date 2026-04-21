@@ -147,7 +147,6 @@ function DoctorSidebarInner({
         brandTextClassName="doctor-sidebar-brand"
         accent="secondary"
         title="Doctor portal"
-        subtitle="Clinical workspace"
         trailing={<ThemeToggleButton />}
       />
 

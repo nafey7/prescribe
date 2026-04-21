@@ -1,10 +1,6 @@
-import { Navigate, useLocation } from "react-router-dom";
-import { paths } from "../router/paths";
+import AuthPage from "./AuthPage";
 
-/** Legacy `/login` → landing with the sign-in tab selected. */
+/** Sign-in at `/login` (legacy `/?auth=login` redirects from the landing page). */
 export default function LoginPage() {
-  const { search } = useLocation();
-  const params = new URLSearchParams(search);
-  params.set("auth", "login");
-  return <Navigate to={`${paths.root}?${params.toString()}`} replace />;
+  return <AuthPage />;
 }

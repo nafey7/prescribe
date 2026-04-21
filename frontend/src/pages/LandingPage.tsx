@@ -1,80 +1,69 @@
-import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
+import Container from "@mui/material/Container";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
-import { alpha, useTheme } from "@mui/material";
-import { useEffect, useState } from "react";
+import { alpha, keyframes, useTheme } from "@mui/material/styles";
+import {
+  MessageSquare,
+  ShieldCheck,
+  Stethoscope,
+  UtensilsCrossed,
+} from "lucide-react";
+import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { readStoredDevRole } from "../dev/devRoleStorage";
+import PublicNavBar from "../components/landing/PublicNavBar";
 import { useAuth } from "../contexts/AuthContext";
 import { useFeatureFlags } from "../contexts/FeatureFlagContext";
-import ThemeToggleButton from "../components/ThemeToggleButton";
+import { readStoredDevRole } from "../dev/devRoleStorage";
+import { paths } from "../router/paths";
 import { defaultPostAuthPath, safeReturnUrl } from "../router/postAuthPath";
 
-type AuthMode = "login" | "signup";
-type SignupRole = "patient" | "doctor";
+const driftA = keyframes`
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.05); }
+  66% { transform: translate(-20px, 15px) scale(0.95); }
+`;
 
-function parseAuthMode(raw: string | null): AuthMode {
-  return raw === "signup" ? "signup" : "login";
-}
+const driftB = keyframes`
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-35px, 25px) scale(1.08); }
+`;
 
-function signupErrorMessage(err: unknown): string {
-  const fallback =
-    "Could not create account. Try a different email or stronger password.";
-  if (err && typeof err === "object" && "data" in err) {
-    const data = (err as { data?: unknown }).data;
-    if (typeof data === "object" && data && "detail" in data) {
-      const d = (data as { detail: unknown }).detail;
-      if (typeof d === "string") return d;
-      if (Array.isArray(d) && d.length > 0) {
-        const first = d[0];
-        if (first && typeof first === "object" && "msg" in first) {
-          const m = (first as { msg?: unknown }).msg;
-          if (typeof m === "string") return m;
-        }
-      }
-    }
+const shimmer = keyframes`
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+`;
+
+const fadeRise = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(16px);
   }
-  return fallback;
-}
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
 
 export default function LandingPage() {
   const theme = useTheme();
-  const { login, signup, status, user } = useAuth();
-  const { authRelaxed, allowDoctorSelfSignup, isLoading: flagsLoading } =
-    useFeatureFlags();
+  const { status, user } = useAuth();
+  const { authRelaxed, isLoading: flagsLoading } = useFeatureFlags();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const mode = parseAuthMode(searchParams.get("auth"));
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [signupFirstName, setSignupFirstName] = useState("");
-  const [signupLastName, setSignupLastName] = useState("");
-  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
-  const [signupRole, setSignupRole] = useState<SignupRole>("patient");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
+  const [searchParams] = useSearchParams();
   const returnUrlParam = searchParams.get("returnUrl");
 
   useEffect(() => {
-    const r = searchParams.get("role");
-    if (r === "doctor" && allowDoctorSelfSignup) {
-      setSignupRole("doctor");
+    const auth = searchParams.get("auth");
+    if (auth === "login" || auth === "signup") {
+      const next = new URLSearchParams(searchParams);
+      next.delete("auth");
+      const path = auth === "login" ? paths.login : paths.signup;
+      const q = next.toString();
+      navigate(`${path}${q ? `?${q}` : ""}`, { replace: true });
     }
-  }, [searchParams, allowDoctorSelfSignup]);
-
-  useEffect(() => {
-    if (signupRole === "doctor" && !allowDoctorSelfSignup) {
-      setSignupRole("patient");
-    }
-  }, [signupRole, allowDoctorSelfSignup]);
+  }, [searchParams, navigate]);
 
   useEffect(() => {
     if (flagsLoading || !authRelaxed) return;
@@ -87,67 +76,6 @@ export default function LandingPage() {
     const dest = safeReturnUrl(returnUrlParam, user.role);
     navigate(dest, { replace: true });
   }, [status, user, navigate, returnUrlParam]);
-
-  function setMode(next: AuthMode) {
-    const nextParams = new URLSearchParams(searchParams);
-    if (next === "login") {
-      nextParams.delete("auth");
-    } else {
-      nextParams.set("auth", "signup");
-    }
-    setSearchParams(nextParams, { replace: true });
-    setError(null);
-    if (next === "login") {
-      setSignupFirstName("");
-      setSignupLastName("");
-      setSignupConfirmPassword("");
-    }
-  }
-
-  async function onSubmitLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSubmitting(true);
-    try {
-      const me = await login(email.trim(), password);
-      navigate(safeReturnUrl(returnUrlParam, me.role), { replace: true });
-    } catch {
-      setError("Invalid email or password.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function onSubmitSignup(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (password !== signupConfirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const me = await signup({
-        firstName: signupFirstName.trim(),
-        lastName: signupLastName.trim(),
-        email: email.trim(),
-        password,
-        confirmPassword: signupConfirmPassword,
-        role: signupRole === "doctor" ? "doctor" : "patient",
-      });
-      navigate(safeReturnUrl(returnUrlParam, me.role), { replace: true });
-    } catch (err) {
-      setError(signupErrorMessage(err));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  const inputSx = {
-    "& .MuiOutlinedInput-root": {
-      borderRadius: 2,
-    },
-  };
 
   if (status === "loading") {
     return (
@@ -170,285 +98,198 @@ export default function LandingPage() {
     return null;
   }
 
+  const features = [
+    {
+      icon: Stethoscope,
+      title: "Clinical clarity",
+      body: "One place for prescriptions, documents, and care context—built for busy practices and engaged patients.",
+    },
+    {
+      icon: UtensilsCrossed,
+      title: "Nutrition that fits",
+      body: "Meal planning tools that respect real life—so guidance is actionable, not overwhelming.",
+    },
+    {
+      icon: MessageSquare,
+      title: "Guided conversations",
+      body: "Chat with context-aware assistance so questions get answered without losing the human touch.",
+    },
+    {
+      icon: ShieldCheck,
+      title: "Privacy-minded",
+      body: "Designed around sensitive health data—with clear roles for patients and clinicians.",
+    },
+  ];
+
   return (
     <Box
       sx={{
-        position: "relative",
-        display: "flex",
         minHeight: "100vh",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
         bgcolor: "background.default",
-        px: 2,
-        py: 6,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
       <Box
+        aria-hidden
         sx={{
-          position: "absolute",
-          top: (theme) => theme.spacing(2),
-          right: (theme) => theme.spacing(2),
+          position: "fixed",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 0,
+          background: `radial-gradient(ellipse 80% 55% at 50% -20%, ${alpha(theme.palette.primary.main, 0.22)}, transparent 55%),
+            radial-gradient(ellipse 60% 40% at 100% 0%, ${alpha(theme.palette.secondary.main, 0.12)}, transparent 50%),
+            radial-gradient(ellipse 50% 35% at 0% 100%, ${alpha(theme.palette.primary.dark, 0.08)}, transparent 45%)`,
         }}
-      >
-        <ThemeToggleButton />
-      </Box>
-      <Box sx={{ mb: 4, textAlign: "center" }}>
-        <Typography variant="h5" component="h1" color="text.primary" sx={{ fontWeight: 600 }}>
-          Prescribe
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Patient and doctor health portal
-        </Typography>
-      </Box>
-
-      <Paper
-        elevation={0}
+      />
+      <Box
+        aria-hidden
         sx={{
-          width: "100%",
-          maxWidth: 400,
-          p: 4,
-          border: 1,
-          borderColor: "divider",
-          borderRadius: 3,
-          boxShadow: 1,
+          position: "fixed",
+          width: 420,
+          height: 420,
+          borderRadius: "50%",
+          top: "12%",
+          right: "-8%",
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.35)}, ${alpha(theme.palette.primary.light, 0.1)})`,
+          filter: "blur(40px)",
+          animation: `${driftA} 18s ease-in-out infinite`,
+          pointerEvents: "none",
+          zIndex: 0,
         }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            borderRadius: 2,
-            bgcolor: alpha(theme.palette.text.primary, 0.08),
-            p: 0.5,
-          }}
-        >
-          <Button
-            type="button"
-            fullWidth
-            onClick={() => setMode("login")}
-            sx={{
-              py: 1,
-              textTransform: "none",
-              fontWeight: 500,
-              fontSize: "0.875rem",
-              borderRadius: 1.5,
-              ...(mode === "login"
-                ? {
-                    bgcolor: "background.paper",
-                    color: "text.primary",
-                    boxShadow: 1,
-                  }
-                : { color: "text.secondary" }),
-            }}
-          >
-            Sign in
-          </Button>
-          <Button
-            type="button"
-            fullWidth
-            onClick={() => setMode("signup")}
-            sx={{
-              py: 1,
-              textTransform: "none",
-              fontWeight: 500,
-              fontSize: "0.875rem",
-              borderRadius: 1.5,
-              ...(mode === "signup"
-                ? {
-                    bgcolor: "background.paper",
-                    color: "text.primary",
-                    boxShadow: 1,
-                  }
-                : { color: "text.secondary" }),
-            }}
-          >
-            Create account
-          </Button>
-        </Box>
+      />
+      <Box
+        aria-hidden
+        sx={{
+          position: "fixed",
+          width: 360,
+          height: 360,
+          borderRadius: "50%",
+          bottom: "5%",
+          left: "-6%",
+          background: `linear-gradient(225deg, ${alpha(theme.palette.secondary.main, 0.25)}, ${alpha(theme.palette.primary.main, 0.08)})`,
+          filter: "blur(48px)",
+          animation: `${driftB} 22s ease-in-out infinite`,
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
 
-        {mode === "login" ? (
-          <>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mt: 3, textAlign: "center" }}
-            >
-              Use your account email.
-            </Typography>
-            <Box component="form" onSubmit={onSubmitLogin} sx={{ mt: 2 }}>
-              <Stack spacing={2}>
-                <TextField
-                  id="landing-login-email"
-                  label="Email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  fullWidth
-                  size="small"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  sx={inputSx}
-                />
-                <TextField
-                  id="landing-login-password"
-                  label="Password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  fullWidth
-                  size="small"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  sx={inputSx}
-                />
-                {error ? (
-                  <Alert severity="error" role="alert">
-                    {error}
-                  </Alert>
-                ) : null}
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disabled={submitting}
-                  fullWidth
-                  sx={{ py: 1.25, textTransform: "none", fontWeight: 500 }}
-                >
-                  {submitting ? "Signing in…" : "Sign in"}
-                </Button>
-              </Stack>
-            </Box>
-          </>
-        ) : (
-          <>
-            {allowDoctorSelfSignup ? (
-              <ToggleButtonGroup
-                exclusive
-                fullWidth
-                value={signupRole}
-                onChange={(_, v) => v && setSignupRole(v)}
+      <Box sx={{ position: "relative", zIndex: 1 }}>
+        <PublicNavBar />
+
+        <Container maxWidth="lg" sx={{ px: 2, py: { xs: 6, md: 10 } }}>
+          <Stack spacing={6} sx={{ alignItems: "center" }}>
+            <Box sx={{ textAlign: "center", maxWidth: 800 }}>
+              <Typography
+                variant="overline"
                 sx={{
-                  mt: 3,
-                  borderRadius: 2,
-                  bgcolor: alpha(theme.palette.text.primary, 0.08),
-                  p: 0.5,
-                  gap: 0,
-                  "& .MuiToggleButtonGroup-grouped": {
-                    border: 0,
-                    borderRadius: `${
-                      (typeof theme.shape.borderRadius === "number"
-                        ? theme.shape.borderRadius
-                        : 8) * 1.5
-                    }px !important`,
-                  },
+                  letterSpacing: "0.2em",
+                  fontWeight: 700,
+                  color: "primary.main",
+                  display: "block",
+                  mb: 2,
+                  animation: `${fadeRise} 0.7s ease-out both`,
                 }}
               >
-                <ToggleButton value="patient" sx={{ textTransform: "none", flex: 1 }}>
-                  Patient
-                </ToggleButton>
-                <ToggleButton value="doctor" sx={{ textTransform: "none", flex: 1 }}>
-                  Doctor
-                </ToggleButton>
-              </ToggleButtonGroup>
-            ) : null}
-            <Typography
-              variant="body2"
-              color="text.secondary"
+                Patient & clinician portal
+              </Typography>
+              <Typography
+                component="h1"
+                variant="h2"
+                sx={{
+                  fontWeight: 800,
+                  letterSpacing: "-0.04em",
+                  lineHeight: 1.1,
+                  mb: 2,
+                  fontSize: { xs: "2.25rem", sm: "3rem", md: "3.5rem" },
+                  background: `linear-gradient(120deg, ${theme.palette.text.primary} 0%, ${theme.palette.primary.main} 45%, ${theme.palette.text.primary} 100%)`,
+                  backgroundSize: "200% auto",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                  animation: `${fadeRise} 0.7s ease-out 0.08s both, ${shimmer} 8s linear infinite`,
+                }}
+              >
+                Care that moves with you—not against you.
+              </Typography>
+              <Typography
+                variant="h6"
+                color="text.secondary"
+                sx={{
+                  fontWeight: 400,
+                  lineHeight: 1.6,
+                  maxWidth: 560,
+                  mx: "auto",
+                  mb: 4,
+                  animation: `${fadeRise} 0.7s ease-out 0.16s both`,
+                }}
+              >
+                Prescribe connects patients and doctors around prescriptions, meal plans, and
+                secure messaging—so follow-through feels simple, not scattered.
+              </Typography>
+            </Box>
+
+            <Box
               sx={{
-                mt: allowDoctorSelfSignup ? 2 : 3,
-                textAlign: "center",
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+                gap: 2.5,
+                width: "100%",
+                maxWidth: 1000,
               }}
             >
-              {signupRole === "doctor"
-                ? "Doctor signup — you will complete your clinical profile after sign-up."
-                : "Patient signup — at least 8 characters, one letter and one number."}
-            </Typography>
-            <Box component="form" onSubmit={onSubmitSignup} sx={{ mt: 2 }}>
-              <Stack spacing={2}>
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={2}
-                  useFlexGap
-                >
-                  <TextField
-                    id="landing-signup-first-name"
-                    label="First name"
-                    autoComplete="given-name"
-                    required
-                    fullWidth
-                    size="small"
-                    value={signupFirstName}
-                    onChange={(e) => setSignupFirstName(e.target.value)}
-                    sx={inputSx}
-                  />
-                  <TextField
-                    id="landing-signup-last-name"
-                    label="Last name"
-                    autoComplete="family-name"
-                    required
-                    fullWidth
-                    size="small"
-                    value={signupLastName}
-                    onChange={(e) => setSignupLastName(e.target.value)}
-                    sx={inputSx}
-                  />
-                </Stack>
-                <TextField
-                  id="landing-signup-email"
-                  label="Email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  fullWidth
-                  size="small"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  sx={inputSx}
-                />
-                <TextField
-                  id="landing-signup-password"
-                  label="Password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  fullWidth
-                  size="small"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  sx={inputSx}
-                  slotProps={{ htmlInput: { minLength: 8 } }}
-                />
-                <TextField
-                  id="landing-signup-confirm-password"
-                  label="Confirm password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  fullWidth
-                  size="small"
-                  value={signupConfirmPassword}
-                  onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                  sx={inputSx}
-                  slotProps={{ htmlInput: { minLength: 8 } }}
-                />
-                {error ? (
-                  <Alert severity="error" role="alert">
-                    {error}
-                  </Alert>
-                ) : null}
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disabled={submitting}
-                  fullWidth
-                  sx={{ py: 1.25, textTransform: "none", fontWeight: 500 }}
-                >
-                  {submitting ? "Creating account…" : "Sign up"}
-                </Button>
-              </Stack>
+              {features.map((f, i) => {
+                const Icon = f.icon;
+                return (
+                  <Paper
+                    key={f.title}
+                    elevation={0}
+                    sx={{
+                      p: 3,
+                      borderRadius: 3,
+                      border: 1,
+                      borderColor: "divider",
+                      bgcolor: alpha(theme.palette.background.paper, 0.55),
+                      backdropFilter: "blur(8px)",
+                      transition: "transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease",
+                      animation: `${fadeRise} 0.65s ease-out ${0.32 + i * 0.08}s both`,
+                      "&:hover": {
+                        transform: "translateY(-6px)",
+                        boxShadow: 4,
+                        borderColor: alpha(theme.palette.primary.main, 0.35),
+                      },
+                    }}
+                  >
+                    <Stack spacing={1.5}>
+                      <Box
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 2,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          bgcolor: alpha(theme.palette.primary.main, 0.12),
+                          color: "primary.main",
+                        }}
+                      >
+                        <Icon size={22} strokeWidth={2} aria-hidden />
+                      </Box>
+                      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                        {f.title}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>
+                        {f.body}
+                      </Typography>
+                    </Stack>
+                  </Paper>
+                );
+              })}
             </Box>
-          </>
-        )}
-      </Paper>
+          </Stack>
+        </Container>
+      </Box>
     </Box>
   );
 }

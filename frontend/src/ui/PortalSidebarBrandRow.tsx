@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 export type PortalSidebarBrandRowProps = {
   accent: "primary" | "secondary";
   title: string;
-  subtitle: string;
+  subtitle?: string;
   emoji?: string;
   trailing?: ReactNode;
   className?: string;
@@ -60,13 +60,15 @@ export function PortalSidebarBrandRow({
         >
           {emoji}
         </Box>
-        <Box className={brandTextClassName} sx={{ minWidth: 0 }}>
-          <Typography variant="body2" noWrap color="text.primary" sx={{ fontWeight: 600 }}>
+        <Box className={brandTextClassName} sx={{ minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <Typography variant="body2" noWrap color="text.primary" sx={{ fontWeight: 600, lineHeight: 1.25 }}>
             {title}
           </Typography>
-          <Typography variant="caption" noWrap color="text.secondary">
-            {subtitle}
-          </Typography>
+          {subtitle ? (
+            <Typography variant="caption" noWrap color="text.secondary">
+              {subtitle}
+            </Typography>
+          ) : null}
         </Box>
       </Box>
       {trailing ? (
