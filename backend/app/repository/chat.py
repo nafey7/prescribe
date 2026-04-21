@@ -85,6 +85,17 @@ async def save_message(
     return message_id
 
 
+async def get_message(
+    db: AsyncIOMotorDatabase, chat_id: str, message_id: str
+) -> dict | None:
+    """Return a single chat message by id, or None."""
+    doc = await db.chat_messages.find_one({"chat_id": chat_id, "message_id": message_id})
+    if doc is None:
+        return None
+    doc.pop("_id", None)
+    return doc
+
+
 async def get_messages(
     db: AsyncIOMotorDatabase, chat_id: str, limit: int = 50
 ) -> list[dict]:

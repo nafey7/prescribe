@@ -2,7 +2,9 @@ import { render, waitFor } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
+import { ColorModeProvider } from "../contexts/ColorModeContext";
 import { FeatureFlagProvider } from "../contexts/FeatureFlagContext";
+import { AppThemeProvider } from "../providers/AppThemeProvider";
 import { appRouteTree } from "../router";
 import { store } from "../store";
 
@@ -22,9 +24,13 @@ function renderWithRouter(initialPath: string) {
   const r = createMemoryRouter(appRouteTree, { initialEntries: [initialPath] });
   render(
     <Provider store={store}>
-      <FeatureFlagProvider>
-        <RouterProvider router={r} />
-      </FeatureFlagProvider>
+      <ColorModeProvider>
+        <AppThemeProvider>
+          <FeatureFlagProvider>
+            <RouterProvider router={r} />
+          </FeatureFlagProvider>
+        </AppThemeProvider>
+      </ColorModeProvider>
     </Provider>
   );
   return r;

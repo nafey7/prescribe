@@ -12,8 +12,16 @@ import {
 import { Markdown } from "../ui/Markdown";
 import { MealPlanMessage } from "./chat/MealPlanMessage";
 
+export type MealPlanDoctorContext = {
+  doctorId: string;
+  patientId: string;
+  chatId?: string;
+};
+
 interface ChatMessageProps {
   message: Message;
+  /** When set (doctor chat), meal-plan rows can download PDF / share with patient. */
+  mealPlanContext?: MealPlanDoctorContext;
 }
 
 function StreamingCursor() {
@@ -38,7 +46,7 @@ function StreamingCursor() {
   );
 }
 
-function ChatMessageInner({ message }: ChatMessageProps) {
+function ChatMessageInner({ message, mealPlanContext }: ChatMessageProps) {
   const isUser = message.role === "user";
   const role = isUser ? "user" : "assistant";
 
@@ -80,6 +88,10 @@ function ChatMessageInner({ message }: ChatMessageProps) {
           <MealPlanMessage
             payload={message.meal_plan}
             isStreaming={message.isStreaming}
+            messageId={message.messageId}
+            doctorId={mealPlanContext?.doctorId}
+            patientId={mealPlanContext?.patientId}
+            chatId={mealPlanContext?.chatId}
           />
         ) : (
           <Box
@@ -112,13 +124,19 @@ function ChatMessageInner({ message }: ChatMessageProps) {
 const ChatMessage = memo(ChatMessageInner, (prev, next) => {
   const p = prev.message;
   const n = next.message;
+  const pc = prev.mealPlanContext;
+  const nc = next.mealPlanContext;
   return (
     p.content === n.content &&
     p.isStreaming === n.isStreaming &&
     p.isThinking === n.isThinking &&
     p.thinkingStatus === n.thinkingStatus &&
     p.message_type === n.message_type &&
-    p.meal_plan === n.meal_plan
+    p.meal_plan === n.meal_plan &&
+    p.messageId === n.messageId &&
+    pc?.doctorId === nc?.doctorId &&
+    pc?.patientId === nc?.patientId &&
+    pc?.chatId === nc?.chatId
   );
 });
 

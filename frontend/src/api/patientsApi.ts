@@ -1,5 +1,9 @@
 import type { Patient } from "../types/chat";
 import type {
+  MealPlanShareListResponse,
+  MealPlanShareResponse,
+} from "../types/mealPlanShare";
+import type {
   MedicalHistory,
   PatientListResponse,
   PatientProfile,
@@ -54,6 +58,44 @@ export const patientsApi = baseApi.injectEndpoints({
         `/patients/${encodeURIComponent(patientId)}/medical-history`,
       providesTags: (_r, _e, patientId) => [{ type: "Patient", id: patientId }],
     }),
+    listPatientMealPlanShares: builder.query<
+      MealPlanShareListResponse,
+      { patientId: string; skip?: number; limit?: number }
+    >({
+      query: ({ patientId, skip = 0, limit = 50 }) => {
+        const q = new URLSearchParams({
+          skip: String(skip),
+          limit: String(limit),
+        });
+        return `/patients/${encodeURIComponent(patientId)}/meal-plan-shares?${q}`;
+      },
+      providesTags: (_r, _e, arg) => [
+        { type: "MealPlanShares", id: arg.patientId },
+      ],
+    }),
+    getPatientMealPlanShare: builder.query<
+      MealPlanShareResponse,
+      { patientId: string; shareId: string }
+    >({
+      query: ({ patientId, shareId }) =>
+        `/patients/${encodeURIComponent(patientId)}/meal-plan-shares/${encodeURIComponent(shareId)}`,
+      providesTags: (_r, _e, arg) => [
+        {
+          type: "MealPlanShares",
+          id: `${arg.patientId}-${arg.shareId}`,
+        },
+      ],
+    }),
+    getPatientMealPlanSharePdf: builder.query<
+      Blob,
+      { patientId: string; shareId: string }
+    >({
+      query: ({ patientId, shareId }) => ({
+        url: `/patients/${encodeURIComponent(patientId)}/meal-plan-shares/${encodeURIComponent(shareId)}/pdf`,
+        method: "GET",
+        responseHandler: (response: Response) => response.blob(),
+      }),
+    }),
   }),
 });
 
@@ -64,4 +106,7 @@ export const {
   useGetPatientQuery,
   useUpdatePatientMutation,
   useGetMedicalHistoryQuery,
+  useListPatientMealPlanSharesQuery,
+  useGetPatientMealPlanShareQuery,
+  useLazyGetPatientMealPlanSharePdfQuery,
 } = patientsApi;

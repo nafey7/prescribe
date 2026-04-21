@@ -47,13 +47,20 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
         const data = await triggerHistory({ doctorId, chatId: cid }).unwrap();
         setChatId(data.chat_id);
         setMessages(
-          data.messages.map((m) => ({
-            role: m.role as "user" | "assistant",
-            content: m.content,
-            timestamp: normalizeTimestamp(m.timestamp),
-            message_type: m.message_type,
-            meal_plan: m.meal_plan ?? undefined,
-          }))
+          data.messages.map((m) => {
+            const raw = m as typeof m & { message_id?: string };
+            return {
+              role: m.role as "user" | "assistant",
+              content: m.content,
+              timestamp: normalizeTimestamp(m.timestamp),
+              messageId:
+                typeof raw.message_id === "string" && raw.message_id
+                  ? raw.message_id
+                  : undefined,
+              message_type: m.message_type,
+              meal_plan: m.meal_plan ?? undefined,
+            };
+          })
         );
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Failed to load chat";
@@ -198,7 +205,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
             tokenBufferRef.current += token;
             scheduleFlush();
           },
-          onDone: (newChatId, _messageId, messageType, mealPlan) => {
+          onDone: (newChatId, messageIdFromStream, messageType, mealPlan) => {
             if (rafIdRef.current !== null) {
               cancelAnimationFrame(rafIdRef.current);
               rafIdRef.current = null;
@@ -218,6 +225,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
               ...msg,
               isStreaming: false,
               isThinking: false,
+              messageId: messageIdFromStream || undefined,
               message_type: messageType,
               meal_plan: mealPlan ?? undefined,
             }));

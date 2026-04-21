@@ -1,5 +1,6 @@
 import type { ChatHistoryResponse, ChatResponse } from "../types/chat";
 import type { ChatSessionSummary } from "../types/doctor";
+import type { MealPlanShareResponse } from "../types/mealPlanShare";
 import { baseApi } from "./baseApi";
 
 export const chatApi = baseApi.injectEndpoints({
@@ -90,6 +91,42 @@ export const chatApi = baseApi.injectEndpoints({
         { type: "Chat", id: arg.chatId },
       ],
     }),
+    getDoctorMealPlanPdf: builder.query<
+      Blob,
+      {
+        doctorId: string;
+        patientId: string;
+        chatId: string;
+        messageId: string;
+      }
+    >({
+      query: ({ doctorId, patientId, chatId, messageId }) => {
+        const q = new URLSearchParams({
+          chat_id: chatId,
+          message_id: messageId,
+        });
+        return {
+          url: `/doctors/${encodeURIComponent(doctorId)}/patients/${encodeURIComponent(patientId)}/chat/meal-plan/pdf?${q}`,
+          method: "GET",
+          skipPatientHeader: true,
+          responseHandler: (response: Response) => response.blob(),
+        };
+      },
+    }),
+    createDoctorMealPlanShare: builder.mutation<
+      MealPlanShareResponse,
+      { doctorId: string; patientId: string; chatId: string; messageId: string }
+    >({
+      query: ({ doctorId, patientId, chatId, messageId }) => ({
+        url: `/doctors/${encodeURIComponent(doctorId)}/patients/${encodeURIComponent(patientId)}/meal-plan-shares`,
+        method: "POST",
+        body: JSON.stringify({ chat_id: chatId, message_id: messageId }),
+        skipPatientHeader: true,
+      }),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: "MealPlanShares", id: arg.patientId },
+      ],
+    }),
   }),
 });
 
@@ -101,4 +138,6 @@ export const {
   useLazyGetDoctorChatHistoryQuery,
   useSendDoctorChatMessageMutation,
   useDeleteDoctorChatMutation,
+  useLazyGetDoctorMealPlanPdfQuery,
+  useCreateDoctorMealPlanShareMutation,
 } = chatApi;

@@ -1,5 +1,21 @@
 /** Tailwind-aligned primary ramp on `palette.primary` for theme-aware `sx` / tokens. */
 declare module "@mui/material/styles" {
+  interface Palette {
+    surface: {
+      subtle: string;
+      muted: string;
+      elevated: string;
+    };
+  }
+
+  interface PaletteOptions {
+    surface?: {
+      subtle?: string;
+      muted?: string;
+      elevated?: string;
+    };
+  }
+
   interface PaletteColor {
     50?: string;
     100?: string;
@@ -26,3 +42,5 @@ declare module "@mui/material/styles" {
     900?: string;
   }
 }
+
+export {};

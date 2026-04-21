@@ -20,8 +20,8 @@ Doctors can ask the medical AI to generate a **personalized meal plan** for the 
 
 **Out of scope (unless later explicitly added)**
 
-- Patient-facing meal plans (patient chat could reuse the same API fields later; not required for this feature).
-- Saving meal plans as standalone prescriptions or PDF export (can be a follow-up).
+- Patient-facing meal plans (patient chat could reuse the same API fields later; not required for this feature). **Follow-up:** PDF export, durable **share** records, and patient portal list/detail are implemented in [`PLAN_MEAL_PLAN_PDF_AND_PATIENT_SHARE.md`](./PLAN_MEAL_PLAN_PDF_AND_PATIENT_SHARE.md).
+- Saving meal plans as standalone prescriptions or PDF export (can be a follow-up — see plan above).
 - Nutrition API integrations (USDA, etc.) — plan may include **estimated** macros as text fields only.
 - Regulatory/compliance sign-off; UI will include a standard **educational / not a substitute for professional dietary counseling** disclaimer.
 

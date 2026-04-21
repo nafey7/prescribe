@@ -51,7 +51,7 @@ export default function ChatSessionSidebar({
         flexDirection: "column",
         borderBottom: { xs: 1, md: 0 },
         borderBottomColor: "divider",
-        bgcolor: "grey.50",
+        bgcolor: "surface.subtle",
         alignSelf: { md: "stretch" },
       }}
     >

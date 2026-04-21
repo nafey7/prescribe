@@ -14,6 +14,10 @@ describe("paths", () => {
     expect(paths.patient.documents).toBe("/patient/documents");
     expect(paths.patient.doctors).toBe("/patient/doctors");
     expect(paths.patient.chat).toBe("/patient/chat");
+    expect(paths.patient.mealPlans).toBe("/patient/meal-plans");
+    expect(paths.patient.mealPlanDetail("abc-123")).toBe(
+      "/patient/meal-plans/abc-123"
+    );
     expect(paths.patient.profileLegacy("u1")).toBe("/patient/profile/u1");
   });
 

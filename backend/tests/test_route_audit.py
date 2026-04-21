@@ -29,7 +29,15 @@ def _fill_path(path: str) -> str:
         .replace("{connection_id}", "conn_route_audit_1")
         .replace("{document_id}", "doc_route_audit_1")
         .replace("{suggestion_id}", "sug_route_audit_1")
+        .replace("{share_id}", "share_route_audit_1")
     )
+
+
+def _url_for_route_audit(method: str, route_path: str, filled_path: str) -> str:
+    if method == "GET" and "meal-plan/pdf" in route_path and "/chat/meal-plan/pdf" in route_path:
+        sep = "&" if "?" in filled_path else "?"
+        return f"{filled_path}{sep}chat_id=chat_route_audit_1&message_id=msg_route_audit_1"
+    return filled_path
 
 
 def _json_body(method: str, path: str) -> dict | None:
@@ -69,6 +77,11 @@ def _json_body(method: str, path: str) -> dict | None:
         "/suggestions/reject-all"
     ):
         return None
+    if path.endswith("/meal-plan-shares") and "/doctors/" in path:
+        return {
+            "chat_id": "chat_route_audit_1",
+            "message_id": "msg_route_audit_1",
+        }
     return None
 
 
@@ -105,7 +118,8 @@ def test_all_api_routes_require_authentication(route_audit_env):
                     body = _json_body(method, route.path)
                     if body is not None:
                         kwargs["json"] = body
-                resp = client.request(method, filled, **kwargs)
+                url = _url_for_route_audit(method, route.path, filled)
+                resp = client.request(method, url, **kwargs)
                 assert resp.status_code in (
                     401,
                     403,

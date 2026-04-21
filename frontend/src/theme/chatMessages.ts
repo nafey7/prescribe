@@ -65,7 +65,7 @@ export function chatMessageBubbleSx(theme: Theme, role: ChatMessageBubbleRole) {
     px: 1.75,
     py: 1,
     borderRadius: BUBBLE_RADIUS_UNITS,
-    bgcolor: theme.palette.grey[50],
+    bgcolor: theme.palette.surface.subtle,
     color: "text.primary",
     border: `1px solid ${theme.palette.divider}`,
     boxShadow: "none",
@@ -89,11 +89,11 @@ export function chatMessageTimestampSx(theme: Theme, role: ChatMessageBubbleRole
 }
 
 /** Assistant “thinking” / typing row — matches receiver bubble language. */
-export function chatAssistantStatusBubbleSx() {
+export function chatAssistantStatusBubbleSx(theme: Theme) {
   return {
     width: "fit-content",
     maxWidth: BUBBLE_MAX_WIDTH,
-    bgcolor: "grey.50",
+    bgcolor: theme.palette.surface.subtle,
     border: 1,
     borderColor: "divider",
     borderRadius: BUBBLE_RADIUS_UNITS,

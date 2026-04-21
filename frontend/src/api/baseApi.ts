@@ -90,6 +90,7 @@ export const baseApi = createApi({
     "Suggestions",
     "Connections",
     "Auth",
+    "MealPlanShares",
   ],
   endpoints: () => ({}),
 });

@@ -3,15 +3,18 @@ import ReactDOM from "react-dom/client";
 import { Provider } from "react-redux";
 import App from "./App";
 import "./index.css";
+import { ColorModeProvider } from "./contexts/ColorModeContext";
 import { AppThemeProvider } from "./providers/AppThemeProvider";
 import { store } from "./store";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <Provider store={store}>
-      <AppThemeProvider>
-        <App />
-      </AppThemeProvider>
+      <ColorModeProvider>
+        <AppThemeProvider>
+          <App />
+        </AppThemeProvider>
+      </ColorModeProvider>
     </Provider>
   </React.StrictMode>
 );

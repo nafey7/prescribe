@@ -78,7 +78,7 @@ export default function LabResultsCard({ lab_reports }: Props) {
                         borderRadius: 1,
                         px: 1,
                         py: 0.5,
-                        bgcolor: (t) => alpha(t.palette.grey[500], 0.08),
+                        bgcolor: (t) => alpha(t.palette.text.primary, 0.08),
                       }}
                     >
                       <Typography variant="body2" color="text.secondary">

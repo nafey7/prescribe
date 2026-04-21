@@ -10,7 +10,7 @@ Client-side routes (`react-router-dom`, `createBrowserRouter` in `frontend/src/r
 |------|--------|---------|
 | `/` | `RootLayout` | Public landing (sign in / create account); `?auth=login` or `signup`, `?returnUrl=`, optional `?role=doctor` when `allow_doctor_self_signup` |
 | `/login`, `/signup` | — | Redirect to `/?auth=…` (preserves query) |
-| `/patient`, `/patient/profile`, `/patient/documents`, `/patient/doctors`, `/patient/chat` | `PatientLayout` | Patient portal (dashboard, profile, documents, “my doctors” placeholder, AI chat) |
+| `/patient`, `/patient/profile`, `/patient/documents`, `/patient/doctors`, `/patient/chat`, `/patient/meal-plans`, `/patient/meal-plans/:shareId` | `PatientLayout` | Patient portal (dashboard, profile, documents, “my doctors”, AI chat, **shared meal plans** list/detail) |
 | `/patient/profile/:userId` | `PatientLayout` | Legacy under `/patient`: syncs picker → `/patient/profile` |
 | `/doctor`, `/doctor/...` | `DoctorLayout` | Doctor portal: profile, patients list/detail, documents, chat, prescriptions, connections |
 | `/admin`, `/admin/*` | — | Reserved; **`Navigate replace`** to `/` until an admin portal exists |
@@ -67,6 +67,11 @@ Protected routes expect **`Authorization: Bearer <access_token>`** when `AUTH_RE
 | `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/chat/sessions` | — | `ChatSessionSummary[]` | Chat sessions for this doctor–patient pair; **403** if not connected |
 | `GET` | `/api/doctors/{doctor_id}/chat/sessions` | Query: optional `patient_id` | `ChatSessionSummary[]` | All chat sessions for this doctor; optional `patient_id` filter (connection required when filter set) |
 | `GET` | `/api/doctors/{doctor_id}/chat/history/{chat_id}` | — | `ChatHistoryResponse` | **403** if session is legacy (no `doctor_id`) or belongs to another doctor; **404** if chat missing |
+| `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/chat/meal-plan/pdf` | Query: **`chat_id`**, **`message_id`** (required) | `application/pdf` (stream) | Doctor-only; **403** without active connection; **404** if message missing / wrong chat / not `meal_plan`. `Content-Disposition: attachment` with ASCII-safe `meal-plan-{message_id}.pdf` |
+| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/meal-plan-shares` | `MealPlanShareCreate` — `{ chat_id, message_id }` | `MealPlanShareResponse` | Creates a **snapshot** in `meal_plan_shares` for the patient portal. **201** when inserted; **200** when an active share already exists for the same `(patient_id, source_message_id)` (idempotent). **403** / **404** same rules as PDF |
+| `GET` | `/api/patients/{patient_id}/meal-plan-shares` | Query: `skip`, `limit` | `MealPlanShareListResponse` | Patient self (**JWT** `patient_id` must match path, or dev bypass). Active shares only (`revoked_at` null) |
+| `GET` | `/api/patients/{patient_id}/meal-plan-shares/{share_id}` | — | `MealPlanShareResponse` | Full snapshot including `meal_plan`. **404** if revoked, wrong patient, or unknown `share_id` |
+| `GET` | `/api/patients/{patient_id}/meal-plan-shares/{share_id}/pdf` | — | `application/pdf` (stream) | PDF rendered from stored snapshot (works even if source chat was deleted). Same attachment naming pattern using `share_id` |
 | `GET` | `/api/config/features` | — | `{ ai_suggestions_enabled, auth_relaxed, allow_doctor_self_signup }` | Public config snapshot the frontend reads at boot (snake_case on the wire; camelCase in `FeatureFlagContext`) |
 | `GET` | `/health` | — | `{ status: "ok" }` | Health check |
 
@@ -147,6 +152,45 @@ Legacy rows without `message_type` / `meal_plan` in MongoDB are treated as **`"t
 class ChatHistoryResponse(BaseModel):
     chat_id: str
     messages: list[MessageSchema]  # role, content, timestamp; optional message_type, meal_plan
+```
+
+### Meal plan shares (MongoDB + API)
+
+Shared meal plans are stored in collection **`meal_plan_shares`**: `share_id` (UUID), `patient_id`, `doctor_id`, **`meal_plan`** (snapshot dict, same shape as chat `meal_plan`), `source_chat_id`, `source_message_id`, optional `chat_title`, `created_at`, optional `revoked_at`. Indexes cover patient list queries and idempotent create by `(patient_id, source_message_id)` for active rows. See `docs/plans/PLAN_MEAL_PLAN_PDF_AND_PATIENT_SHARE.md`.
+
+```python
+class MealPlanShareCreate(BaseModel):
+    chat_id: str
+    message_id: str
+
+
+class MealPlanShareResponse(BaseModel):
+    share_id: str
+    patient_id: str
+    doctor_id: str
+    meal_plan: MealPlanPayload
+    source_chat_id: str
+    source_message_id: str
+    chat_title: str | None = None
+    doctor_display_name: str | None = None
+    created_at: datetime
+    revoked_at: datetime | None = None
+
+
+class MealPlanShareListItem(BaseModel):
+    share_id: str
+    doctor_id: str
+    doctor_display_name: str | None = None
+    chat_title: str | None = None
+    created_at: datetime
+    summary_line: str | None = None
+
+
+class MealPlanShareListResponse(BaseModel):
+    items: list[MealPlanShareListItem]
+    total: int
+    skip: int
+    limit: int
 ```
 
 ### `ChatSessionSummary`
@@ -274,6 +318,8 @@ The `useChat` hook uses `requestAnimationFrame` to batch token updates, preventi
 | Message persistence | Backend (`repository/chat.py`) | MongoDB writes |
 | SSE event format | Backend (`service/chat.py` `_format_sse`) | Event structure |
 | SSE parsing | Frontend (`api/chatStream.ts`) | Stream reading, JSON parsing, `done` metadata |
+| Meal plan PDF + shares | Backend (`service/meal_plan_pdf.py`, `service/meal_plan_share.py`, `repository/meal_plan_share.py`) | Server-side PDF bytes; share snapshots independent of chat deletion |
+| Patient meal plan UI | Frontend (`PatientMealPlansPage.tsx`, `PatientMealPlanDetailPage.tsx`; RTK `patientsApi` + `chatApi`) | List/detail; PDF via `/api/patients/.../meal-plan-shares/{share_id}/pdf` |
 | State management | Frontend (`useChat` hook) | Messages, loading, errors |
 | Markdown rendering | Frontend (`ChatMessage` component) | react-markdown + remark-gfm |
 | Streaming UX | Frontend (components) | Thinking indicator, cursor, RAF buffering |

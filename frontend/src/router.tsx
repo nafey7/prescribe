@@ -23,6 +23,8 @@ import DocumentsPage from "./pages/DocumentsPage";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import PatientDoctorsPage from "./pages/patient/PatientDoctorsPage";
+import PatientMealPlanDetailPage from "./pages/patient/PatientMealPlanDetailPage";
+import PatientMealPlansPage from "./pages/patient/PatientMealPlansPage";
 import ProfilePage from "./pages/ProfilePage";
 import SignupPage from "./pages/SignupPage";
 import { paths } from "./router/paths";
@@ -102,6 +104,8 @@ export const appRouteTree: RouteObject[] = [
               { path: "profile/:userId", element: <ProfileLegacyRedirect /> },
               { path: "documents", element: <DocumentsPage /> },
               { path: "doctors", element: <PatientDoctorsPage /> },
+              { path: "meal-plans", element: <PatientMealPlansPage /> },
+              { path: "meal-plans/:shareId", element: <PatientMealPlanDetailPage /> },
               { path: "chat", element: <ChatPage /> },
             ],
           },

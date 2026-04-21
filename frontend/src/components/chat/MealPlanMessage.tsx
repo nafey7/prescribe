@@ -1,28 +1,119 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
+import Snackbar from "@mui/material/Snackbar";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material";
-import { ChevronDown, Utensils } from "lucide-react";
+import { ChevronDown, Download, Share2, Utensils } from "lucide-react";
+import {
+  useCreateDoctorMealPlanShareMutation,
+  useLazyGetDoctorMealPlanPdfQuery,
+} from "../../api/chatApi";
 import type { MealPlanPayload } from "../../types/mealPlan";
+import { downloadBlob } from "../../utils/downloadBlob";
 
 interface MealPlanMessageProps {
   payload: MealPlanPayload;
   isStreaming?: boolean;
+  messageId?: string;
+  doctorId?: string;
+  patientId?: string;
+  chatId?: string;
 }
 
-export function MealPlanMessage({ payload, isStreaming }: MealPlanMessageProps) {
+function formatShareError(err: unknown): string {
+  if (err && typeof err === "object" && "data" in err) {
+    const data = (err as { data?: { detail?: unknown } }).data;
+    const d = data?.detail;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d)) return d.map((x) => String(x)).join(", ");
+  }
+  if (err instanceof Error) return err.message;
+  return "Something went wrong.";
+}
+
+export function MealPlanMessage({
+  payload,
+  isStreaming,
+  messageId,
+  doctorId,
+  patientId,
+  chatId,
+}: MealPlanMessageProps) {
   const firstDay = payload.days[0]?.day_index ?? false;
   const [expanded, setExpanded] = useState<number | false>(firstDay);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [sharedConfirmed, setSharedConfirmed] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const [fetchPdf, { isFetching: pdfFetching }] = useLazyGetDoctorMealPlanPdfQuery();
+  const [createShare, { isLoading: shareSubmitting }] =
+    useCreateDoctorMealPlanShareMutation();
+
+  const doctorActions =
+    Boolean(doctorId) && Boolean(patientId) && Boolean(chatId) && Boolean(messageId);
+
+  const ctxReady = doctorActions && !isStreaming;
+  const canDownload = ctxReady && !pdfFetching;
+  const canShare = ctxReady && !shareSubmitting;
 
   const handleChange =
     (dayIndex: number) => (_: React.SyntheticEvent, isExpanded: boolean) => {
       setExpanded(isExpanded ? dayIndex : false);
     };
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!doctorId || !patientId || !chatId || !messageId) return;
+    setToast(null);
+    try {
+      const blob = await fetchPdf({
+        doctorId,
+        patientId,
+        chatId,
+        messageId,
+      }).unwrap();
+      const safe = messageId.replace(/[^\w.-]+/g, "_").slice(0, 120) || "plan";
+      downloadBlob(blob, `meal-plan-${safe}.pdf`);
+    } catch (e) {
+      setToast(formatShareError(e));
+    }
+  }, [doctorId, patientId, chatId, messageId, fetchPdf]);
+
+  const onConfirmShare = useCallback(async () => {
+    if (!doctorId || !patientId || !chatId || !messageId) return;
+    setToast(null);
+    try {
+      await createShare({
+        doctorId,
+        patientId,
+        chatId,
+        messageId,
+      }).unwrap();
+      setSharedConfirmed(true);
+      setShareDialogOpen(false);
+    } catch (e) {
+      setToast(formatShareError(e));
+    }
+  }, [doctorId, patientId, chatId, messageId, createShare]);
+
+  const savingHint = isStreaming || !messageId;
+  const disabledReasonBase = savingHint
+    ? "Wait until the plan is saved…"
+    : !doctorActions
+      ? "Missing chat context"
+      : null;
 
   return (
     <Box
@@ -35,6 +126,98 @@ export function MealPlanMessage({ payload, isStreaming }: MealPlanMessageProps) 
         },
       }}
     >
+      {doctorId ? (
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ flexWrap: "wrap", alignItems: "center", mb: 1.5, gap: 1 }}
+        >
+          <Tooltip
+            title={
+              disabledReasonBase ??
+              (pdfFetching ? "Preparing download…" : "Download PDF")
+            }
+          >
+            <span>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={
+                  pdfFetching ? (
+                    <CircularProgress size={14} color="inherit" />
+                  ) : (
+                    <Download size={16} />
+                  )
+                }
+                disabled={!canDownload}
+                onClick={() => void handleDownloadPdf()}
+              >
+                Download PDF
+              </Button>
+            </span>
+          </Tooltip>
+          <Tooltip title={disabledReasonBase ?? "Share via patient portal"}>
+            <span>
+              <Button
+                size="small"
+                variant="contained"
+                color="secondary"
+                startIcon={
+                  shareSubmitting ? (
+                    <CircularProgress size={14} color="inherit" />
+                  ) : (
+                    <Share2 size={16} />
+                  )
+                }
+                disabled={!canShare}
+                onClick={() => setShareDialogOpen(true)}
+              >
+                Share with patient
+              </Button>
+            </span>
+          </Tooltip>
+          {sharedConfirmed ? (
+            <Chip size="small" color="success" variant="outlined" label="Shared" />
+          ) : null}
+        </Stack>
+      ) : null}
+
+      <Dialog
+        open={shareDialogOpen}
+        onClose={() => !shareSubmitting && setShareDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Share meal plan</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+            The patient will see this meal plan in their portal under Meal plans. They can
+            review it anytime and download the same PDF.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setShareDialogOpen(false)} disabled={shareSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={() => void onConfirmShare()}
+            disabled={shareSubmitting}
+          >
+            Share
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={Boolean(toast)}
+        autoHideDuration={6000}
+        onClose={() => setToast(null)}
+        message={toast}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      />
+
       {payload.summary ? (
         <Typography
           variant="body2"

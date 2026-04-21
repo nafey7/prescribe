@@ -15,6 +15,8 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { matchPath, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { paths } from "../../router/paths";
+import ThemeToggleButton from "../ThemeToggleButton";
+import { PortalSidebarBrandRow } from "../../ui/PortalSidebarBrandRow";
 import { SidebarNavItemButton } from "../../ui/SidebarNavItemButton";
 
 export type DoctorNavItem = {
@@ -140,46 +142,14 @@ function DoctorSidebarInner({
         </Box>
       ) : null}
 
-      <Box
+      <PortalSidebarBrandRow
         className="doctor-sidebar-brand-row"
-        sx={{
-          height: 56,
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          px: 1.5,
-          borderBottom: 1,
-          borderColor: "divider",
-        }}
-      >
-        <Box sx={{ display: "flex", minWidth: 0, alignItems: "center", gap: 1 }}>
-          <Box
-            sx={{
-              width: 36,
-              height: 36,
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 1.5,
-              bgcolor: "secondary.dark",
-              color: "secondary.contrastText",
-              typography: "subtitle1",
-              lineHeight: 1,
-            }}
-          >
-            🩺
-          </Box>
-          <Box className="doctor-sidebar-brand" sx={{ minWidth: 0 }}>
-            <Typography variant="body2" noWrap color="text.primary" sx={{ fontWeight: 600 }}>
-              Doctor portal
-            </Typography>
-            <Typography variant="caption" noWrap color="text.secondary">
-              Clinical workspace
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
+        brandTextClassName="doctor-sidebar-brand"
+        accent="secondary"
+        title="Doctor portal"
+        subtitle="Clinical workspace"
+        trailing={<ThemeToggleButton />}
+      />
 
       <Box
         component="nav"

@@ -43,14 +43,20 @@ export default function ChatPage() {
         <Box
           sx={{
             flexShrink: 0,
+            minHeight: 56,
             borderBottom: 1,
             borderColor: "divider",
             bgcolor: "background.paper",
             px: 2,
-            py: 1,
+            py: 0,
+            display: "flex",
+            alignItems: "center",
           }}
         >
-          <Stack direction="row" sx={{ justifyContent: "flex-end", width: "100%" }}>
+          <Stack
+            direction="row"
+            sx={{ justifyContent: "flex-end", width: "100%", minHeight: 56, alignItems: "center" }}
+          >
             <PatientSelector
               selectedId={currentPatientId}
               onChange={handlePatientChange}
@@ -63,11 +69,14 @@ export default function ChatPage() {
         component="header"
         sx={{
           flexShrink: 0,
+          minHeight: 56,
           borderBottom: 1,
           borderColor: "divider",
           bgcolor: "background.paper",
           px: 2,
-          py: 1.5,
+          py: 0,
+          display: "flex",
+          alignItems: "center",
         }}
       >
         <Stack
@@ -78,6 +87,8 @@ export default function ChatPage() {
             alignItems: "center",
             justifyContent: "space-between",
             width: "100%",
+            minHeight: 56,
+            py: 1,
           }}
         >
           <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>

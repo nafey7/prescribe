@@ -1,7 +1,8 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from fastapi.responses import StreamingResponse
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.api.dependencies import ensure_doctor_route, resolve_actor_user
 from app.database.connection import get_database
@@ -11,9 +12,11 @@ from app.schemas.chat import (
     ChatResponse,
     ChatSessionSummary,
 )
+from app.schemas.meal_plan_share import MealPlanShareCreate, MealPlanShareResponse
 from app.service import chat as chat_service
 from app.service import connection as connection_service
 from app.service import doctor_chat as doctor_chat_service
+from app.service import meal_plan_share as meal_plan_share_service
 from app.service.auth import CurrentUser
 
 logger = logging.getLogger(__name__)
@@ -120,6 +123,53 @@ async def doctor_chat_history(
     db = get_database()
     return await doctor_chat_service.get_doctor_chat_history(
         db, doctor_id, chat_id
+    )
+
+
+@router.get("/{doctor_id}/patients/{patient_id}/chat/meal-plan/pdf")
+async def doctor_download_meal_plan_pdf(
+    doctor_id: str,
+    patient_id: str,
+    chat_id: str = Query(..., min_length=1),
+    message_id: str = Query(..., min_length=1),
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+) -> Response:
+    ensure_doctor_route(actor, doctor_id)
+    db = get_database()
+    pdf_bytes = await meal_plan_share_service.doctor_meal_plan_pdf_bytes(
+        db, doctor_id, patient_id, chat_id, message_id
+    )
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in message_id)
+    safe = (safe or "plan")[:120]
+    filename = f"meal-plan-{safe}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
+
+
+@router.post(
+    "/{doctor_id}/patients/{patient_id}/meal-plan-shares",
+    response_model=MealPlanShareResponse,
+    responses={200: {"model": MealPlanShareResponse}, 201: {"model": MealPlanShareResponse}},
+)
+async def doctor_create_meal_plan_share(
+    doctor_id: str,
+    patient_id: str,
+    body: MealPlanShareCreate,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+) -> JSONResponse:
+    ensure_doctor_route(actor, doctor_id)
+    db = get_database()
+    result, created = await meal_plan_share_service.doctor_create_share(
+        db, doctor_id, patient_id, body.chat_id, body.message_id
+    )
+    return JSONResponse(
+        status_code=201 if created else 200,
+        content=jsonable_encoder(result),
     )
 
 

@@ -2,8 +2,8 @@
  * Testing Library wrappers that mirror production providers so `useTheme()` and Redux
  * hooks work without per-test boilerplate.
  *
- * - `renderWithTheme`: `AppThemeProvider` only (CssBaseline + ThemeProvider).
- * - `renderWithProviders`: Redux `Provider` + `AppThemeProvider`, optional `MemoryRouter`.
+ * - `renderWithTheme`: `ColorModeProvider` + `AppThemeProvider` (matches production).
+ * - `renderWithProviders`: Redux `Provider` + color mode + theme, optional `MemoryRouter`.
  *
  * Prefer asserting roles, labels, or `data-testid` — avoid relying on Tailwind class names.
  */
@@ -19,6 +19,7 @@ import {
   MemoryRouter,
   type MemoryRouterProps,
 } from "react-router-dom";
+import { ColorModeProvider } from "../contexts/ColorModeContext";
 import { AppThemeProvider } from "../providers/AppThemeProvider";
 import { store } from "../store";
 
@@ -28,7 +29,11 @@ export type RenderWithProvidersOptions = Omit<RenderOptions, "wrapper"> & {
 };
 
 function wrapWithTheme(children: ReactNode) {
-  return <AppThemeProvider>{children}</AppThemeProvider>;
+  return (
+    <ColorModeProvider>
+      <AppThemeProvider>{children}</AppThemeProvider>
+    </ColorModeProvider>
+  );
 }
 
 export function renderWithTheme(

@@ -147,6 +147,11 @@ export default function DoctorChatPage() {
               messages={messages}
               isLoading={isLoading}
               onSuggestionClick={sendMessage}
+              mealPlanContext={{
+                doctorId: currentDoctorId,
+                patientId: patientId,
+                chatId,
+              }}
             />
           </Box>
 

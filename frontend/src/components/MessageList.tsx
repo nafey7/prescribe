@@ -10,13 +10,15 @@ import {
   chatAssistantStatusBubbleSx,
 } from "../theme/chatMessages";
 import type { Message, ThinkingPhase } from "../types/chat";
-import ChatMessage from "./ChatMessage";
+import ChatMessage, { type MealPlanDoctorContext } from "./ChatMessage";
 
 interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
   /** When set, empty-state suggestion chips send this text (e.g. `sendMessage`). */
   onSuggestionClick?: (text: string) => void;
+  /** Doctor chat: enables meal-plan PDF + share actions. */
+  mealPlanContext?: MealPlanDoctorContext;
 }
 
 function ThinkingIndicator({
@@ -48,7 +50,7 @@ function ThinkingIndicator({
       <Box sx={(theme) => chatAssistantStatusAvatarSx(theme)}>
         <Stethoscope size={16} strokeWidth={2} />
       </Box>
-      <Box sx={chatAssistantStatusBubbleSx()}>
+      <Box sx={(theme) => chatAssistantStatusBubbleSx(theme)}>
         <Stack spacing={0.5}>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <Box
@@ -145,6 +147,7 @@ export default function MessageList({
   messages,
   isLoading,
   onSuggestionClick,
+  mealPlanContext,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastScrollRef = useRef(0);
@@ -205,7 +208,11 @@ export default function MessageList({
     <Stack spacing={2} sx={{ p: 2 }}>
       {messages.map((msg, i) =>
         msg.isThinking ? null : (
-          <ChatMessage key={`${msg.timestamp}-${i}`} message={msg} />
+          <ChatMessage
+            key={`${msg.timestamp}-${i}-${msg.messageId ?? ""}`}
+            message={msg}
+            mealPlanContext={mealPlanContext}
+          />
         )
       )}
       {showThinking ? (

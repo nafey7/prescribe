@@ -1,9 +1,9 @@
 import type { PaletteOptions } from "@mui/material";
 
 /**
- * Single source for color values (primary ramp + neutrals / semantic).
+ * Light appearance — values preserved from the pre–color-mode palette.
  */
-export const palette: PaletteOptions = {
+export const paletteLight: PaletteOptions = {
   mode: "light",
   primary: {
     main: "#2563eb",
@@ -62,4 +62,10 @@ export const palette: PaletteOptions = {
     paper: "#ffffff",
   },
   divider: "#e5e7eb",
+  /** Replaces fixed `grey[50]` / `grey[100]` fills that do not track dark mode. */
+  surface: {
+    subtle: "#fafafa",
+    muted: "#f3f4f6",
+    elevated: "#ffffff",
+  },
 };

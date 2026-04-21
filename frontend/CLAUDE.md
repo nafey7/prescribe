@@ -6,10 +6,10 @@ React + Vite + MUI chat UI for the medical AI chat. Start at the root [`CLAUDE.m
 
 ```
 frontend/src/
-├── theme/                   # Design tokens + `createTheme` → `appTheme`
+├── theme/                   # `createAppTheme(mode)`, `paletteLight` / `paletteDark`, component overrides
 ├── providers/
-│   └── AppThemeProvider.tsx # ThemeProvider + CssBaseline + GlobalStyles (tablet sidebar rail)
-├── ui/                      # Reusable primitives (e.g. Markdown)
+│   └── AppThemeProvider.tsx # `useColorMode` + dynamic `ThemeProvider` + CssBaseline + GlobalStyles (tablet sidebar rail)
+├── ui/                      # Reusable primitives (e.g. Markdown, `PortalSidebarBrandRow`)
 ├── App.tsx                  # FeatureFlagProvider + RouterProvider
 ├── router/
 │   ├── paths.ts             # Single source of truth for SPA paths (`/patient/*`, `/doctor/*`)
@@ -17,7 +17,7 @@ frontend/src/
 │   ├── authLanding.ts       # `isPublicAuthSurfacePath`, `authInterruptNavigateTo` (refresh → `/?returnUrl=`)
 │   └── rolePortalRedirect.ts # Role vs URL namespace guard (used by ProtectedAppShell)
 ├── router.tsx               # createBrowserRouter + `appRouteTree` (memory-router tests, redirects)
-├── main.tsx                 # Redux Provider + AppThemeProvider + App mount
+├── main.tsx                 # Redux → `ColorModeProvider` → `AppThemeProvider` → App
 ├── index.css                # Minimal global CSS (reduced-motion); theme handles the rest
 ├── store/
 │   ├── index.ts             # configureStore, baseApi middleware, setupListeners
@@ -47,6 +47,7 @@ frontend/src/
 │   ├── chatStream.ts        # SSE streams (shared header rules via client)
 │   └── suggestionsApi.ts    # Suggestions list + mutations
 ├── contexts/
+│   ├── ColorModeContext.tsx # Light/dark `PaletteMode`, `localStorage` (`prescribe-color-mode`), document `color-scheme`
 │   ├── AuthContext.tsx      # Tokens (memory + sessionStorage), /me bootstrap, login/signup/logout, proactive refresh
 │   ├── PatientContext.tsx   # Active patient + localStorage; sync from JWT when role=patient
 │   ├── IdentityContext.tsx  # Dev picker when `auth_relaxed`; else role + doctor id from `useAuth().user`
@@ -61,7 +62,7 @@ frontend/src/
 │   └── patient/             # e.g. PatientDoctorsPage (`/patient/doctors`)
 ├── components/
 │   ├── ChatPage.tsx         # Patient AI chat at `/patient/chat`
-│   ├── Sidebar.tsx, Header.tsx, Footer.tsx, DevIdentityBanner.tsx
+│   ├── Sidebar.tsx (brand row + `ThemeToggleButton`), Header.tsx (route title + actions; no theme toggle), Footer.tsx, ThemeToggleButton.tsx, DevIdentityBanner.tsx
 │   ├── DevIdentityBanner.tsx # Dev-only amber bar + PatientSelector (PatientLayout + ChatPage)
 │   ├── MessageList.tsx
 │   ├── ChatMessage.tsx
@@ -118,7 +119,8 @@ Redux store → baseApi middleware → fetch (JSON)
 ## Styling
 
 - **MUI** (`@mui/material`) + **Emotion** (`sx`, `styled`, `theme.components` overrides)
-- Central **`theme/`** (`palette`, `typography`, `shape`, per-component overrides); **`AppThemeProvider`** wraps the tree in `main.tsx`
+- **Color mode:** `ColorModeProvider` (outer) + **`AppThemeProvider`** in `main.tsx`. Preference key: `prescribe-color-mode` (`light` \| `dark`); **default is `dark`** when unset (patient and doctor portals). Use **`theme.palette.surface.*`** (subtle / muted / elevated) instead of fixed `grey.50` / `grey.100` for fills. **`ThemeToggleButton`:** patient portal — sidebar brand row only (same as doctor); patient `Header` has route title + account actions only; landing/other surfaces keep their own toggle where applicable.
+- Central **`theme/`** (`paletteLight` / `paletteDark`, `createAppTheme`, typography, shape, overrides); **`augmentation.d.ts`** extends `Palette` with `surface` and primary ramp keys.
 - **`ui/`** for shared compositions (e.g. `Markdown.tsx`); feature UI stays under `components/` and `pages/`
 - **`lucide-react`** for icons (not `@mui/icons-material` unless we adopt it later)
 

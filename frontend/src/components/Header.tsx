@@ -11,12 +11,13 @@ import { usePatientContext } from "../contexts/PatientContext";
 import { paths } from "../router/paths";
 import PatientSelector from "./PatientSelector";
 
+/** Do not include `paths.patient.root` here — `startsWith("/patient")` would match every sub-route. */
 const TITLES: { prefix: string; title: string }[] = [
   { prefix: paths.patient.documents, title: "Documents" },
   { prefix: paths.patient.profile, title: "My Profile" },
   { prefix: paths.patient.doctors, title: "My Doctors" },
+  { prefix: paths.patient.mealPlans, title: "Meal plans" },
   { prefix: paths.patient.chat, title: "Medical AI Chat" },
-  { prefix: paths.patient.root, title: "Dashboard" },
 ];
 
 function pageTitle(pathname: string): string {
@@ -54,20 +55,26 @@ export default function Header({
       component="header"
       sx={{
         flexShrink: 0,
+        minHeight: 56,
         borderBottom: 1,
         borderColor: "divider",
         bgcolor: "background.paper",
         px: 2,
-        py: 1.5,
+        py: 0,
+        display: "flex",
+        alignItems: "center",
       }}
     >
       <Box
         sx={{
           mx: "auto",
           display: "flex",
+          width: "100%",
+          minHeight: 56,
           maxWidth: "72rem",
           alignItems: "center",
           gap: 1.5,
+          py: 1,
         }}
       >
         <IconButton
@@ -103,7 +110,7 @@ export default function Header({
               py: 0.25,
               fontWeight: 600,
               bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
-              color: (theme) => theme.palette.success.dark,
+              color: "text.primary",
             }}
           >
             Patient

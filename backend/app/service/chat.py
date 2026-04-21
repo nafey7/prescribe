@@ -276,6 +276,7 @@ def _message_schema_from_doc(m: dict) -> MessageSchema:
         role=m["role"],
         content=m["content"],
         timestamp=m["timestamp"],
+        message_id=str(m.get("message_id") or ""),
         message_type=m.get("message_type", "text"),
         meal_plan=meal_plan,
     )

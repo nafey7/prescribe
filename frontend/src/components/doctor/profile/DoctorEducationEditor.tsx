@@ -55,7 +55,7 @@ export default function DoctorEducationEditor({
           variant="outlined"
           sx={(t) => ({
             p: 1.5,
-            bgcolor: alpha(t.palette.grey[100], 0.65),
+            bgcolor: alpha(t.palette.text.primary, 0.06),
           })}
         >
           <Stack

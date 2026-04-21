@@ -35,6 +35,9 @@ ddgs>=8.0.0
 bcrypt>=4.2.0
 PyJWT>=2.9.0
 
+# Meal plan PDF export (server-side)
+fpdf2>=2.8.0
+
 # Testing
 pytest>=8.4.2
 pytest-asyncio>=0.24.0

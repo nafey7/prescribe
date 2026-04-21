@@ -6,6 +6,7 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  /** Persisted chat row id — required for meal-plan PDF / share after save. */
   messageId?: string;
   isStreaming?: boolean;
   isThinking?: boolean;

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.api.dependencies import (
     assert_jwt_patient_can_access_patient_path,
     auth_bypass_allowed,
+    patient_id_aliases_for_user,
     resolve_actor_user,
 )
 from app.database.connection import get_database
@@ -16,8 +17,10 @@ from app.schemas.patient import (
     PatientProfileResponse,
     PatientProfileUpdate,
 )
+from app.schemas.meal_plan_share import MealPlanShareListResponse, MealPlanShareResponse
 from app.service import connection as connection_service
 from app.service import medical_history as medical_history_service
+from app.service import meal_plan_share as meal_plan_share_service
 from app.service import patient as patient_service
 from app.repository import connection as connection_repo
 from app.repository import patient as patient_repo
@@ -113,6 +116,74 @@ async def list_patient_connections(
         raise HTTPException(status_code=401, detail="Authentication required")
     return await connection_service.get_patient_connections(
         db, patient_id, status=status, skip=skip, limit=limit
+    )
+
+
+@router.get("/{patient_id}/meal-plan-shares", response_model=MealPlanShareListResponse)
+async def list_patient_meal_plan_shares(
+    patient_id: str,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+) -> MealPlanShareListResponse:
+    db = get_database()
+    if actor is not None:
+        await assert_jwt_patient_can_access_patient_path(db, actor, patient_id)
+        scope_ids = list(await patient_id_aliases_for_user(db, actor.user_id))
+    elif not auth_bypass_allowed():
+        raise HTTPException(status_code=401, detail="Authentication required")
+    else:
+        scope_ids = [patient_id]
+    return await meal_plan_share_service.patient_list_shares(
+        db, patient_ids=scope_ids, skip=skip, limit=limit
+    )
+
+
+@router.get("/{patient_id}/meal-plan-shares/{share_id}", response_model=MealPlanShareResponse)
+async def get_patient_meal_plan_share(
+    patient_id: str,
+    share_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+) -> MealPlanShareResponse:
+    db = get_database()
+    if actor is not None:
+        await assert_jwt_patient_can_access_patient_path(db, actor, patient_id)
+        scope_ids = list(await patient_id_aliases_for_user(db, actor.user_id))
+    elif not auth_bypass_allowed():
+        raise HTTPException(status_code=401, detail="Authentication required")
+    else:
+        scope_ids = [patient_id]
+    return await meal_plan_share_service.patient_get_share(
+        db, patient_ids=scope_ids, share_id=share_id
+    )
+
+
+@router.get("/{patient_id}/meal-plan-shares/{share_id}/pdf")
+async def download_patient_meal_plan_share_pdf(
+    patient_id: str,
+    share_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+) -> Response:
+    db = get_database()
+    if actor is not None:
+        await assert_jwt_patient_can_access_patient_path(db, actor, patient_id)
+        scope_ids = list(await patient_id_aliases_for_user(db, actor.user_id))
+    elif not auth_bypass_allowed():
+        raise HTTPException(status_code=401, detail="Authentication required")
+    else:
+        scope_ids = [patient_id]
+    pdf_bytes = await meal_plan_share_service.patient_share_pdf_bytes(
+        db, patient_ids=scope_ids, share_id=share_id
+    )
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in share_id)
+    safe = (safe or "plan")[:120]
+    filename = f"meal-plan-{safe}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
     )
 
 

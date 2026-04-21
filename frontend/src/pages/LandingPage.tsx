@@ -13,6 +13,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { readStoredDevRole } from "../dev/devRoleStorage";
 import { useAuth } from "../contexts/AuthContext";
 import { useFeatureFlags } from "../contexts/FeatureFlagContext";
+import ThemeToggleButton from "../components/ThemeToggleButton";
 import { defaultPostAuthPath, safeReturnUrl } from "../router/postAuthPath";
 
 type AuthMode = "login" | "signup";
@@ -172,6 +173,7 @@ export default function LandingPage() {
   return (
     <Box
       sx={{
+        position: "relative",
         display: "flex",
         minHeight: "100vh",
         flexDirection: "column",
@@ -182,6 +184,15 @@ export default function LandingPage() {
         py: 6,
       }}
     >
+      <Box
+        sx={{
+          position: "absolute",
+          top: (theme) => theme.spacing(2),
+          right: (theme) => theme.spacing(2),
+        }}
+      >
+        <ThemeToggleButton />
+      </Box>
       <Box sx={{ mb: 4, textAlign: "center" }}>
         <Typography variant="h5" component="h1" color="text.primary" sx={{ fontWeight: 600 }}>
           Prescribe
@@ -207,7 +218,7 @@ export default function LandingPage() {
           sx={{
             display: "flex",
             borderRadius: 2,
-            bgcolor: alpha(theme.palette.grey[500], 0.12),
+            bgcolor: alpha(theme.palette.text.primary, 0.08),
             p: 0.5,
           }}
         >
@@ -318,7 +329,7 @@ export default function LandingPage() {
                 sx={{
                   mt: 3,
                   borderRadius: 2,
-                  bgcolor: alpha(theme.palette.grey[500], 0.12),
+                  bgcolor: alpha(theme.palette.text.primary, 0.08),
                   p: 0.5,
                   gap: 0,
                   "& .MuiToggleButtonGroup-grouped": {

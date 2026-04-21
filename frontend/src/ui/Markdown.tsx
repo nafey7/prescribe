@@ -129,8 +129,8 @@ function createMarkdownComponents(theme: Theme): Components {
               px: 0.5,
               py: 0.25,
               borderRadius: 1,
-              bgcolor: "grey.100",
-              color: "grey.800",
+              bgcolor: "surface.muted",
+              color: "text.primary",
               fontFamily: "monospace",
               fontSize: "0.75rem",
             }}
@@ -148,7 +148,7 @@ function createMarkdownComponents(theme: Theme): Components {
           my: 1,
           p: 1.5,
           borderRadius: 2,
-          bgcolor: "grey.50",
+          bgcolor: "surface.subtle",
           border: 1,
           borderColor: "divider",
           overflowX: "auto",
@@ -174,7 +174,9 @@ function createMarkdownComponents(theme: Theme): Components {
         </Table>
       </TableContainer>
     ),
-    thead: ({ children }) => <TableHead sx={{ bgcolor: "grey.50" }}>{children}</TableHead>,
+    thead: ({ children }) => (
+      <TableHead sx={{ bgcolor: "surface.subtle" }}>{children}</TableHead>
+    ),
     tbody: ({ children }) => <TableBody>{children}</TableBody>,
     tr: ({ children }) => <TableRow>{children}</TableRow>,
     th: ({ children }) => (

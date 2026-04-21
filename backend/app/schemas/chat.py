@@ -32,6 +32,7 @@ class MessageSchema(BaseModel):
     role: str
     content: str
     timestamp: datetime
+    message_id: str = ""
     message_type: str = "text"
     meal_plan: MealPlanPayload | None = None
 

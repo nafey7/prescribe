@@ -1,4 +1,4 @@
-import { FileText, LayoutDashboard, Stethoscope, User, X } from "lucide-react";
+import { FileText, LayoutDashboard, Stethoscope, User, Utensils, X } from "lucide-react";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import IconButton from "@mui/material/IconButton";
@@ -7,6 +7,8 @@ import { useTheme } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { matchPath, NavLink, useLocation } from "react-router-dom";
 import { paths } from "../router/paths";
+import ThemeToggleButton from "./ThemeToggleButton";
+import { PortalSidebarBrandRow } from "../ui/PortalSidebarBrandRow";
 import { SidebarNavItemButton } from "../ui/SidebarNavItemButton";
 
 export type SidebarNavItem = {
@@ -26,6 +28,7 @@ export const patientNavItems: SidebarNavItem[] = [
   { path: paths.patient.profile, label: "My Profile", icon: User },
   { path: paths.patient.documents, label: "Documents", icon: FileText },
   { path: paths.patient.doctors, label: "My Doctors", icon: Stethoscope },
+  { path: paths.patient.mealPlans, label: "Meal plans", icon: Utensils },
 ];
 
 function SidebarInner({
@@ -103,46 +106,14 @@ function SidebarInner({
         </Box>
       ) : null}
 
-      <Box
+      <PortalSidebarBrandRow
         className="sidebar-brand-row"
-        sx={{
-          height: 56,
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          px: 1.5,
-          borderBottom: 1,
-          borderColor: "divider",
-        }}
-      >
-        <Box sx={{ display: "flex", minWidth: 0, alignItems: "center", gap: 1 }}>
-          <Box
-            sx={{
-              width: 36,
-              height: 36,
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 1.5,
-              bgcolor: "primary.main",
-              color: "primary.contrastText",
-              typography: "subtitle1",
-              lineHeight: 1,
-            }}
-          >
-            🩺
-          </Box>
-          <Box className="sidebar-brand" sx={{ minWidth: 0 }}>
-            <Typography variant="body2" noWrap color="text.primary" sx={{ fontWeight: 600 }}>
-              Patient portal
-            </Typography>
-            <Typography variant="caption" noWrap color="text.secondary">
-              Health overview
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
+        brandTextClassName="sidebar-brand"
+        accent="primary"
+        title="Patient portal"
+        subtitle="Health overview"
+        trailing={<ThemeToggleButton />}
+      />
 
       <Box
         component="nav"

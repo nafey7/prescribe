@@ -2,8 +2,9 @@ import CssBaseline from "@mui/material/CssBaseline";
 import GlobalStyles from "@mui/material/GlobalStyles";
 import { ThemeProvider } from "@mui/material";
 import type { Theme } from "@mui/material";
-import type { ReactNode } from "react";
-import { appTheme } from "../theme";
+import { useMemo, type ReactNode } from "react";
+import { useColorMode } from "../contexts/ColorModeContext";
+import { createAppTheme } from "../theme";
 
 type AppThemeProviderProps = {
   children: ReactNode;
@@ -70,8 +71,11 @@ function shellTabletRailStyles(theme: Theme) {
  * `src/test-utils/renderWithProviders.tsx`.
  */
 export function AppThemeProvider({ children }: AppThemeProviderProps) {
+  const { mode } = useColorMode();
+  const theme = useMemo(() => createAppTheme(mode), [mode]);
+
   return (
-    <ThemeProvider theme={appTheme}>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
       <GlobalStyles styles={(theme) => shellTabletRailStyles(theme)} />
       {children}
