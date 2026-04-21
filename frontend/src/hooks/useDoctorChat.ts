@@ -51,6 +51,8 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
             role: m.role as "user" | "assistant",
             content: m.content,
             timestamp: normalizeTimestamp(m.timestamp),
+            message_type: m.message_type,
+            meal_plan: m.meal_plan ?? undefined,
           }))
         );
       } catch (e) {
@@ -196,7 +198,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
             tokenBufferRef.current += token;
             scheduleFlush();
           },
-          onDone: (newChatId, _messageId) => {
+          onDone: (newChatId, _messageId, messageType, mealPlan) => {
             if (rafIdRef.current !== null) {
               cancelAnimationFrame(rafIdRef.current);
               rafIdRef.current = null;
@@ -216,6 +218,8 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
               ...msg,
               isStreaming: false,
               isThinking: false,
+              message_type: messageType,
+              meal_plan: mealPlan ?? undefined,
             }));
           },
           onError: (errMsg) => {

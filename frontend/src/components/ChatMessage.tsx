@@ -10,6 +10,7 @@ import {
   chatMessageTimestampSx,
 } from "../theme/chatMessages";
 import { Markdown } from "../ui/Markdown";
+import { MealPlanMessage } from "./chat/MealPlanMessage";
 
 interface ChatMessageProps {
   message: Message;
@@ -62,11 +63,24 @@ function ChatMessageInner({ message }: ChatMessageProps) {
         {isUser ? <User size={16} strokeWidth={2} /> : <Bot size={16} strokeWidth={2} />}
       </Box>
 
-      <Box sx={(theme) => chatMessageBubbleSx(theme, role)}>
+      <Box
+        sx={(theme) => ({
+          ...chatMessageBubbleSx(theme, role),
+          ...(message.message_type === "meal_plan" && {
+            width: "100%",
+            maxWidth: "min(92%, 680px)",
+          }),
+        })}
+      >
         {isUser ? (
           <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
             {message.content}
           </Typography>
+        ) : message.message_type === "meal_plan" && message.meal_plan ? (
+          <MealPlanMessage
+            payload={message.meal_plan}
+            isStreaming={message.isStreaming}
+          />
         ) : (
           <Box
             sx={{
@@ -102,7 +116,9 @@ const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     p.content === n.content &&
     p.isStreaming === n.isStreaming &&
     p.isThinking === n.isThinking &&
-    p.thinkingStatus === n.thinkingStatus
+    p.thinkingStatus === n.thinkingStatus &&
+    p.message_type === n.message_type &&
+    p.meal_plan === n.meal_plan
   );
 });
 

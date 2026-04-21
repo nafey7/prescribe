@@ -22,6 +22,7 @@ from app.schemas.chat import (
     MessageSchema,
     PatientInfo,
 )
+from app.schemas.meal_plan import MealPlanPayload
 from app.schemas.patient import document_to_profile_response
 
 logger = logging.getLogger(__name__)
@@ -117,7 +118,7 @@ async def process_message(
     )
 
     try:
-        ai_response = await invoke_medical_agent(
+        ai_response, meal_plan = await invoke_medical_agent(
             message=message,
             patient_id=patient_id,
             chat_id=chat_id,
@@ -126,8 +127,18 @@ async def process_message(
     except Exception:
         raise
 
+    message_type = "meal_plan" if meal_plan is not None else "text"
+    meal_plan_dict = meal_plan.model_dump() if meal_plan is not None else None
+
     message_id = await chat_repo.save_message(
-        db, chat_id, patient_id, "assistant", ai_response, doctor_id=doctor_id
+        db,
+        chat_id,
+        patient_id,
+        "assistant",
+        ai_response,
+        doctor_id=doctor_id,
+        message_type=message_type,
+        meal_plan=meal_plan_dict,
     )
 
     chat_title: str | None = None
@@ -145,6 +156,8 @@ async def process_message(
         chat_id=chat_id,
         message_id=message_id,
         chat_title=chat_title,
+        message_type=message_type,
+        meal_plan=meal_plan,
     )
 
 
@@ -179,6 +192,7 @@ async def process_message_stream(
     yield _format_sse("thinking", {"status": "Thinking...", "phase": "thinking"})
 
     full_response = ""
+    meal_plan: MealPlanPayload | None = None
     try:
         async for event in stream_medical_agent(
             message=message,
@@ -186,6 +200,14 @@ async def process_message_stream(
             chat_id=chat_id,
             system_prompt=system_prompt,
         ):
+            if event["event"] == "_meal_plan_payload":
+                try:
+                    meal_plan = MealPlanPayload.model_validate(event["data"]["meal_plan"])
+                except Exception:
+                    logger.warning(
+                        "chat_stream meal_plan validation failed chat_id=%s", chat_id, exc_info=True
+                    )
+                continue  # internal event — do not forward to SSE client
             if event["event"] == "token":
                 full_response += event["data"]["content"]
             yield _format_sse(event["event"], event["data"])
@@ -199,8 +221,18 @@ async def process_message_stream(
             full_response = "I wasn't able to generate a response. Please try again."
             yield _format_sse("token", {"content": full_response})
 
+        message_type = "meal_plan" if meal_plan is not None else "text"
+        meal_plan_dict = meal_plan.model_dump() if meal_plan is not None else None
+
         message_id = await chat_repo.save_message(
-            db, chat_id, patient_id, "assistant", full_response, doctor_id=doctor_id
+            db,
+            chat_id,
+            patient_id,
+            "assistant",
+            full_response,
+            doctor_id=doctor_id,
+            message_type=message_type,
+            meal_plan=meal_plan_dict,
         )
 
         # Run title after the main model finishes — avoids two concurrent Gemini calls (429).
@@ -214,11 +246,39 @@ async def process_message_stream(
             except Exception:
                 logger.warning("Failed to set chat title", exc_info=True)
 
-        yield _format_sse("done", {"chat_id": chat_id, "message_id": message_id})
+        done_data: dict = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "message_type": message_type,
+        }
+        if meal_plan_dict is not None:
+            done_data["meal_plan"] = meal_plan_dict
+        yield _format_sse("done", done_data)
 
     except Exception as e:
         logger.exception("Error during streaming")
         yield _format_sse("error", {"detail": str(e)})
+
+
+def _message_schema_from_doc(m: dict) -> MessageSchema:
+    raw_mp = m.get("meal_plan")
+    meal_plan: MealPlanPayload | None = None
+    if raw_mp is not None:
+        try:
+            meal_plan = MealPlanPayload.model_validate(raw_mp)
+        except Exception:
+            logger.warning(
+                "Failed to deserialize meal_plan for message_id=%s",
+                m.get("message_id", "?"),
+                exc_info=True,
+            )
+    return MessageSchema(
+        role=m["role"],
+        content=m["content"],
+        timestamp=m["timestamp"],
+        message_type=m.get("message_type", "text"),
+        meal_plan=meal_plan,
+    )
 
 
 async def get_chat_history(
@@ -229,14 +289,7 @@ async def get_chat_history(
         return None
 
     raw_messages = await chat_repo.get_messages(db, chat_id)
-    messages = [
-        MessageSchema(
-            role=m["role"],
-            content=m["content"],
-            timestamp=m["timestamp"],
-        )
-        for m in raw_messages
-    ]
+    messages = [_message_schema_from_doc(m) for m in raw_messages]
     return ChatHistoryResponse(chat_id=chat_id, messages=messages)
 
 

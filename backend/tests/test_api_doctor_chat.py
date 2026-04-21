@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.schemas.chat import ChatHistoryResponse, ChatResponse, MessageSchema
+from app.schemas.meal_plan import MealPlanPayload
 
 
 @pytest.fixture
@@ -114,6 +115,62 @@ def test_doctor_chat_history_ok(client):
             data = r.json()
             assert data["chat_id"] == "c1"
             assert len(data["messages"]) == 1
+
+
+def test_doctor_chat_history_includes_meal_plan(client):
+    """GET history returns message_type and nested meal_plan for assistant rows (Phase 6 contract)."""
+    ts = datetime.now(timezone.utc)
+    meal_plan = MealPlanPayload.model_validate(
+        {
+            "num_days": 1,
+            "days": [
+                {
+                    "day_index": 1,
+                    "label": "Day 1",
+                    "meals": [{"name": "Oatmeal", "description": "With fruit", "items": ["oats"]}],
+                }
+            ],
+            "summary": "Short summary",
+        }
+    )
+    with patch(
+        "app.service.doctor_chat.chat_repo.get_session",
+        new_callable=AsyncMock,
+        return_value={
+            "chat_id": "c1",
+            "doctor_id": "dr-1",
+            "patient_id": "p1",
+        },
+    ):
+        with patch(
+            "app.service.doctor_chat.chat_service.get_chat_history",
+            new_callable=AsyncMock,
+        ) as mock_hist:
+            mock_hist.return_value = ChatHistoryResponse(
+                chat_id="c1",
+                messages=[
+                    MessageSchema(role="user", content="Plan please", timestamp=ts),
+                    MessageSchema(
+                        role="assistant",
+                        content="Here is a plan.",
+                        timestamp=ts,
+                        message_type="meal_plan",
+                        meal_plan=meal_plan,
+                    ),
+                ],
+            )
+            r = client.get("/api/doctors/dr-1/chat/history/c1")
+            assert r.status_code == 200
+            data = r.json()
+            assert len(data["messages"]) == 2
+            assistant = data["messages"][1]
+            assert assistant["role"] == "assistant"
+            assert assistant["message_type"] == "meal_plan"
+            assert assistant["meal_plan"] is not None
+            assert assistant["meal_plan"]["num_days"] == 1
+            assert assistant["meal_plan"]["summary"] == "Short summary"
+            assert len(assistant["meal_plan"]["days"]) == 1
+            assert assistant["meal_plan"]["days"][0]["day_index"] == 1
 
 
 def test_doctor_delete_patient_chat_forbidden_wrong_doctor(client):

@@ -9,10 +9,12 @@ from langgraph.prebuilt import ToolNode
 from pymongo import MongoClient
 
 from app.ai.llm import get_llm
+from app.ai.meal_plan_extract import extract_meal_plan_from_messages
 from app.ai.prompts import MEDICAL_SYSTEM_PROMPT_TEMPLATE, get_runtime_prompt_context
 from app.ai.state import MedicalChatState
-from app.ai.tools import search_patient_records, web_search
+from app.ai.tools import search_patient_records, submit_meal_plan, web_search
 from app.config import get_settings
+from app.schemas.meal_plan import MealPlanPayload
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,7 @@ _compiled_graph = None
 _checkpointer = None
 _mongo_client: MongoClient | None = None
 
-TOOLS = [search_patient_records, web_search]
+TOOLS = [search_patient_records, web_search, submit_meal_plan]
 
 
 def _get_checkpointer():
@@ -115,7 +117,8 @@ async def invoke_medical_agent(
     chat_id: str,
     *,
     system_prompt: str | None = None,
-) -> str:
+) -> tuple[str, MealPlanPayload | None]:
+    """Invoke the medical agent and return (response_text, meal_plan_or_None)."""
     graph = get_medical_graph()
 
     input_state: MedicalChatState = {
@@ -129,22 +132,25 @@ async def invoke_medical_agent(
 
     result = await asyncio.to_thread(graph.invoke, input_state, config)
 
+    all_messages = result.get("messages", [])
+    meal_plan = extract_meal_plan_from_messages(all_messages)
+
     ai_messages = [
-        m for m in result["messages"]
+        m for m in all_messages
         if hasattr(m, "content") and m.type == "ai" and not getattr(m, "tool_calls", None)
     ]
 
     if ai_messages:
         text = _flat_text_content(ai_messages[-1].content)
         if text:
-            return text
+            return text, meal_plan
         logger.warning(
             "invoke_medical_agent: last AI message empty after normalize (chat_id=%s content_type=%s)",
             chat_id,
             type(ai_messages[-1].content).__name__,
         )
     else:
-        tail = result.get("messages") or []
+        tail = all_messages
         desc: list[str] = []
         for m in tail[-6:]:
             desc.append(
@@ -158,12 +164,13 @@ async def invoke_medical_agent(
             "; ".join(desc) if desc else "(no messages)",
         )
 
-    return "I wasn't able to generate a response. Please try again."
+    return "I wasn't able to generate a response. Please try again.", meal_plan
 
 
 _TOOL_THINKING_UI: dict[str, tuple[str, str]] = {
     "search_patient_records": ("Searching patient records...", "records"),
     "web_search": ("Searching the web...", "web_search"),
+    "submit_meal_plan": ("Structuring meal plan...", "meal_plan"),
 }
 
 
@@ -177,8 +184,9 @@ async def stream_medical_agent(
     """Async generator that yields streaming events from the medical agent.
 
     Yields dicts with shape:
-        {"event": "thinking", "data": {"status": "..."}}
-        {"event": "token",    "data": {"content": "..."}}
+        {"event": "thinking",          "data": {"status": "..."}}
+        {"event": "token",             "data": {"content": "..."}}
+        {"event": "_meal_plan_payload","data": {"meal_plan": {...}}}  # internal; not forwarded to SSE
     """
     graph = get_medical_graph()
 
@@ -208,6 +216,7 @@ async def stream_medical_agent(
     }
     stream_mode = "astream_events"
     last_content_type: str | None = None
+    captured_meal_plan: MealPlanPayload | None = None
 
     try:
         try:
@@ -216,6 +225,22 @@ async def stream_medical_agent(
 
                 if kind == "on_tool_start":
                     name = event.get("name", "tool")
+                    if name == "submit_meal_plan":
+                        tool_input = event["data"].get("input", {})
+                        if isinstance(tool_input, dict):
+                            try:
+                                captured_meal_plan = MealPlanPayload.model_validate(tool_input)
+                                logger.info(
+                                    "meal_plan_captured_from_stream chat_id=%s num_days=%d",
+                                    chat_id,
+                                    captured_meal_plan.num_days,
+                                )
+                            except Exception:
+                                logger.warning(
+                                    "meal_plan_stream_validation_failed chat_id=%s",
+                                    chat_id,
+                                    exc_info=True,
+                                )
                     if name in _TOOL_THINKING_UI:
                         status, phase = _TOOL_THINKING_UI[name]
                     else:
@@ -297,6 +322,12 @@ async def stream_medical_agent(
                 stats["fallback_message_chunks"],
                 last_content_type,
             )
+
+    if captured_meal_plan is not None:
+        yield {
+            "event": "_meal_plan_payload",
+            "data": {"meal_plan": captured_meal_plan.model_dump()},
+        }
 
 
 def cleanup_graph() -> None:

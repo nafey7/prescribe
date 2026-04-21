@@ -111,19 +111,42 @@ Patient context for chat is **not** in the JSON body. With JWT auth it is derive
 
 ### `ChatResponse`
 
+Non-streaming chat endpoints (`POST /api/chat/message`, `POST /api/doctors/{doctor_id}/patients/{patient_id}/chat/message`) return:
+
 ```python
 class ChatResponse(BaseModel):
     message: str
     chat_id: str
     message_id: str
+    chat_title: str | None = None
+    message_type: str = "text"  # "text" | "meal_plan" (extensible)
+    meal_plan: MealPlanPayload | None = None
 ```
+
+- **`message_type`** — `"text"` for plain assistant replies; `"meal_plan"` when a structured meal plan was submitted and validated (see `MealPlanPayload` in `backend/app/schemas/meal_plan.py`).
+- **`meal_plan`** — Omitted or `null` when there is no structured plan; when present, JSON is **snake_case** end-to-end (`num_days`, `days`, `summary`, `disclaimer`, nested `day_index`, `meals`, etc.).
+
+### `MessageSchema` (history)
+
+`GET /api/chat/history/{chat_id}` and `GET /api/doctors/{doctor_id}/chat/history/{chat_id}` return messages with the same optional structured fields:
+
+```python
+class MessageSchema(BaseModel):
+    role: str
+    content: str
+    timestamp: datetime
+    message_type: str = "text"
+    meal_plan: MealPlanPayload | None = None
+```
+
+Legacy rows without `message_type` / `meal_plan` in MongoDB are treated as **`"text"`** / **`null`** when mapped to this schema.
 
 ### `ChatHistoryResponse`
 
 ```python
 class ChatHistoryResponse(BaseModel):
     chat_id: str
-    messages: list[MessageSchema]  # role, content, timestamp
+    messages: list[MessageSchema]  # role, content, timestamp; optional message_type, meal_plan
 ```
 
 ### `ChatSessionSummary`
@@ -172,7 +195,13 @@ interface ChatResponse {
   message: string;
   chat_id: string;
   message_id: string;
+  chat_title?: string | null;
+  message_type?: string;
+  meal_plan?: MealPlanPayload | null;
 }
+
+// Mirrors backend/app/schemas/meal_plan.py — snake_case on the wire.
+// See frontend/src/types/mealPlan.ts.
 
 interface Patient {
   id: string;
@@ -212,19 +241,24 @@ event: token
 data: {"content": " on the patient's records..."}
 
 event: done
-data: {"chat_id": "abc-123", "message_id": "msg-456"}
+data: {"chat_id": "abc-123", "message_id": "msg-456", "message_type": "text"}
+
+event: done
+data: {"chat_id": "abc-123", "message_id": "msg-456", "message_type": "meal_plan", "meal_plan": {"num_days": 1, "days": [{"day_index": 1, "meals": [{"name": "Oatmeal", "description": "", "items": []}]}], "summary": "Example", "disclaimer": "…"}}
 
 event: error
 data: {"detail": "LLM timeout"}
 ```
 
+**`done` event (streaming completion):** JSON includes at least `chat_id` and `message_id`. **`message_type`** defaults to `"text"` if omitted. **`meal_plan`** is included only when non-null (assistant turn with validated structured plan). Doctor chat streaming uses the same SSE format via `sendDoctorChatMessageStream()` in `frontend/src/api/chatStream.ts`, which parses `message_type` and `meal_plan` on `onDone`.
+
 ### Frontend SSE parsing
 
-`sendMessageStream()` in `api/chat.ts` uses:
-- Shared `apiFetch()` from `api/client.ts` (`POST`, not `EventSource`, which only supports GET) so **`Authorization: Bearer`** and dev headers are attached the same way as other API calls
+`sendMessageStream()` and `sendDoctorChatMessageStream()` live in `frontend/src/api/chatStream.ts` (re-exported from `api/chat.ts` for patient). Both use:
+- Shared `fetch` from `api/client.ts` (`POST`, not `EventSource`, which only supports GET) so **`Authorization: Bearer`** and dev headers are attached the same way as other API calls
 - `response.body.getReader()` + `TextDecoder` for chunk reading
-- Manual SSE line parsing (`event:` / `data:` lines)
-- Callback dispatch to `onThinking`, `onToken`, `onDone`, `onError`
+- Manual SSE line parsing (`event:` / `data:` lines), including **`done`** → `message_type` and optional **`meal_plan`**
+- Callback dispatch to `onThinking`, `onToken`, `onDone`, `onError` (and optional `onChatTitle` for `event: title`)
 
 ### Token buffering
 
@@ -239,7 +273,7 @@ The `useChat` hook uses `requestAnimationFrame` to batch token updates, preventi
 | AI invocation | Backend (`ai/graph.py`) | LangGraph agent loop |
 | Message persistence | Backend (`repository/chat.py`) | MongoDB writes |
 | SSE event format | Backend (`service/chat.py` `_format_sse`) | Event structure |
-| SSE parsing | Frontend (`api/chat.ts`) | Stream reading, JSON parsing |
+| SSE parsing | Frontend (`api/chatStream.ts`) | Stream reading, JSON parsing, `done` metadata |
 | State management | Frontend (`useChat` hook) | Messages, loading, errors |
 | Markdown rendering | Frontend (`ChatMessage` component) | react-markdown + remark-gfm |
 | Streaming UX | Frontend (components) | Thinking indicator, cursor, RAF buffering |

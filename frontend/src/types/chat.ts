@@ -1,4 +1,6 @@
-export type ThinkingPhase = "thinking" | "web_search" | "records" | "tool";
+import type { MealPlanPayload } from "./mealPlan";
+
+export type ThinkingPhase = "thinking" | "web_search" | "records" | "tool" | "meal_plan";
 
 export interface Message {
   role: "user" | "assistant";
@@ -10,6 +12,10 @@ export interface Message {
   thinkingStatus?: string;
   /** From streaming `thinking` events; drives assistant status UI (e.g. web search label). */
   thinkingPhase?: ThinkingPhase;
+  /** Structured message type — "text" (default) or "meal_plan". */
+  message_type?: string;
+  /** Present when message_type === "meal_plan". */
+  meal_plan?: MealPlanPayload | null;
 }
 
 export interface ChatResponse {
@@ -17,6 +23,8 @@ export interface ChatResponse {
   chat_id: string;
   message_id: string;
   chat_title?: string | null;
+  message_type?: string;
+  meal_plan?: MealPlanPayload | null;
 }
 
 export interface ChatHistoryResponse {

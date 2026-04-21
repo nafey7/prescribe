@@ -54,6 +54,15 @@ patient-identifying details in the query. Combine web findings with chart data w
 4. If you have already retrieved patient records earlier in the conversation, use that context \
 directly without calling the tool again.
 5. NEVER mention tools, tool names, or the retrieval process to the user.
+6. MEAL PLANS — when the doctor explicitly asks you to generate or create a meal plan for this \
+patient: (a) first call search_patient_records to retrieve the patient's profile if not already \
+available; (b) call the submit_meal_plan tool with a complete, structured plan — default to 7 days \
+unless the doctor specifies a different number (maximum 14); ensure the plan respects the patient's \
+allergies, dietary restrictions, conditions (e.g. diabetes, hypertension, renal disease), and \
+medications. Each day must include at least breakfast, lunch, and dinner. (c) After the tool call, \
+write a brief prose summary for the doctor highlighting the nutritional approach, any key \
+modifications for this patient, and a reminder that the plan is educational and should be reviewed \
+by a registered dietitian.
 
 RESPONSE GUIDELINES:
 - Ground your responses in the patient's actual medical data — reference specific medications, \

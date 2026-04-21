@@ -12,6 +12,8 @@ Always run the suite **inside the backend Docker container** so Python dependenc
 docker compose exec backend python -m pytest tests/ -v
 ```
 
+`tests/conftest.py` forces `AUTH_REQUIRED=false`, `ENVIRONMENT=test`, and clears `get_settings()` cache so API tests behave like the relaxed-auth workflow even when the container’s `.env` enables strict JWT (see `auth_bypass_allowed()` in `backend/app/api/dependencies.py`). Tests that require strict auth patch env per test (e.g. `tests/test_route_audit.py`).
+
 Running `pytest` on the host (`cd backend && python -m pytest`) can drift from the image and is not the supported workflow.
 
 ### Test files
@@ -26,6 +28,7 @@ Running `pytest` on the host (`cd backend && python -m pytest`) can drift from t
 | `tests/test_api_patients.py` | Patient profile APIs and auth gates |
 | `tests/test_api_documents.py` | Document upload/list/download and patient scoping |
 | `tests/test_api_doctors.py`, `tests/test_api_doctor_patients.py`, `tests/test_api_doctor_chat.py` | Doctor portal and connection-aware routes |
+| `tests/test_meal_plan.py` | Meal plan schema, extraction, chat API fields; doctor history includes `meal_plan` |
 | `tests/test_repositories.py` | Repository helpers |
 | `tests/test_seed.py` | Seed script smoke |
 | Other `tests/test_*.py` | Schemas, dashboard, utils |
@@ -54,7 +57,7 @@ Running `pytest` on the host (`cd backend && python -m pytest`) can drift from t
 
 ## Frontend tests
 
-`npm run build` runs the TypeScript compiler (`tsc -b`) and production build. API client behavior (including **401 → refresh → retry** for RTK `baseApi`) is covered in Vitest where `*.test.ts` files exist (e.g. `frontend/src/api/baseApi.test.ts`).
+`npm run build` runs the TypeScript compiler (`tsc -b`) and production build. API client behavior (including **401 → refresh → retry** for RTK `baseApi`) is covered in Vitest where `*.test.ts` files exist (e.g. `frontend/src/api/baseApi.test.ts`, `frontend/src/api/chatStream.test.ts` for SSE `done` parsing).
 
 ### Manual verification (auth + chat)
 

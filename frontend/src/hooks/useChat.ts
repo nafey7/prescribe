@@ -88,7 +88,7 @@ export function useChat(patientId: string) {
             tokenBufferRef.current += token;
             scheduleFlush();
           },
-          onDone: (newChatId, messageId) => {
+          onDone: (newChatId, messageId, messageType, mealPlan) => {
             if (rafIdRef.current !== null) {
               cancelAnimationFrame(rafIdRef.current);
               rafIdRef.current = null;
@@ -103,6 +103,8 @@ export function useChat(patientId: string) {
               messageId,
               isStreaming: false,
               isThinking: false,
+              message_type: messageType,
+              meal_plan: mealPlan ?? undefined,
             }));
           },
           onError: (errMsg) => {

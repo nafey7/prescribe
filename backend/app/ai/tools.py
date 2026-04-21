@@ -7,6 +7,7 @@ from pymongo import MongoClient
 from pymongo.database import Database
 
 from app.config import get_settings
+from app.schemas.meal_plan import MEAL_PLAN_DISCLAIMER, DayPlan, MealItem
 
 logger = logging.getLogger(__name__)
 
@@ -292,3 +293,50 @@ def search_patient_records(patient_id: str, query: str = "") -> str:
         len(summary),
     )
     return summary
+
+
+@tool
+def submit_meal_plan(
+    days: list[DayPlan],
+    num_days: int = 7,
+    summary: str = "",
+    disclaimer: str = MEAL_PLAN_DISCLAIMER,
+) -> str:
+    """Submit a structured, personalized meal plan for the patient.
+
+    WHEN TO CALL: Call this tool ONLY when the doctor explicitly asks you to create,
+    generate, or suggest a meal plan for the patient. Do not call it for general
+    dietary advice — only when a full meal plan is requested.
+
+    HOW TO CALL:
+    - First use `search_patient_records` to retrieve the patient's profile (conditions,
+      allergies, medications, lifestyle) so the plan is grounded in their actual data.
+    - Set `num_days` to the number the doctor specified, or default to 7 if unspecified.
+      Maximum is 14 days.
+    - Populate `days` with one entry per day. Each day has:
+        - `day_index`: 1-based integer
+        - `label`: optional string like "Day 1 – Monday"
+        - `meals`: list of meal objects, each with `name`, `description`, and optional `items`
+      Include at least breakfast, lunch, and dinner per day.
+    - Write a brief `summary` (2-3 sentences) covering the nutritional approach and any
+      key dietary considerations for this patient.
+    - Keep the default `disclaimer` unless the doctor provides a specific one.
+
+    After calling this tool, provide a short narrative summary to the doctor in your
+    next message — do not just repeat the structured data.
+
+    Args:
+        days: Day-by-day meal plan entries (required).
+        num_days: Total number of days planned (default 7, max 14).
+        summary: Brief overall summary of the meal plan rationale.
+        disclaimer: Educational disclaimer (use the default).
+
+    Returns:
+        Confirmation string for the LLM to continue the conversation.
+    """
+    n_days = len(days) if days else 0
+    logger.info("submit_meal_plan called num_days=%d day_entries=%d", num_days, n_days)
+    return (
+        f"Meal plan for {num_days} days has been structured ({n_days} day entries provided). "
+        "Now write a brief narrative summary for the doctor."
+    )

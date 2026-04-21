@@ -1,5 +1,6 @@
 import { ensureFreshAccessToken } from "./authSession";
 import { applyPrescribeHeaders, getApiBase } from "./client";
+import type { MealPlanPayload } from "../types/mealPlan";
 import type { ThinkingPhase } from "../types/chat";
 
 export type ThinkingUpdate = {
@@ -10,12 +11,18 @@ export type ThinkingUpdate = {
 type StreamCallbacks = {
   onThinking: (update: ThinkingUpdate) => void;
   onToken: (token: string) => void;
-  onDone: (chatId: string, messageId: string) => void;
+  onDone: (
+    chatId: string,
+    messageId: string,
+    messageType: string,
+    mealPlan: MealPlanPayload | null
+  ) => void;
   onError: (error: string) => void;
   onChatTitle?: (title: string) => void;
 };
 
-async function consumeSseStream(
+/** Exported for Vitest; used by `sendMessageStream` / `sendDoctorChatMessageStream`. */
+export async function consumeSseStream(
   res: Response,
   callbacks: StreamCallbacks
 ): Promise<void> {
@@ -59,12 +66,19 @@ async function consumeSseStream(
             case "token":
               callbacks.onToken(String(data.content ?? ""));
               break;
-            case "done":
+            case "done": {
+              const mealPlan =
+                data.meal_plan != null
+                  ? (data.meal_plan as MealPlanPayload)
+                  : null;
               callbacks.onDone(
                 String(data.chat_id ?? ""),
-                String(data.message_id ?? "")
+                String(data.message_id ?? ""),
+                String(data.message_type ?? "text"),
+                mealPlan
               );
               break;
+            }
             case "title":
               callbacks.onChatTitle?.(String(data.title ?? ""));
               break;
