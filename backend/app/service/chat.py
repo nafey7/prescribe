@@ -11,6 +11,7 @@ from app.ai.chat_title import generate_chat_title
 from app.ai.graph import invoke_medical_agent, stream_medical_agent
 from app.ai.prompts import build_system_prompt
 from app.repository import chat as chat_repo
+from app.repository import connection as connection_repo
 from app.repository import doctor as doctor_repo
 from app.repository import patient as patient_repo
 from app.repository import patients as patients_repo
@@ -115,10 +116,6 @@ async def process_message(
         db, chat_id, patient_id, "user", message, doctor_id=doctor_id
     )
 
-    title_task = None
-    if is_first_message:
-        title_task = asyncio.create_task(generate_chat_title(message))
-
     try:
         ai_response = await invoke_medical_agent(
             message=message,
@@ -127,8 +124,6 @@ async def process_message(
             system_prompt=system_prompt,
         )
     except Exception:
-        if title_task is not None:
-            title_task.cancel()
         raise
 
     message_id = await chat_repo.save_message(
@@ -136,9 +131,11 @@ async def process_message(
     )
 
     chat_title: str | None = None
-    if title_task is not None:
+    if is_first_message:
         try:
-            chat_title = await asyncio.wait_for(title_task, timeout=30.0)
+            chat_title = await asyncio.wait_for(
+                generate_chat_title(message), timeout=30.0
+            )
             await chat_repo.set_session_title(db, chat_id, chat_title)
         except Exception:
             logger.warning("Failed to set chat title", exc_info=True)
@@ -179,11 +176,7 @@ async def process_message_stream(
         db, chat_id, patient_id, "user", message, doctor_id=doctor_id
     )
 
-    title_task = None
-    if is_first_message:
-        title_task = asyncio.create_task(generate_chat_title(message))
-
-    yield _format_sse("thinking", {"status": "Thinking..."})
+    yield _format_sse("thinking", {"status": "Thinking...", "phase": "thinking"})
 
     full_response = ""
     try:
@@ -198,25 +191,32 @@ async def process_message_stream(
             yield _format_sse(event["event"], event["data"])
 
         if not full_response:
+            logger.warning(
+                "chat_stream_empty_assistant chat_id=%s doctor_id=%s — using fallback message",
+                chat_id,
+                doctor_id or "none",
+            )
             full_response = "I wasn't able to generate a response. Please try again."
             yield _format_sse("token", {"content": full_response})
 
         message_id = await chat_repo.save_message(
             db, chat_id, patient_id, "assistant", full_response, doctor_id=doctor_id
         )
-        yield _format_sse("done", {"chat_id": chat_id, "message_id": message_id})
 
-        if title_task is not None:
+        # Run title after the main model finishes — avoids two concurrent Gemini calls (429).
+        if is_first_message:
             try:
-                chat_title = await asyncio.wait_for(title_task, timeout=30.0)
+                chat_title = await asyncio.wait_for(
+                    generate_chat_title(message), timeout=30.0
+                )
                 await chat_repo.set_session_title(db, chat_id, chat_title)
                 yield _format_sse("title", {"title": chat_title})
             except Exception:
                 logger.warning("Failed to set chat title", exc_info=True)
 
+        yield _format_sse("done", {"chat_id": chat_id, "message_id": message_id})
+
     except Exception as e:
-        if title_task is not None:
-            title_task.cancel()
         logger.exception("Error during streaming")
         yield _format_sse("error", {"detail": str(e)})
 
@@ -263,6 +263,22 @@ async def list_patients(db: AsyncIOMotorDatabase) -> list[PatientInfo]:
     out: list[PatientInfo] = []
     for doc in items:
         profile = document_to_profile_response(doc)
+        slug = profile.patient_slug or profile.user_id
+        name = f"{profile.first_name} {profile.last_name}".strip() or slug
+        out.append(PatientInfo(id=slug, name=name, user_id=profile.user_id))
+    return out
+
+
+async def list_patients_for_doctor(
+    db: AsyncIOMotorDatabase, doctor_id: str
+) -> list[PatientInfo]:
+    conns = await connection_repo.list_connected_patients(db, doctor_id)
+    out: list[PatientInfo] = []
+    for c in conns:
+        pdoc = await patient_repo.get_patient(db, c["patient_id"])
+        if not pdoc:
+            continue
+        profile = document_to_profile_response(pdoc)
         slug = profile.patient_slug or profile.user_id
         name = f"{profile.first_name} {profile.last_name}".strip() or slug
         out.append(PatientInfo(id=slug, name=name, user_id=profile.user_id))

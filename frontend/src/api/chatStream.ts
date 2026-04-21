@@ -1,8 +1,14 @@
 import { ensureFreshAccessToken } from "./authSession";
 import { applyPrescribeHeaders, getApiBase } from "./client";
+import type { ThinkingPhase } from "../types/chat";
+
+export type ThinkingUpdate = {
+  status: string;
+  phase?: ThinkingPhase;
+};
 
 type StreamCallbacks = {
-  onThinking: (status: string) => void;
+  onThinking: (update: ThinkingUpdate) => void;
   onToken: (token: string) => void;
   onDone: (chatId: string, messageId: string) => void;
   onError: (error: string) => void;
@@ -35,9 +41,21 @@ async function consumeSseStream(
         try {
           const data = JSON.parse(line.slice(6)) as Record<string, unknown>;
           switch (currentEvent) {
-            case "thinking":
-              callbacks.onThinking(String(data.status ?? ""));
+            case "thinking": {
+              const rawPhase = data.phase;
+              const phase: ThinkingPhase | undefined =
+                rawPhase === "web_search" ||
+                rawPhase === "records" ||
+                rawPhase === "tool" ||
+                rawPhase === "thinking"
+                  ? rawPhase
+                  : undefined;
+              callbacks.onThinking({
+                status: String(data.status ?? ""),
+                ...(phase !== undefined ? { phase } : {}),
+              });
               break;
+            }
             case "token":
               callbacks.onToken(String(data.content ?? ""));
               break;

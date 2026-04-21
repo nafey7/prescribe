@@ -1,5 +1,6 @@
 import logging
 from functools import lru_cache
+from typing import Any
 
 from langchain_core.tools import tool
 from pymongo import MongoClient
@@ -192,6 +193,71 @@ def _format_patient_summary(db: Database, patient_doc: dict) -> str:
     ]
 
     return "\n".join(sections).strip()
+
+
+def _format_web_result_snippets(results: list[dict[str, Any]]) -> str:
+    lines: list[str] = []
+    for i, r in enumerate(results, 1):
+        title = (r.get("title") or "").strip()
+        body = (r.get("body") or "").strip()
+        href = (r.get("href") or "").strip()
+        if not (title or body):
+            continue
+        block = f"{i}. {title}\n{body}" if title else f"{i}. {body}"
+        if href:
+            block += f"\n   Source: {href}"
+        lines.append(block)
+    return "\n\n".join(lines) if lines else ""
+
+
+@tool
+def web_search(query: str) -> str:
+    """Search the public web for information that is not in the patient chart.
+
+    Call this when the user needs up-to-date facts, recent medical news, current
+    clinical guidelines, drug labeling changes, epidemiology, or other
+    time-sensitive or general knowledge that benefits from a web lookup.
+
+    Do NOT use this for patient-specific data — use search_patient_records for that.
+
+    IMPORTANT: Never put patient names, dates of birth, addresses, MRNs, or any
+    identifying information in the query. Use generic clinical terms only.
+
+    Args:
+        query: Focused search query using generic medical terminology.
+
+    Returns:
+        Plain-text snippets from web results.
+    """
+    q = (query or "").strip()
+    if not q:
+        return "No search query was provided."
+
+    try:
+        from ddgs import DDGS
+
+        with DDGS() as ddgs:
+            raw = list(ddgs.text(q, max_results=5))
+    except Exception as exc:
+        logger.warning("Web search failed", exc_info=True)
+        return (
+            "Web search is temporarily unavailable. "
+            f"({exc.__class__.__name__}) Answer from general knowledge and note uncertainty "
+            "for time-sensitive facts."
+        )
+
+    if not raw:
+        return (
+            "No web results were returned for that query. "
+            "Try a shorter or broader search, or answer from general knowledge with caveats."
+        )
+
+    formatted = _format_web_result_snippets(raw)
+    if not formatted:
+        return "Web results had no usable text. Try rephrasing the query."
+
+    logger.info("Web search completed query=%r (%d chars)", q[:120], len(formatted))
+    return formatted
 
 
 @tool

@@ -3,6 +3,7 @@ import re
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.repository import connection as connection_repo
 from app.repository import patient as patient_repo
 from app.schemas.patient import (
     PatientListResponse,
@@ -123,6 +124,47 @@ async def list_all_patients(
     )
     return PatientListResponse(
         items=[document_to_profile_response(d) for d in items],
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
+
+
+async def list_patients_for_connected_doctor(
+    db: AsyncIOMotorDatabase,
+    doctor_id: str,
+    *,
+    skip: int = 0,
+    limit: int = 50,
+    search: str | None = None,
+) -> PatientListResponse:
+    """Active connections only, same ordering as the doctor portal patient list."""
+    conns = await connection_repo.list_connected_patients(db, doctor_id)
+    docs: list[dict] = []
+    for c in conns:
+        pdoc = await patient_repo.get_patient(db, c["patient_id"])
+        if pdoc:
+            docs.append(pdoc)
+    if search and search.strip():
+        q = search.strip().lower()
+        filtered: list[dict] = []
+        for doc in docs:
+            prof = document_to_profile_response(doc)
+            hay = " ".join(
+                [
+                    (prof.first_name or ""),
+                    (prof.last_name or ""),
+                    prof.email,
+                    prof.patient_slug or "",
+                ]
+            ).lower()
+            if q in hay:
+                filtered.append(doc)
+        docs = filtered
+    total = len(docs)
+    page = docs[skip : skip + limit]
+    return PatientListResponse(
+        items=[document_to_profile_response(d) for d in page],
         total=total,
         skip=skip,
         limit=limit,

@@ -131,6 +131,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
         timestamp: new Date().toISOString(),
         isThinking: true,
         thinkingStatus: "Thinking...",
+        thinkingPhase: "thinking",
       };
 
       setMessages((prev) => [...prev, userMessage, placeholder]);
@@ -179,14 +180,15 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
               ])
             );
           },
-          onThinking: (status) => {
+          onThinking: (update) => {
             updateLast((msg) => {
               if (msg.isStreaming || msg.content || tokenBufferRef.current)
                 return msg;
               return {
                 ...msg,
                 isThinking: true,
-                thinkingStatus: status,
+                thinkingStatus: update.status,
+                thinkingPhase: update.phase ?? "thinking",
               };
             });
           },

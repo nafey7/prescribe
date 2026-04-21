@@ -1,5 +1,33 @@
+import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from app.config import get_settings
+
+logger = logging.getLogger(__name__)
+
+
+def get_runtime_prompt_context() -> str:
+    """Server clock + timezone, injected so the model does not invent calendar dates."""
+    tz_name = (get_settings().APP_TIMEZONE or "").strip() or "UTC"
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        logger.warning("Invalid APP_TIMEZONE=%r, using UTC", tz_name)
+        tz = ZoneInfo("UTC")
+        tz_name = "UTC"
+    now = datetime.now(tz)
+    return (
+        "CURRENT DATE AND TIME (authoritative — use this for 'today', relative dates, and scheduling; "
+        "do not infer the calendar from training data): "
+        f"{now.strftime('%A, %B %d, %Y')} in {tz_name} ({now.strftime('%H:%M:%S')} local)."
+    )
+
+
 DOCTOR_ASSISTANT_PROMPT_TEMPLATE = """You are a medical AI assistant helping {doctor_name}, \
 a {specialization} at {institution}, review and analyze the medical records of patient {patient_name}.
+
+{runtime_context}
 
 Use internal patient identifier "{patient_id}" only for tool calls — never mention raw IDs to the clinician.
 
@@ -19,9 +47,13 @@ Do NOT retrieve or volunteer patient details unless the user asks a medical or p
 diagnoses, or treatment, call the search_patient_records tool with patient_id="{patient_id}" to \
 retrieve their records, then answer using that data. Do this silently — never mention \
 tool names, the retrieval process, or internal identifiers to the user.
-3. If you have already retrieved patient records earlier in the conversation, use that context \
+3. When the user asks for current or time-sensitive information (recent guidelines, news, drug \
+approvals, outbreak or public-health updates, statistics with explicit dates, or anything clearly \
+beyond your training cutoff), call web_search with a generic clinical query — never include \
+patient-identifying details in the query. Combine web findings with chart data when both apply.
+4. If you have already retrieved patient records earlier in the conversation, use that context \
 directly without calling the tool again.
-4. NEVER mention tools, tool names, or the retrieval process to the user.
+5. NEVER mention tools, tool names, or the retrieval process to the user.
 
 RESPONSE GUIDELINES:
 - Ground your responses in the patient's actual medical data — reference specific medications, \
@@ -42,6 +74,8 @@ MEDICAL_SYSTEM_PROMPT_TEMPLATE = """You are a medical AI assistant for a healthc
 Your role is to help analyze patient symptoms, suggest possible diagnoses, and recommend treatments \
 based on patient medical records.
 
+{runtime_context}
+
 CURRENT PATIENT: "{patient_id}"
 
 CRITICAL RULES — follow these exactly:
@@ -51,9 +85,13 @@ Do NOT retrieve or volunteer patient details unless the user asks a medical or p
 diagnoses, or treatment, call the search_patient_records tool with patient_id="{patient_id}" to \
 retrieve their records, then answer the question using that data. Do this silently — never mention \
 tool names, the retrieval process, or patient IDs to the user.
-3. If you have already retrieved patient records earlier in the conversation, use that context \
+3. When the user asks for current or time-sensitive information (recent guidelines, news, drug \
+approvals, outbreak or public-health updates, statistics with explicit dates, or anything clearly \
+beyond your training cutoff), call web_search with a generic clinical query — never include \
+patient-identifying details in the query. Combine web findings with chart data when both apply.
+4. If you have already retrieved patient records earlier in the conversation, use that context \
 directly without calling the tool again.
-4. NEVER mention tools, tool names, patient IDs, or the retrieval process to the user. \
+5. NEVER mention tools, tool names, patient IDs, or the retrieval process to the user. \
 Act as if you inherently know the patient's medical history.
 
 RESPONSE GUIDELINES:
@@ -98,5 +136,9 @@ def build_system_prompt(
             institution=inst,
             patient_name=name,
             patient_id=patient_id,
+            runtime_context=get_runtime_prompt_context(),
         )
-    return MEDICAL_SYSTEM_PROMPT_TEMPLATE.format(patient_id=patient_id)
+    return MEDICAL_SYSTEM_PROMPT_TEMPLATE.format(
+        patient_id=patient_id,
+        runtime_context=get_runtime_prompt_context(),
+    )

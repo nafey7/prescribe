@@ -14,9 +14,13 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
-    # Short thread titles from the first user message (cheap / small models)
+    # Main chat model when LLM_PROVIDER=google (override via env if a given model errors on your key/region).
+    CHAT_MODEL_GOOGLE: str = "gemini-2.5-flash"
+
+    # Short thread titles from the first user message
     CHAT_TITLE_MODEL_OPENAI: str = "gpt-4o-mini"
-    CHAT_TITLE_MODEL_GOOGLE: str = "gemini-2.0-flash-lite"
+    # Use the same Google model as the main chat flow (newer API keys often reject gemini-1.5-* on v1beta).
+    CHAT_TITLE_MODEL_GOOGLE: str = "gemini-2.5-flash"
 
     AI_SUGGESTIONS_ENABLED: bool = True
 
@@ -29,6 +33,8 @@ class Settings(BaseSettings):
     JWT_LEEWAY_SECONDS: int = 30
     AUTH_REQUIRED: bool = True
     ENVIRONMENT: str = "local"
+    # IANA timezone for "today" in AI system prompts (e.g. America/New_York). Default UTC.
+    APP_TIMEZONE: str = "UTC"
     ALLOW_DOCTOR_SELF_SIGNUP: bool = False
     BCRYPT_ROUNDS: int = 12
     CORS_ALLOWED_ORIGINS: list[str] = Field(

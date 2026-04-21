@@ -9,7 +9,7 @@ import {
   chatAssistantStatusAvatarSx,
   chatAssistantStatusBubbleSx,
 } from "../theme/chatMessages";
-import type { Message } from "../types/chat";
+import type { Message, ThinkingPhase } from "../types/chat";
 import ChatMessage from "./ChatMessage";
 
 interface MessageListProps {
@@ -19,7 +19,17 @@ interface MessageListProps {
   onSuggestionClick?: (text: string) => void;
 }
 
-function ThinkingIndicator({ status }: { status?: string }) {
+function ThinkingIndicator({
+  status,
+  phase = "thinking",
+}: {
+  status?: string;
+  phase?: ThinkingPhase;
+}) {
+  const isWebSearch = phase === "web_search";
+  const primaryLabel = isWebSearch ? "Searching the web..." : "Thinking...";
+  const showSubtitle = Boolean(status && status !== primaryLabel);
+
   return (
     <Stack
       direction="row"
@@ -55,10 +65,10 @@ function ThinkingIndicator({ status }: { status?: string }) {
               }}
             />
             <Typography variant="body2" color="text.primary" sx={{ fontWeight: 500 }}>
-              Thinking...
+              {primaryLabel}
             </Typography>
           </Stack>
-          {status && status !== "Thinking..." ? (
+          {showSubtitle ? (
             <Typography variant="caption" color="text.secondary" sx={{ pl: 2.5 }}>
               {status}
             </Typography>
@@ -198,7 +208,12 @@ export default function MessageList({
           <ChatMessage key={`${msg.timestamp}-${i}`} message={msg} />
         )
       )}
-      {showThinking ? <ThinkingIndicator status={lastMessage.thinkingStatus} /> : null}
+      {showThinking ? (
+        <ThinkingIndicator
+          status={lastMessage.thinkingStatus}
+          phase={lastMessage.thinkingPhase}
+        />
+      ) : null}
       <div ref={bottomRef} />
     </Stack>
   );

@@ -35,6 +35,7 @@ A medical AI chat prototype: React + Vite frontend, FastAPI + LangGraph backend,
 
 ## Critical rules
 
+- **Backend tests always run in Docker.** Use `docker compose exec backend python -m pytest …` from the repo root with the stack running. Do **not** treat `cd backend && pytest` on the host as the primary or authoritative test run — deps and env can drift from the image. (Agents: default to the container command unless the user explicitly asks for a one-off host run.)
 - **Do not hallucinate paths.** Only reference files that actually exist in the repo.
 - **Update docs when you change behavior.** If you modify an API endpoint, update `docs/FRONTEND_BACKEND_COLLABORATION.md`. If you change architecture, update `docs/ARCHITECTURE.md`.
 - **Patient data is educational.** Seeded and registered patient data in MongoDB is synthetic — never treat it as real PHI.

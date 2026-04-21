@@ -33,6 +33,7 @@ export function useChat(patientId: string) {
         timestamp: new Date().toISOString(),
         isThinking: true,
         thinkingStatus: "Thinking...",
+        thinkingPhase: "thinking",
       };
 
       setMessages((prev) => [...prev, userMessage, placeholder]);
@@ -71,14 +72,15 @@ export function useChat(patientId: string) {
 
       try {
         await sendMessageStream(text, chatId, {
-          onThinking: (status) => {
+          onThinking: (update) => {
             updateLast((msg) => {
               if (msg.isStreaming || msg.content || tokenBufferRef.current)
                 return msg;
               return {
                 ...msg,
                 isThinking: true,
-                thinkingStatus: status,
+                thinkingStatus: update.status,
+                thinkingPhase: update.phase ?? "thinking",
               };
             });
           },

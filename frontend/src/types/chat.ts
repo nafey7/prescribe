@@ -1,3 +1,5 @@
+export type ThinkingPhase = "thinking" | "web_search" | "records" | "tool";
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
@@ -6,6 +8,8 @@ export interface Message {
   isStreaming?: boolean;
   isThinking?: boolean;
   thinkingStatus?: string;
+  /** From streaming `thinking` events; drives assistant status UI (e.g. web search label). */
+  thinkingPhase?: ThinkingPhase;
 }
 
 export interface ChatResponse {

@@ -19,7 +19,7 @@ def get_llm() -> BaseChatModel:
     from langchain_google_genai import ChatGoogleGenerativeAI
 
     return ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model=settings.CHAT_MODEL_GOOGLE,
         google_api_key=settings.GOOGLE_API_KEY,
         temperature=0.3,
         max_output_tokens=2048,
