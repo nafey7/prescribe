@@ -124,6 +124,29 @@ Redux store → baseApi middleware → fetch (JSON)
 - **`ui/`** for shared compositions (e.g. `Markdown.tsx`); feature UI stays under `components/` and `pages/`
 - **`lucide-react`** for icons (not `@mui/icons-material` unless we adopt it later)
 
+## Theme-first component styling (agents: read this before writing sx props)
+
+Component defaults and shared styles live in **`theme/components/`** — one file per MUI component, all registered in `theme/components/index.ts`. Before setting a prop or `sx` style inline, check whether it is already covered by a theme default:
+
+| Component | Defaults already set in theme |
+|-----------|-------------------------------|
+| `Button` | `disableElevation`, `textTransform: none`, `borderRadius` from shape |
+| `TextField` | `size: small`, `variant: outlined` |
+| `FormControl` | `size: small` |
+| `Chip` | `size: small`, `variant: outlined` |
+| `Paper` | `variant: outlined`, `borderRadius` from shape |
+| `Card` | `variant: outlined` |
+| `ToggleButton` | `textTransform: none` |
+| `Dialog` | `scroll: paper`, `borderRadius`, `maxHeight: 90vh` |
+| `LinearProgress` | `height: 8`, `borderRadius` pill |
+
+**Rules:**
+- **Never repeat a default in component code.** If `TextField` defaults to `size="small"`, do not write `size="small"` at each usage — it adds noise and breaks the contract (changing the default would require hunting all call sites).
+- **One place to change = one file in `theme/components/`.** If a style should apply globally to a component type, add it there, not via `sx` at every usage.
+- **Use `theme.palette.surface.*`** (`subtle` / `muted` / `elevated`) for background fills instead of hardcoded `grey[50]` / `grey[100]` — those don't adapt to dark mode.
+- **Adding a new MUI component?** Create `theme/components/MuiXxx.ts`, define `defaultProps` and/or `styleOverrides`, then register it in `theme/components/index.ts`. Do not start by writing repeated `sx` props across screens.
+- **`sx` is for layout and context-specific overrides only** (e.g. `mt`, `mb`, `width`, responsive show/hide). Visual identity (colors, radius, size, typography weight) belongs in the theme.
+
 ## Deep docs
 
 - [API contract and streaming protocol](../docs/FRONTEND_BACKEND_COLLABORATION.md)

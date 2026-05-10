@@ -1,16 +1,17 @@
 from langchain_core.language_models import BaseChatModel
 
+from app.ai.provider import get_active_provider
 from app.config import get_settings
 
 
 def get_llm() -> BaseChatModel:
     settings = get_settings()
 
-    if settings.LLM_PROVIDER == "openai":
+    if get_active_provider() == "openai":
         from langchain_openai import ChatOpenAI
 
         return ChatOpenAI(
-            model="gpt-4o-mini",
+            model=settings.CHAT_MODEL_OPENAI,
             api_key=settings.OPENAI_API_KEY,
             temperature=0.3,
             max_tokens=2048,

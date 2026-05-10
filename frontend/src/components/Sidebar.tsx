@@ -162,6 +162,26 @@ export default function Sidebar({
         width: 240,
         boxShadow: theme.shadows[4],
       },
+      "&:not(:hover) .sidebar-label": {
+        width: 0,
+        maxWidth: 0,
+        opacity: 0,
+        overflow: "hidden",
+      },
+      "&:not(:hover) .sidebar-brand": {
+        width: 0,
+        opacity: 0,
+        overflow: "hidden",
+      },
+      "&:not(:hover) .sidebar-brand-row": {
+        justifyContent: "center",
+        px: 1,
+      },
+      "&:not(:hover) .sidebar-nav-link": {
+        justifyContent: "center",
+        gap: 0,
+        px: 1.25,
+      },
     },
     [theme.breakpoints.up("lg")]: {
       width: 240,

@@ -78,7 +78,7 @@ _should_continue?
 - **Graph type:** `StateGraph` with `MedicalChatState` (messages list + patient_id)
 - **Checkpointing:** MongoDB via `langgraph-checkpoint-mongodb`, keyed by `thread_id` = `chat_id`
 - **Tools:** Currently one — `search_patient_records` reads the patient's profile from MongoDB (`users` collection, `role: patient`) and recent uploaded documents from the `documents` collection
-- **LLM:** Configurable via `LLM_PROVIDER` env var — Google Gemini (default) or OpenAI
+- **LLM:** Configurable via `LLM_PROVIDER` env var (`"openai"` default, or `"gemini"`). At runtime the active provider is held in `ai/provider.py` (`ProviderRegistry` singleton, thread-safe) and can be switched without a restart via `POST /api/config/ai-provider` (doctor-auth-gated). `get_llm()` and `get_title_llm()` both read from the registry; the env var is only the startup default.
 - **System prompt:** Injected as `SystemMessage` at the start of the message list, templated with `patient_id`
 
 ## Persistence model

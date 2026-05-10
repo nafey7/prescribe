@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
 from app.ai.graph import cleanup_graph
+from app.ai.provider import init_from_settings as init_provider
 from app.api.router import api_router
 from app.config import get_settings, validate_auth_settings
 from app.database.connection import close_mongodb, connect_to_mongodb, get_database
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting Medical AI Chat backend...")
     validate_auth_settings(get_settings())
+    init_provider()
     await connect_to_mongodb()
     try:
         seeded = await run_dev_seed(db=get_database(), require_dev_password=False)

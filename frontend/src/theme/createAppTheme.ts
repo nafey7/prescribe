@@ -13,7 +13,6 @@ export function createAppTheme(mode: PaletteMode) {
     typography,
     shape,
     components,
-    /** Align with Tailwind defaults used by the pre-migration shell (sm/md/lg). */
     breakpoints: {
       values: {
         xs: 0,

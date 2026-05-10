@@ -21,7 +21,6 @@ export const paletteLight: PaletteOptions = {
     800: "#065f46",
     900: "#064e3b",
   },
-  /** Doctor portal accent (Tailwind teal scale). */
   secondary: {
     main: "#0d9488",
     light: "#5eead4",

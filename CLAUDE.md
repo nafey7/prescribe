@@ -11,7 +11,7 @@ A medical AI chat prototype: React + Vite frontend, FastAPI + LangGraph backend,
 1. **This file** — orientation and critical rules
 2. **Area guide** — pick the one matching your task:
    - [`backend/CLAUDE.md`](backend/CLAUDE.md) — FastAPI, LangGraph, MongoDB
-   - [`frontend/CLAUDE.md`](frontend/CLAUDE.md) — React, Vite, Tailwind chat UI
+   - [`frontend/CLAUDE.md`](frontend/CLAUDE.md) — React, Vite, MUI chat UI
 3. **Deep docs** — consult as needed:
    - [`docs/PRODUCT.md`](docs/PRODUCT.md) — business context, user roles, domain rules
    - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system design and request flow
@@ -104,7 +104,7 @@ Do not assume `pip install` or `npm install` only on the host affects behavior i
 ```
 prescribe-v2/
 ├── backend/          # FastAPI + LangGraph + MongoDB
-├── frontend/         # React + Vite + Tailwind
+├── frontend/         # React + Vite + MUI
 ├── docs/             # Deep reference documentation
 │   └── plans/        # Implementation plans
 └── .cursor/commands/ # Cursor slash-command docs

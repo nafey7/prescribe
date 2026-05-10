@@ -31,5 +31,5 @@ function IdentityRedirectBoundary() {
     if (next) navigate(next, { replace: true });
   }, [currentRole, location.pathname, navigate]);
 
-  return <Outlet />;
+  return null;
 }

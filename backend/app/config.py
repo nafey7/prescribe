@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,11 +11,12 @@ class Settings(BaseSettings):
     MONGODB_URI: str = "mongodb://localhost:27017"
     DATABASE_NAME: str = "medical_chat"
 
-    LLM_PROVIDER: str = "google"
+    LLM_PROVIDER: Literal["openai", "gemini"] = "openai"
     GOOGLE_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
-    # Main chat model when LLM_PROVIDER=google (override via env if a given model errors on your key/region).
+    # Main chat model for each provider (override via env).
+    CHAT_MODEL_OPENAI: str = "gpt-4o-mini"
     CHAT_MODEL_GOOGLE: str = "gemini-2.5-flash"
 
     # Short thread titles from the first user message

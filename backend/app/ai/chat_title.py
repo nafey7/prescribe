@@ -5,6 +5,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.ai.provider import get_active_provider
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ def _text_from_response_content(content: Any) -> str:
 
 def get_title_llm():
     settings = get_settings()
-    if settings.LLM_PROVIDER == "openai":
+    if get_active_provider() == "openai":
         from langchain_openai import ChatOpenAI
 
         return ChatOpenAI(

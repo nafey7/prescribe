@@ -73,6 +73,8 @@ Protected routes expect **`Authorization: Bearer <access_token>`** when `AUTH_RE
 | `GET` | `/api/patients/{patient_id}/meal-plan-shares/{share_id}` | — | `MealPlanShareResponse` | Full snapshot including `meal_plan`. **404** if revoked, wrong patient, or unknown `share_id` |
 | `GET` | `/api/patients/{patient_id}/meal-plan-shares/{share_id}/pdf` | — | `application/pdf` (stream) | PDF rendered from stored snapshot (works even if source chat was deleted). Same attachment naming pattern using `share_id` |
 | `GET` | `/api/config/features` | — | `{ ai_suggestions_enabled, auth_relaxed, allow_doctor_self_signup }` | Public config snapshot the frontend reads at boot (snake_case on the wire; camelCase in `FeatureFlagContext`) |
+| `GET` | `/api/config/ai-provider` | Bearer (**doctor**) or dev bypass | `AIProviderResponse` | Read the active LLM provider and which API keys are configured |
+| `POST` | `/api/config/ai-provider` | Bearer (**doctor**) or dev bypass; body `{ "provider": "openai" \| "gemini" }` | `AIProviderResponse` | Switch the active LLM provider at runtime; **400** if target provider's key is missing; **422** for unknown provider |
 | `GET` | `/health` | — | `{ status: "ok" }` | Health check |
 
 ### `GET /api/config/features`
@@ -90,6 +92,28 @@ Public config snapshot the SPA reads at boot. Snake_case on the wire; `FeatureFl
 - `ai_suggestions_enabled` — from `Settings.AI_SUGGESTIONS_ENABLED`; gates the AI document suggestions UI.
 - `auth_relaxed` — mirrors backend `auth_bypass_allowed()`: `true` only when `AUTH_REQUIRED=false` **and** `ENVIRONMENT in {local, test}`; enables the dev identity picker and legacy `X-Patient-Id` / `X-Doctor-Id` headers without JWT.
 - `allow_doctor_self_signup` — from `Settings.ALLOW_DOCTOR_SELF_SIGNUP`; when `false`, `POST /api/auth/signup` with `role: "doctor"` returns **422** and the landing page hides the Doctor signup tab.
+
+### `GET /api/config/ai-provider` and `POST /api/config/ai-provider`
+
+Operator-only endpoints (doctor JWT or dev bypass) for inspecting and switching the active LLM provider at runtime without a process restart. The in-process registry resets to the `LLM_PROVIDER` env-var default on restart.
+
+```json
+// GET 200 OK
+{
+  "provider": "openai",
+  "available_providers": ["openai", "gemini"],
+  "openai_key_present": true,
+  "gemini_key_present": false
+}
+
+// POST body
+{ "provider": "gemini" }
+// POST 200 OK — same shape as GET
+// POST 400 — target key missing: { "detail": "Cannot switch to 'gemini': GOOGLE_API_KEY is not configured." }
+// POST 422 — unknown provider (Pydantic validation)
+```
+
+No frontend integration is planned; these are backend admin / operator endpoints.
 
 ## Dev identity headers (legacy; subordinate to JWT)
 

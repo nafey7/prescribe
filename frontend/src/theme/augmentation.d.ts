@@ -1,4 +1,3 @@
-/** Tailwind-aligned primary ramp on `palette.primary` for theme-aware `sx` / tokens. */
 declare module "@mui/material/styles" {
   interface Palette {
     surface: {

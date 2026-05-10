@@ -5,8 +5,9 @@ export const MuiButton: Components<Theme>["MuiButton"] = {
     disableElevation: true,
   },
   styleOverrides: {
-    root: {
+    root: ({ theme }) => ({
       textTransform: "none",
-    },
+      borderRadius: theme.shape.borderRadius,
+    }),
   },
 };
