@@ -7,6 +7,7 @@ from pymongo import MongoClient
 from pymongo.database import Database
 
 from app.config import get_settings
+from app.schemas.fitness_plan import DEFAULT_FITNESS_DISCLAIMER
 from app.schemas.meal_plan import MEAL_PLAN_DISCLAIMER, DayPlan, MealItem
 
 logger = logging.getLogger(__name__)
@@ -211,6 +212,103 @@ def _format_web_result_snippets(results: list[dict[str, Any]]) -> str:
     return "\n\n".join(lines) if lines else ""
 
 
+def _format_lab_results(suggestions: list[dict]) -> str:
+    if not suggestions:
+        return (
+            "No lab results have been extracted for this patient yet. "
+            "If a lab document was recently uploaded, try again in a few moments."
+        )
+
+    lines: list[str] = ["Lab results on file for this patient:\n"]
+    for s in suggestions:
+        doc_id = str(s.get("document_id") or "")
+        extracted = s.get("extracted_data") or {}
+        date = (extracted.get("date") or "").strip()
+        results = extracted.get("results") or []
+        created_at = s.get("created_at")
+        uploaded = ""
+        if hasattr(created_at, "date"):
+            try:
+                uploaded = created_at.date().isoformat()
+            except Exception:
+                pass
+
+        header_parts: list[str] = []
+        if date:
+            header_parts.append(f"date {date}")
+        if uploaded:
+            header_parts.append(f"uploaded {uploaded}")
+        if doc_id:
+            header_parts.append(f"document_id: {doc_id}")
+        header = f"Document ({', '.join(header_parts)})" if header_parts else "Document"
+        lines.append(header)
+
+        if not results:
+            lines.append("  (no structured results extracted)")
+        else:
+            for r in results:
+                name = (r.get("name") or "N/A").strip()
+                value = str(r.get("value") or "N/A").strip()
+                unit = (r.get("unit") or "").strip()
+                ref = (r.get("reference_range") or "N/A").strip()
+                status = (r.get("status") or "").strip()
+                value_str = f"{value} {unit}".strip()
+                flag = " | ⚠ HIGH" if status.upper() in ("HIGH", "ABNORMAL", "H") else (
+                    " | ⚠ LOW" if status.upper() in ("LOW", "L") else (
+                        f" | {status}" if status else ""
+                    )
+                )
+                lines.append(f"  - {name}: {value_str} | Reference: {ref}{flag}")
+        lines.append("")
+
+    count = len(suggestions)
+    lines.append(
+        f"{count} lab document{'s' if count != 1 else ''} found. "
+        "Always interpret values in the context of the patient's conditions and medications."
+    )
+    return "\n".join(lines)
+
+
+@tool
+def fetch_lab_results(patient_id: str, document_id: str = "") -> str:
+    """Retrieve structured lab results stored in the suggestions collection for a patient.
+
+    Call this when the user asks to interpret, explain, or discuss their lab results
+    or a specific lab report. Pass document_id to scope the query to one document.
+
+    Args:
+        patient_id: The patient's user_id (UUID) or patient_slug.
+        document_id: Optional document ID to filter results to a specific lab report.
+
+    Returns:
+        Formatted lab values or a notice if no results are available.
+    """
+    try:
+        db = _get_sync_db()
+    except Exception as exc:
+        logger.exception("Failed to get DB handle for lab result lookup")
+        return f"Lab results are temporarily unavailable ({exc.__class__.__name__})."
+
+    try:
+        query: dict = {"patient_id": patient_id, "category": "lab_result"}
+        if document_id and document_id.strip():
+            query["document_id"] = document_id.strip()
+        cursor = db.suggestions.find(query).sort("created_at", -1).limit(20)
+        docs = list(cursor)
+    except Exception as exc:
+        logger.exception("Failed to query lab results for patient_id=%s", patient_id)
+        return f"Lab results are temporarily unavailable ({exc.__class__.__name__})."
+
+    result = _format_lab_results(docs)
+    logger.info(
+        "fetch_lab_results patient_id=%s document_id=%r found=%d",
+        patient_id,
+        document_id or None,
+        len(docs),
+    )
+    return result
+
+
 @tool
 def web_search(query: str) -> str:
     """Search the public web for information that is not in the patient chart.
@@ -338,5 +436,75 @@ def submit_meal_plan(
     logger.info("submit_meal_plan called num_days=%d day_entries=%d", num_days, n_days)
     return (
         f"Meal plan for {num_days} days has been structured ({n_days} day entries provided). "
+        "Now write a brief narrative summary for the doctor."
+    )
+
+
+@tool
+def submit_fitness_plan(
+    days: list[dict],
+    num_days: int = 7,
+    goal: str = "",
+    fitness_level: str = "beginner",
+    medical_notes: str = "",
+    summary: str = "",
+    disclaimer: str = DEFAULT_FITNESS_DISCLAIMER,
+) -> str:
+    """Submit a structured, personalized fitness plan for the patient.
+
+    WHEN TO CALL: Call this tool ONLY when the doctor explicitly asks you to create,
+    generate, or suggest a fitness or workout plan for the patient. Do not call it for
+    general exercise advice — only when a full structured fitness plan is requested.
+
+    HOW TO CALL:
+    - First use `search_patient_records` to retrieve the patient's profile (conditions,
+      medications, lifestyle, activity level) so the plan is grounded in their actual data.
+    - Reason about medical contraindications BEFORE designing exercises:
+        * Cardiac conditions → avoid HIIT; low-impact cardio only; heart-rate ceiling
+        * Osteoporosis → low-impact; no high-fall-risk movements; resistance training with care
+        * Diabetes → monitor intensity; include warm-up/cool-down; avoid extremes
+        * Beta-blockers → lower maximum heart rate (approx. 0.85 × (220 - age))
+        * Obesity → joint-friendly movements; build duration before intensity
+    - Set `num_days` to the number the doctor specified, or default to 7 if unspecified.
+      Maximum is 28 days.
+    - Set `goal` to a concise fitness goal (e.g. "Improve cardiovascular endurance").
+    - Set `fitness_level` to "beginner", "intermediate", or "advanced".
+    - Populate `days` with one entry per day. Each day has:
+        - `day_index`: 1-based integer
+        - `label`: optional string like "Day 1 – Monday"
+        - `is_rest_day`: true for rest days (sessions may be empty)
+        - `sessions`: list of workout sessions, each with:
+            - `session_type`: "cardio" | "strength" | "flexibility" | "balance" | "rest"
+            - `name`: descriptive name (e.g. "Upper Body Strength")
+            - `duration_minutes`: total session duration
+            - `intensity`: "low" | "moderate" | "high"
+            - `exercises`: list of exercises, each with `name`, optional `sets`, `reps`,
+              `duration_minutes`, `rest_seconds`, `notes`, and `modifications`
+            - `warmup_notes` and `cooldown_notes`
+    - Populate `medical_notes` with contraindication rationale referencing the patient's
+      actual conditions and medications.
+    - Do NOT generate a meal plan in the same response as a fitness plan.
+    - Keep the default `disclaimer` unless the doctor provides a specific one.
+
+    After calling this tool, write a brief prose summary for the doctor highlighting the
+    exercise approach, key modifications for this patient, and a reminder that the plan
+    should be reviewed before implementation.
+
+    Args:
+        days: Day-by-day workout entries (required).
+        num_days: Total number of days planned (default 7, max 28).
+        goal: Overall fitness goal for this patient.
+        fitness_level: "beginner", "intermediate", or "advanced".
+        medical_notes: Contraindication rationale based on patient conditions/medications.
+        summary: Brief overall summary of the fitness plan approach.
+        disclaimer: Educational disclaimer (use the default).
+
+    Returns:
+        Confirmation string for the LLM to continue the conversation.
+    """
+    n_days = len(days) if days else 0
+    logger.info("submit_fitness_plan called num_days=%d day_entries=%d", num_days, n_days)
+    return (
+        f"Fitness plan for {num_days} days has been structured ({n_days} day entries provided). "
         "Now write a brief narrative summary for the doctor."
     )

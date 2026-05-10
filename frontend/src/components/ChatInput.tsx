@@ -4,18 +4,19 @@ import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import { CircleStop, Mic, SendHorizontal } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useWebSpeechRecognition } from "../hooks/useWebSpeechRecognition";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   isLoading: boolean;
+  value: string;
+  onChange: (v: string) => void;
 }
 
-export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
-  const [text, setText] = useState("");
+export default function ChatInput({ onSend, isLoading, value, onChange }: ChatInputProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const { isListening, error, supported, start, stop, clearError } = useWebSpeechRecognition(setText);
+  const { isListening, error, supported, start, stop, clearError } = useWebSpeechRecognition(onChange);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -26,11 +27,11 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
   }, [isLoading, isListening, stop]);
 
   const handleSubmit = () => {
-    const trimmed = text.trim();
+    const trimmed = value.trim();
     if (!trimmed || isLoading) return;
     if (isListening) stop();
     onSend(trimmed);
-    setText("");
+    onChange("");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -46,7 +47,7 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
       stop();
       return;
     }
-    start(() => text);
+    start(() => value);
   };
 
   const inputDisabled = isLoading || isListening;
@@ -80,10 +81,10 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
       >
         <TextField
           inputRef={inputRef}
-          value={text}
+          value={value}
           onChange={(e) => {
             clearError();
-            setText(e.target.value);
+            onChange(e.target.value);
           }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
@@ -160,7 +161,7 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
         <IconButton
           type="button"
           onClick={handleSubmit}
-          disabled={!text.trim() || isLoading}
+          disabled={!value.trim() || isLoading}
           color="secondary"
           size="medium"
           sx={(theme) => {

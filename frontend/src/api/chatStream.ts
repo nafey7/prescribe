@@ -1,5 +1,6 @@
 import { ensureFreshAccessToken } from "./authSession";
 import { applyPrescribeHeaders, getApiBase } from "./client";
+import type { FitnessPlanPayload } from "../types/fitnessPlan";
 import type { MealPlanPayload } from "../types/mealPlan";
 import type { ThinkingPhase } from "../types/chat";
 
@@ -15,7 +16,8 @@ type StreamCallbacks = {
     chatId: string,
     messageId: string,
     messageType: string,
-    mealPlan: MealPlanPayload | null
+    mealPlan: MealPlanPayload | null,
+    fitnessPlan: FitnessPlanPayload | null
   ) => void;
   onError: (error: string) => void;
   onChatTitle?: (title: string) => void;
@@ -54,7 +56,9 @@ export async function consumeSseStream(
                 rawPhase === "web_search" ||
                 rawPhase === "records" ||
                 rawPhase === "tool" ||
-                rawPhase === "thinking"
+                rawPhase === "thinking" ||
+                rawPhase === "meal_plan" ||
+                rawPhase === "fitness_plan"
                   ? rawPhase
                   : undefined;
               callbacks.onThinking({
@@ -71,11 +75,16 @@ export async function consumeSseStream(
                 data.meal_plan != null
                   ? (data.meal_plan as MealPlanPayload)
                   : null;
+              const fitnessPlan =
+                data.fitness_plan != null
+                  ? (data.fitness_plan as FitnessPlanPayload)
+                  : null;
               callbacks.onDone(
                 String(data.chat_id ?? ""),
                 String(data.message_id ?? ""),
                 String(data.message_type ?? "text"),
-                mealPlan
+                mealPlan,
+                fitnessPlan
               );
               break;
             }

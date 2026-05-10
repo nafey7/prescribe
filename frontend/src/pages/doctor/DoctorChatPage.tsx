@@ -3,7 +3,7 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { UserCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getConnectedPatientProfile } from "../../api/doctors";
 import ChatInput from "../../components/ChatInput";
@@ -17,6 +17,7 @@ export default function DoctorChatPage() {
   const { patientId } = useParams<{ patientId: string }>();
   const { currentDoctorId } = useIdentity();
   const [patientLabel, setPatientLabel] = useState<string | null>(null);
+  const [draftMessage, setDraftMessage] = useState("");
 
   const {
     messages,
@@ -32,6 +33,14 @@ export default function DoctorChatPage() {
     selectSession,
     deleteChat,
   } = useDoctorChat(currentDoctorId, patientId ?? null);
+
+  const handleSend = useCallback(
+    (text: string) => {
+      void sendMessage(text);
+      setDraftMessage("");
+    },
+    [sendMessage]
+  );
 
   useEffect(() => {
     if (!currentDoctorId || !patientId) {
@@ -155,7 +164,12 @@ export default function DoctorChatPage() {
             />
           </Box>
 
-          <ChatInput onSend={sendMessage} isLoading={isLoading} />
+          <ChatInput
+            onSend={handleSend}
+            isLoading={isLoading}
+            value={draftMessage}
+            onChange={setDraftMessage}
+          />
         </Box>
       </Box>
     </Box>

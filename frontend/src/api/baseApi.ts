@@ -91,6 +91,7 @@ export const baseApi = createApi({
     "Connections",
     "Auth",
     "MealPlanShares",
+    "FitnessPlanShares",
     "Prescriptions",
   ],
   endpoints: () => ({}),

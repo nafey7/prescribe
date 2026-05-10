@@ -9,20 +9,25 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
+import Snackbar from "@mui/material/Snackbar";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { Bot, ClipboardList, Plus, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   useCancelPrescriptionMutation,
+  useCheckDrugInteractionsMutation,
   useCreatePrescriptionMutation,
   useListPrescriptionsQuery,
 } from "../../api/prescriptionsApi";
+import DrugInteractionWarnings from "../../components/DrugInteractionWarnings";
 import PrescriptionCopilotModal from "../../components/PrescriptionCopilotModal";
 import { useIdentity } from "../../contexts/IdentityContext";
 import type {
+  DrugInteraction,
+  DrugInteractionCheckResponse,
   Medication,
   MedicationSuggestion,
   Prescription,
@@ -206,26 +211,61 @@ function NewPrescriptionDialog({
       : [emptyMed()]
   );
   const [error, setError] = useState<string | null>(null);
+  const [interactionResult, setInteractionResult] =
+    useState<DrugInteractionCheckResponse | null>(null);
+  const [interactionSnackbar, setInteractionSnackbar] = useState(false);
+  // Stale flag: true when medications have changed since last check
+  const [interactionStale, setInteractionStale] = useState(false);
 
   const [createPrescription, { isLoading }] = useCreatePrescriptionMutation();
+  const [checkInteractions, { isLoading: isCheckingInteractions }] =
+    useCheckDrugInteractionsMutation();
 
-  function updateMed(
-    index: number,
-    field: keyof Medication,
-    value: string
-  ) {
+  const hasNamedMeds = medications.some((m) => m.name.trim());
+
+  function updateMed(index: number, field: keyof Medication, value: string) {
     setMedications((prev) =>
       prev.map((m, i) => (i === index ? { ...m, [field]: value } : m))
     );
+    setInteractionStale(true);
   }
 
   function addMed() {
     setMedications((prev) => [...prev, emptyMed()]);
+    setInteractionStale(true);
   }
 
   function removeMed(index: number) {
     setMedications((prev) => prev.filter((_, i) => i !== index));
+    setInteractionStale(true);
   }
+
+  async function handleCheckInteractions() {
+    try {
+      const result = await checkInteractions({
+        doctorId,
+        patientId,
+        body: {
+          medications: medications
+            .filter((m) => m.name.trim())
+            .map((m) => ({ name: m.name, dosage: m.dosage, frequency: m.frequency })),
+        },
+      }).unwrap();
+      setInteractionResult(result);
+      setInteractionStale(false);
+    } catch {
+      setInteractionSnackbar(true);
+    }
+  }
+
+  // Auto-trigger check when dialog opens with a copilot prefill
+  useEffect(() => {
+    if (open && prefill && hasNamedMeds) {
+      void handleCheckInteractions();
+    }
+    // Only fire when the dialog opens with prefill data
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, prefill]);
 
   async function handleSubmit() {
     setError(null);
@@ -251,161 +291,198 @@ function NewPrescriptionDialog({
     setNotes("");
     setMedications([emptyMed()]);
     setError(null);
+    setInteractionResult(null);
+    setInteractionStale(false);
     onClose();
   }
 
   // Re-seed from prefill whenever it changes (copilot accept)
   // This is handled by the key prop on the dialog at the call site.
 
+  const interactions: DrugInteraction[] = interactionStale
+    ? []
+    : (interactionResult?.interactions ?? []);
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        <Stack
-          direction="row"
-          sx={{ alignItems: "center", justifyContent: "space-between" }}
-        >
-          New Prescription
-          <IconButton size="small" onClick={handleClose} disabled={isLoading}>
-            <X size={18} />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
+    <>
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Stack
+            direction="row"
+            sx={{ alignItems: "center", justifyContent: "space-between" }}
+          >
+            New Prescription
+            <IconButton size="small" onClick={handleClose} disabled={isLoading}>
+              <X size={18} />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
 
-      <DialogContent dividers>
-        <Stack spacing={2.5}>
-          {error && <Alert severity="error">{error}</Alert>}
+        <DialogContent dividers>
+          <Stack spacing={2.5}>
+            {error && <Alert severity="error">{error}</Alert>}
 
-          <TextField
-            label="Diagnosis summary"
-            value={diagnosisSummary}
-            onChange={(e) => setDiagnosisSummary(e.target.value)}
-            fullWidth
-            size="small"
-          />
+            <TextField
+              label="Diagnosis summary"
+              value={diagnosisSummary}
+              onChange={(e) => setDiagnosisSummary(e.target.value)}
+              fullWidth
+              size="small"
+            />
 
-          <TextField
-            label="Notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            fullWidth
-            size="small"
-            multiline
-            rows={2}
-          />
+            <TextField
+              label="Notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              fullWidth
+              size="small"
+              multiline
+              rows={2}
+            />
 
-          <Box>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ fontWeight: 600, letterSpacing: 0.5, display: "block", mb: 1 }}
-            >
-              MEDICATIONS
-            </Typography>
+            <Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontWeight: 600, letterSpacing: 0.5, display: "block", mb: 1 }}
+              >
+                MEDICATIONS
+              </Typography>
 
-            <Stack spacing={2}>
-              {medications.map((m, i) => (
-                <Box
-                  key={i}
-                  sx={{
-                    border: 1,
-                    borderColor: "divider",
-                    borderRadius: 1.5,
-                    p: 1.5,
-                    position: "relative",
-                  }}
-                >
-                  {medications.length > 1 && (
-                    <IconButton
-                      size="small"
-                      onClick={() => removeMed(i)}
-                      sx={{ position: "absolute", top: 6, right: 6 }}
-                      title="Remove medication"
-                    >
-                      <X size={14} />
-                    </IconButton>
-                  )}
-                  <Stack spacing={1.5}>
-                    <Stack direction="row" spacing={1.5}>
-                      <TextField
-                        label="Name"
-                        value={m.name}
-                        onChange={(e) => updateMed(i, "name", e.target.value)}
+              <Stack spacing={2}>
+                {medications.map((m, i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: 1.5,
+                      p: 1.5,
+                      position: "relative",
+                    }}
+                  >
+                    {medications.length > 1 && (
+                      <IconButton
                         size="small"
-                        sx={{ flex: 2 }}
-                        required
-                      />
+                        onClick={() => removeMed(i)}
+                        sx={{ position: "absolute", top: 6, right: 6 }}
+                        title="Remove medication"
+                      >
+                        <X size={14} />
+                      </IconButton>
+                    )}
+                    <Stack spacing={1.5}>
+                      <Stack direction="row" spacing={1.5}>
+                        <TextField
+                          label="Name"
+                          value={m.name}
+                          onChange={(e) => updateMed(i, "name", e.target.value)}
+                          size="small"
+                          sx={{ flex: 2 }}
+                          required
+                        />
+                        <TextField
+                          label="Dosage"
+                          value={m.dosage}
+                          onChange={(e) => updateMed(i, "dosage", e.target.value)}
+                          size="small"
+                          sx={{ flex: 1 }}
+                          placeholder="e.g. 10mg"
+                        />
+                      </Stack>
+                      <Stack direction="row" spacing={1.5}>
+                        <TextField
+                          label="Frequency"
+                          value={m.frequency}
+                          onChange={(e) =>
+                            updateMed(i, "frequency", e.target.value)
+                          }
+                          size="small"
+                          sx={{ flex: 1 }}
+                          placeholder="e.g. twice daily"
+                        />
+                        <TextField
+                          label="Duration"
+                          value={m.duration}
+                          onChange={(e) =>
+                            updateMed(i, "duration", e.target.value)
+                          }
+                          size="small"
+                          sx={{ flex: 1 }}
+                          placeholder="e.g. 30 days"
+                        />
+                      </Stack>
                       <TextField
-                        label="Dosage"
-                        value={m.dosage}
-                        onChange={(e) => updateMed(i, "dosage", e.target.value)}
-                        size="small"
-                        sx={{ flex: 1 }}
-                        placeholder="e.g. 10mg"
-                      />
-                    </Stack>
-                    <Stack direction="row" spacing={1.5}>
-                      <TextField
-                        label="Frequency"
-                        value={m.frequency}
+                        label="Instructions"
+                        value={m.instructions}
                         onChange={(e) =>
-                          updateMed(i, "frequency", e.target.value)
+                          updateMed(i, "instructions", e.target.value)
                         }
                         size="small"
-                        sx={{ flex: 1 }}
-                        placeholder="e.g. twice daily"
-                      />
-                      <TextField
-                        label="Duration"
-                        value={m.duration}
-                        onChange={(e) =>
-                          updateMed(i, "duration", e.target.value)
-                        }
-                        size="small"
-                        sx={{ flex: 1 }}
-                        placeholder="e.g. 30 days"
+                        fullWidth
+                        placeholder="e.g. Take with food"
                       />
                     </Stack>
-                    <TextField
-                      label="Instructions"
-                      value={m.instructions}
-                      onChange={(e) =>
-                        updateMed(i, "instructions", e.target.value)
-                      }
-                      size="small"
-                      fullWidth
-                      placeholder="e.g. Take with food"
-                    />
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
+                  </Box>
+                ))}
+              </Stack>
+
+              <Button
+                size="small"
+                startIcon={<Plus size={14} />}
+                onClick={addMed}
+                sx={{ mt: 1 }}
+                disabled={isLoading}
+              >
+                Add medication
+              </Button>
+            </Box>
 
             <Button
-              size="small"
-              startIcon={<Plus size={14} />}
-              onClick={addMed}
-              sx={{ mt: 1 }}
-              disabled={isLoading}
+              variant="outlined"
+              onClick={() => void handleCheckInteractions()}
+              disabled={isCheckingInteractions || !hasNamedMeds || isLoading}
+              startIcon={
+                isCheckingInteractions ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : undefined
+              }
             >
-              Add medication
+              {isCheckingInteractions
+                ? "Checking…"
+                : interactionStale && interactionResult
+                  ? "Re-check Interactions"
+                  : "Check Interactions"}
             </Button>
-          </Box>
-        </Stack>
-      </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 1.5 }}>
-        <Button onClick={handleClose} disabled={isLoading}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={() => void handleSubmit()}
-          disabled={isLoading}
-        >
-          {isLoading ? "Creating…" : "Create"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+            <DrugInteractionWarnings
+              interactions={interactions}
+              checked={interactionResult !== null && !interactionStale}
+            />
+          </Stack>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 1.5 }}>
+          <Button onClick={handleClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => void handleSubmit()}
+            disabled={isLoading}
+          >
+            {isLoading ? "Creating…" : "Create"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={interactionSnackbar}
+        autoHideDuration={5000}
+        onClose={() => setInteractionSnackbar(false)}
+        message="Interaction check failed — verify manually."
+      />
+    </>
   );
 }
 

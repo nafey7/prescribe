@@ -1,4 +1,6 @@
 import type {
+  DrugInteractionCheckRequest,
+  DrugInteractionCheckResponse,
   Prescription,
   PrescriptionCreateRequest,
   PrescriptionStatus,
@@ -94,6 +96,16 @@ export const prescriptionsApi = baseApi.injectEndpoints({
         body: JSON.stringify(body),
       }),
     }),
+    checkDrugInteractions: builder.mutation<
+      DrugInteractionCheckResponse,
+      { doctorId: string; patientId: string; body: DrugInteractionCheckRequest }
+    >({
+      query: ({ doctorId, patientId, body }) => ({
+        url: `${prescriptionsBase(doctorId, patientId)}/check-interactions`,
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    }),
   }),
 });
 
@@ -104,4 +116,5 @@ export const {
   useUpdatePrescriptionStatusMutation,
   useCancelPrescriptionMutation,
   useGeneratePrescriptionSuggestionMutation,
+  useCheckDrugInteractionsMutation,
 } = prescriptionsApi;

@@ -29,6 +29,15 @@ Rules:
 Use an empty string only if a field genuinely does not apply.
 - If the doctor's description mentions a drug the patient is allergic to, include a clear \
 warning in notes and either omit that drug or suggest a safe alternative.
+- Check the proposed medications against the patient's current medications for drug-drug \
+interactions. For each interaction found: add a warning to `notes` identifying the two drugs, \
+the interaction risk (e.g., bleeding, serotonin syndrome), and a brief action \
+(e.g., "monitor INR closely").
+- Check each proposed medication against the patient's active conditions for contraindications \
+(e.g., metformin in severe renal impairment, beta-blockers in asthma). Flag these in `notes`.
+- If a proposed drug interacts critically with another, prefer a safer alternative in the \
+`medications` list and explain the substitution in `notes`.
+- Preserve allergy-check rules above; allergy conflicts take priority over drug-drug interactions.
 - Do not invent patient data. Only use what is provided in the patient context.
 - Respond with valid structured output only — no additional prose.
 """

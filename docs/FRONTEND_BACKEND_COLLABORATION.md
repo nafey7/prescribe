@@ -68,6 +68,13 @@ Protected routes expect **`Authorization: Bearer <access_token>`** when `AUTH_RE
 | `GET` | `/api/doctors/{doctor_id}/chat/sessions` | Query: optional `patient_id` | `ChatSessionSummary[]` | All chat sessions for this doctor; optional `patient_id` filter (connection required when filter set) |
 | `GET` | `/api/doctors/{doctor_id}/chat/history/{chat_id}` | — | `ChatHistoryResponse` | **403** if session is legacy (no `doctor_id`) or belongs to another doctor; **404** if chat missing |
 | `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/chat/meal-plan/pdf` | Query: **`chat_id`**, **`message_id`** (required) | `application/pdf` (stream) | Doctor-only; **403** without active connection; **404** if message missing / wrong chat / not `meal_plan`. `Content-Disposition: attachment` with ASCII-safe `meal-plan-{message_id}.pdf` |
+| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions` | `{ diagnosis_summary?, notes?, medications? }` | `PrescriptionRead` (201) | Create prescription; **403** if not connected |
+| `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions` | Query: `status` | `PrescriptionRead[]` | List prescriptions; **403** if not connected |
+| `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions/{prescription_id}` | — | `PrescriptionRead` | Get one prescription |
+| `PATCH` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions/{prescription_id}` | `{ status }` | `PrescriptionRead` | Update prescription status |
+| `DELETE` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions/{prescription_id}` | — | `PrescriptionRead` | Cancel prescription |
+| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions/suggest` | `{ prompt }` | `PrescriptionSuggestionResponse` | AI copilot suggestion; **403** if not connected; **500** on LLM failure |
+| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions/check-interactions` | `DrugInteractionCheckRequest` (JSON) | `DrugInteractionCheckResponse` | AI drug interaction screen; **403** if not connected; **422** blank/missing medication name; **500** on LLM failure (returns generic error, not AI error) |
 | `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/meal-plan-shares` | `MealPlanShareCreate` — `{ chat_id, message_id }` | `MealPlanShareResponse` | Creates a **snapshot** in `meal_plan_shares` for the patient portal. **201** when inserted; **200** when an active share already exists for the same `(patient_id, source_message_id)` (idempotent). **403** / **404** same rules as PDF |
 | `GET` | `/api/patients/{patient_id}/meal-plan-shares` | Query: `skip`, `limit` | `MealPlanShareListResponse` | Patient self (**JWT** `patient_id` must match path, or dev bypass). Active shares only (`revoked_at` null) |
 | `GET` | `/api/patients/{patient_id}/meal-plan-shares/{share_id}` | — | `MealPlanShareResponse` | Full snapshot including `meal_plan`. **404** if revoked, wrong patient, or unknown `share_id` |
@@ -76,6 +83,40 @@ Protected routes expect **`Authorization: Bearer <access_token>`** when `AUTH_RE
 | `GET` | `/api/config/ai-provider` | Bearer (**doctor**) or dev bypass | `AIProviderResponse` | Read the active LLM provider and which API keys are configured |
 | `POST` | `/api/config/ai-provider` | Bearer (**doctor**) or dev bypass; body `{ "provider": "openai" \| "gemini" }` | `AIProviderResponse` | Switch the active LLM provider at runtime; **400** if target provider's key is missing; **422** for unknown provider |
 | `GET` | `/health` | — | `{ status: "ok" }` | Health check |
+
+### `POST .../prescriptions/check-interactions`
+
+Screens proposed medications against the patient's existing medications, allergies, and conditions. Returns AI-generated interaction warnings before the prescription is saved.
+
+**Request (`snake_case`):**
+```json
+{
+  "medications": [
+    { "name": "Aspirin", "dosage": "81mg", "frequency": "once daily" }
+  ]
+}
+```
+
+**Response (`snake_case`):**
+```json
+{
+  "interactions": [
+    {
+      "severity": "critical",
+      "title": "Warfarin + Aspirin — bleeding risk",
+      "description": "Concurrent use significantly increases bleeding risk. Monitor closely.",
+      "implicated_drugs": ["Warfarin", "Aspirin"]
+    }
+  ],
+  "checked_at": "2026-05-10T14:22:03Z"
+}
+```
+
+- `severity`: `"critical"` | `"moderate"` | `"minor"`.
+- Warnings are advisory only — the doctor decides whether to proceed.
+- Frontend state: `checked_at` is not persisted to the prescription; it is display-only.
+- React hook: `useCheckDrugInteractionsMutation` from `api/prescriptionsApi.ts`. TypeScript types: `DrugInteraction`, `DrugInteractionCheckResponse`, `DrugInteractionCheckRequest` in `types/doctor.ts`.
+- snake_case throughout on the wire; TypeScript type field names mirror the wire format.
 
 ### `GET /api/config/features`
 

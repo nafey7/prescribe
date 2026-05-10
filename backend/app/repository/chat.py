@@ -65,6 +65,7 @@ async def save_message(
     doctor_id: str | None = None,
     message_type: str = "text",
     meal_plan: dict | None = None,
+    fitness_plan: dict | None = None,
 ) -> str:
     message_id = str(uuid4())
     doc: dict = {
@@ -80,6 +81,8 @@ async def save_message(
         doc["doctor_id"] = doctor_id
     if meal_plan is not None:
         doc["meal_plan"] = meal_plan
+    if fitness_plan is not None:
+        doc["fitness_plan"] = fitness_plan
     await db.chat_messages.insert_one(doc)
     await touch_session(db, chat_id)
     return message_id

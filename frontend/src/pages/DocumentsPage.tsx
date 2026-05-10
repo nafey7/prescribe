@@ -6,7 +6,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { FileQuestion } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDeleteDocumentMutation } from "../api/documentsApi";
 import { fetchDocumentBlob } from "../api/documents";
 import CategoryFilter from "../components/documents/CategoryFilter";
@@ -16,10 +16,12 @@ import DocumentPreview from "../components/documents/DocumentPreview";
 import UploadModal from "../components/documents/UploadModal";
 import { usePatientContext } from "../contexts/PatientContext";
 import { useDocuments } from "../hooks/useDocuments";
+import { paths } from "../router/paths";
 import type { DocumentMetadata } from "../types/document";
 
 export default function DocumentsPage() {
   const { currentPatientId } = usePatientContext();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(1);
@@ -80,6 +82,16 @@ export default function DocumentsPage() {
       }
     },
     [currentPatientId]
+  );
+
+  const handleDiscuss = useCallback(
+    (d: DocumentMetadata) => {
+      const label = (d.description || "").trim() || d.filename;
+      const prefill = `Please interpret my lab results from "${label}".`;
+      const url = `${paths.patient.chat}?prefill=${encodeURIComponent(prefill)}&sourceDoc=${encodeURIComponent(d.document_id)}`;
+      navigate(url);
+    },
+    [navigate]
   );
 
   const handleDelete = useCallback(
@@ -214,6 +226,7 @@ export default function DocumentsPage() {
                   onView={() => openPreview(d)}
                   onDownload={() => void handleDownload(d)}
                   onDelete={() => void handleDelete(d)}
+                  onDiscuss={d.category === "lab_result" ? () => handleDiscuss(d) : undefined}
                 />
               </Box>
             ))}

@@ -10,6 +10,7 @@ export function useChat(patientId: string) {
   const [chatId, setChatId] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftMessage, setDraftMessage] = useState("");
 
   const tokenBufferRef = useRef("");
   const rafIdRef = useRef<number | null>(null);
@@ -88,7 +89,7 @@ export function useChat(patientId: string) {
             tokenBufferRef.current += token;
             scheduleFlush();
           },
-          onDone: (newChatId, messageId, messageType, mealPlan) => {
+          onDone: (newChatId, messageId, messageType, mealPlan, fitnessPlan) => {
             if (rafIdRef.current !== null) {
               cancelAnimationFrame(rafIdRef.current);
               rafIdRef.current = null;
@@ -105,6 +106,7 @@ export function useChat(patientId: string) {
               isThinking: false,
               message_type: messageType,
               meal_plan: mealPlan ?? undefined,
+              fitness_plan: fitnessPlan ?? undefined,
             }));
           },
           onError: (errMsg) => {
@@ -164,5 +166,5 @@ export function useChat(patientId: string) {
     clearChat();
   }, [patientId, clearChat]);
 
-  return { messages, chatId, isLoading, error, sendMessage, clearChat };
+  return { messages, chatId, isLoading, error, sendMessage, clearChat, draftMessage, setDraftMessage };
 }

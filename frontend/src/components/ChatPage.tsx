@@ -4,8 +4,8 @@ import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { MessageSquare, RotateCcw, UserCircle } from "lucide-react";
-import { useCallback } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { useCallback, useEffect } from "react";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { usePatientContext } from "../contexts/PatientContext";
 import { useChat } from "../hooks/useChat";
 import { paths } from "../router/paths";
@@ -16,8 +16,18 @@ import PatientSelector from "./PatientSelector";
 
 export default function ChatPage() {
   const { currentPatientId, setCurrentPatientId } = usePatientContext();
-  const { messages, isLoading, sendMessage, clearChat } =
+  const { messages, isLoading, sendMessage, clearChat, draftMessage, setDraftMessage } =
     useChat(currentPatientId);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const prefill = searchParams.get("prefill");
+    if (prefill) {
+      setDraftMessage(prefill);
+      setSearchParams({}, { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const profileHref = paths.patient.profile;
 
@@ -166,7 +176,12 @@ export default function ChatPage() {
         </Box>
       </Box>
 
-      <ChatInput onSend={sendMessage} isLoading={isLoading} />
+      <ChatInput
+        onSend={sendMessage}
+        isLoading={isLoading}
+        value={draftMessage}
+        onChange={setDraftMessage}
+      />
     </Box>
   );
 }

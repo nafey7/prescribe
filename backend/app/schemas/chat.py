@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.schemas.enums import ChatType, SenderType, UserRole
+from app.schemas.fitness_plan import FitnessPlanPayload
 from app.schemas.meal_plan import MealPlanPayload
 from app.utils import chat_id as _chat_id
 from app.utils import message_id as _message_id
@@ -26,6 +27,7 @@ class ChatResponse(BaseModel):
     chat_title: str | None = None
     message_type: str = "text"
     meal_plan: MealPlanPayload | None = None
+    fitness_plan: FitnessPlanPayload | None = None
 
 
 class MessageSchema(BaseModel):
@@ -35,6 +37,7 @@ class MessageSchema(BaseModel):
     message_id: str = ""
     message_type: str = "text"
     meal_plan: MealPlanPayload | None = None
+    fitness_plan: FitnessPlanPayload | None = None
 
 
 class ChatHistoryResponse(BaseModel):

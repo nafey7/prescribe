@@ -23,6 +23,8 @@ import DocumentsPage from "./pages/DocumentsPage";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import PatientDoctorsPage from "./pages/patient/PatientDoctorsPage";
+import PatientFitnessPlanDetailPage from "./pages/patient/PatientFitnessPlanDetailPage";
+import PatientFitnessPlansPage from "./pages/patient/PatientFitnessPlansPage";
 import PatientMealPlanDetailPage from "./pages/patient/PatientMealPlanDetailPage";
 import PatientMealPlansPage from "./pages/patient/PatientMealPlansPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -106,6 +108,8 @@ export const appRouteTree: RouteObject[] = [
               { path: "doctors", element: <PatientDoctorsPage /> },
               { path: "meal-plans", element: <PatientMealPlansPage /> },
               { path: "meal-plans/:shareId", element: <PatientMealPlanDetailPage /> },
+              { path: "fitness-plans", element: <PatientFitnessPlansPage /> },
+              { path: "fitness-plans/:shareId", element: <PatientFitnessPlanDetailPage /> },
               { path: "chat", element: <ChatPage /> },
             ],
           },

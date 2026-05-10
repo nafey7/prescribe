@@ -3,6 +3,7 @@ import logging
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from app.config import get_settings
+from app.repository.fitness_plan_share import ensure_indexes as ensure_fitness_plan_share_indexes
 from app.repository.meal_plan_share import ensure_indexes as ensure_meal_plan_share_indexes
 from app.repository.refresh_tokens import ensure_indexes as ensure_refresh_token_indexes
 
@@ -21,6 +22,7 @@ async def connect_to_mongodb() -> None:
     await _client.admin.command("ping")
     await ensure_refresh_token_indexes(_database)
     await ensure_meal_plan_share_indexes(_database)
+    await ensure_fitness_plan_share_indexes(_database)
     logger.info("Connected to MongoDB: %s", settings.DATABASE_NAME)
 
 

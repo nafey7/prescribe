@@ -1,5 +1,9 @@
 import type { Patient } from "../types/chat";
 import type {
+  FitnessPlanShareListResponse,
+  FitnessPlanShareResponse,
+} from "../types/fitnessPlanShare";
+import type {
   MealPlanShareListResponse,
   MealPlanShareResponse,
 } from "../types/mealPlanShare";
@@ -96,6 +100,44 @@ export const patientsApi = baseApi.injectEndpoints({
         responseHandler: (response: Response) => response.blob(),
       }),
     }),
+    listPatientFitnessPlanShares: builder.query<
+      FitnessPlanShareListResponse,
+      { patientId: string; skip?: number; limit?: number }
+    >({
+      query: ({ patientId, skip = 0, limit = 50 }) => {
+        const q = new URLSearchParams({
+          skip: String(skip),
+          limit: String(limit),
+        });
+        return `/patients/${encodeURIComponent(patientId)}/fitness-plan-shares?${q}`;
+      },
+      providesTags: (_r, _e, arg) => [
+        { type: "FitnessPlanShares", id: arg.patientId },
+      ],
+    }),
+    getPatientFitnessPlanShare: builder.query<
+      FitnessPlanShareResponse,
+      { patientId: string; shareId: string }
+    >({
+      query: ({ patientId, shareId }) =>
+        `/patients/${encodeURIComponent(patientId)}/fitness-plan-shares/${encodeURIComponent(shareId)}`,
+      providesTags: (_r, _e, arg) => [
+        {
+          type: "FitnessPlanShares",
+          id: `${arg.patientId}-${arg.shareId}`,
+        },
+      ],
+    }),
+    getPatientFitnessPlanSharePdf: builder.query<
+      Blob,
+      { patientId: string; shareId: string }
+    >({
+      query: ({ patientId, shareId }) => ({
+        url: `/patients/${encodeURIComponent(patientId)}/fitness-plan-shares/${encodeURIComponent(shareId)}/pdf`,
+        method: "GET",
+        responseHandler: (response: Response) => response.blob(),
+      }),
+    }),
   }),
 });
 
@@ -109,4 +151,7 @@ export const {
   useListPatientMealPlanSharesQuery,
   useGetPatientMealPlanShareQuery,
   useLazyGetPatientMealPlanSharePdfQuery,
+  useListPatientFitnessPlanSharesQuery,
+  useGetPatientFitnessPlanShareQuery,
+  useLazyGetPatientFitnessPlanSharePdfQuery,
 } = patientsApi;

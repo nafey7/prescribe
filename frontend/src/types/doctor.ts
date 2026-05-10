@@ -221,3 +221,21 @@ export interface PrescriptionSuggestionResponse {
   notes: string;
   medications: MedicationSuggestion[];
 }
+
+export type InteractionSeverity = "critical" | "moderate" | "minor";
+
+export interface DrugInteraction {
+  severity: InteractionSeverity;
+  title: string;
+  description: string;
+  implicated_drugs: string[];
+}
+
+export interface DrugInteractionCheckResponse {
+  interactions: DrugInteraction[];
+  checked_at: string;
+}
+
+export interface DrugInteractionCheckRequest {
+  medications: Array<{ name: string; dosage: string; frequency: string }>;
+}

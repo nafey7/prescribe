@@ -10,6 +10,7 @@ import {
   chatMessageTimestampSx,
 } from "../theme/chatMessages";
 import { Markdown } from "../ui/Markdown";
+import { FitnessPlanMessage } from "./chat/FitnessPlanMessage";
 import { MealPlanMessage } from "./chat/MealPlanMessage";
 
 export type MealPlanDoctorContext = {
@@ -74,7 +75,7 @@ function ChatMessageInner({ message, mealPlanContext }: ChatMessageProps) {
       <Box
         sx={(theme) => ({
           ...chatMessageBubbleSx(theme, role),
-          ...(message.message_type === "meal_plan" && {
+          ...((message.message_type === "meal_plan" || message.message_type === "fitness_plan") && {
             width: "100%",
             maxWidth: "min(92%, 680px)",
           }),
@@ -87,6 +88,15 @@ function ChatMessageInner({ message, mealPlanContext }: ChatMessageProps) {
         ) : message.message_type === "meal_plan" && message.meal_plan ? (
           <MealPlanMessage
             payload={message.meal_plan}
+            isStreaming={message.isStreaming}
+            messageId={message.messageId}
+            doctorId={mealPlanContext?.doctorId}
+            patientId={mealPlanContext?.patientId}
+            chatId={mealPlanContext?.chatId}
+          />
+        ) : message.message_type === "fitness_plan" && message.fitness_plan ? (
+          <FitnessPlanMessage
+            payload={message.fitness_plan}
             isStreaming={message.isStreaming}
             messageId={message.messageId}
             doctorId={mealPlanContext?.doctorId}
@@ -133,6 +143,7 @@ const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     p.thinkingStatus === n.thinkingStatus &&
     p.message_type === n.message_type &&
     p.meal_plan === n.meal_plan &&
+    p.fitness_plan === n.fitness_plan &&
     p.messageId === n.messageId &&
     pc?.doctorId === nc?.doctorId &&
     pc?.patientId === nc?.patientId &&

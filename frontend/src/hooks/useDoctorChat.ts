@@ -59,6 +59,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
                   : undefined,
               message_type: m.message_type,
               meal_plan: m.meal_plan ?? undefined,
+              fitness_plan: m.fitness_plan ?? undefined,
             };
           })
         );
@@ -205,7 +206,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
             tokenBufferRef.current += token;
             scheduleFlush();
           },
-          onDone: (newChatId, messageIdFromStream, messageType, mealPlan) => {
+          onDone: (newChatId, messageIdFromStream, messageType, mealPlan, fitnessPlan) => {
             if (rafIdRef.current !== null) {
               cancelAnimationFrame(rafIdRef.current);
               rafIdRef.current = null;
@@ -228,6 +229,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
               messageId: messageIdFromStream || undefined,
               message_type: messageType,
               meal_plan: mealPlan ?? undefined,
+              fitness_plan: fitnessPlan ?? undefined,
             }));
           },
           onError: (errMsg) => {

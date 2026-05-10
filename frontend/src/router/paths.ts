@@ -22,6 +22,9 @@ export const paths = {
     mealPlans: "/patient/meal-plans",
     mealPlanDetail: (shareId: string) =>
       `/patient/meal-plans/${encodeURIComponent(shareId)}`,
+    fitnessPlans: "/patient/fitness-plans",
+    fitnessPlanDetail: (shareId: string) =>
+      `/patient/fitness-plans/${encodeURIComponent(shareId)}`,
     profileLegacy: (userId: string) => `/patient/profile/${userId}`,
   },
   doctor: {

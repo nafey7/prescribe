@@ -5,7 +5,7 @@ import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { FileText, ImageIcon, Trash2, Download, Eye } from "lucide-react";
+import { FileText, ImageIcon, MessageSquare, Trash2, Download, Eye } from "lucide-react";
 import type { DocumentCategory, DocumentMetadata } from "../../types/document";
 import { DOCUMENT_CATEGORY_LABELS } from "../../types/document";
 
@@ -15,6 +15,8 @@ interface Props {
   onDownload: () => void;
   /** Omit or set read-only to hide delete (e.g. doctor portal). */
   onDelete?: () => void;
+  /** When provided, renders a "Discuss with AI" button (lab_result documents only). */
+  onDiscuss?: () => void;
   readOnly?: boolean;
 }
 
@@ -36,6 +38,7 @@ export default function DocumentCard({
   onView,
   onDownload,
   onDelete,
+  onDiscuss,
   readOnly = false,
 }: Props) {
   const isImage = doc.content_type.startsWith("image/");
@@ -126,6 +129,18 @@ export default function DocumentCard({
               >
                 Download
               </Button>
+              {onDiscuss && (
+                <Button
+                  type="button"
+                  variant="outlined"
+                  size="small"
+                  color="success"
+                  onClick={onDiscuss}
+                  startIcon={<MessageSquare size={14} />}
+                >
+                  Discuss with AI
+                </Button>
+              )}
               {!readOnly && onDelete && (
                 <Button
                   type="button"

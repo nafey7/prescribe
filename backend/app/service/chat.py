@@ -22,6 +22,7 @@ from app.schemas.chat import (
     MessageSchema,
     PatientInfo,
 )
+from app.schemas.fitness_plan import FitnessPlanPayload
 from app.schemas.meal_plan import MealPlanPayload
 from app.schemas.patient import document_to_profile_response
 
@@ -118,7 +119,7 @@ async def process_message(
     )
 
     try:
-        ai_response, meal_plan = await invoke_medical_agent(
+        ai_response, meal_plan, fitness_plan = await invoke_medical_agent(
             message=message,
             patient_id=patient_id,
             chat_id=chat_id,
@@ -127,8 +128,14 @@ async def process_message(
     except Exception:
         raise
 
-    message_type = "meal_plan" if meal_plan is not None else "text"
+    if fitness_plan is not None:
+        message_type = "fitness_plan"
+    elif meal_plan is not None:
+        message_type = "meal_plan"
+    else:
+        message_type = "text"
     meal_plan_dict = meal_plan.model_dump() if meal_plan is not None else None
+    fitness_plan_dict = fitness_plan.model_dump() if fitness_plan is not None else None
 
     message_id = await chat_repo.save_message(
         db,
@@ -139,6 +146,7 @@ async def process_message(
         doctor_id=doctor_id,
         message_type=message_type,
         meal_plan=meal_plan_dict,
+        fitness_plan=fitness_plan_dict,
     )
 
     chat_title: str | None = None
@@ -158,6 +166,7 @@ async def process_message(
         chat_title=chat_title,
         message_type=message_type,
         meal_plan=meal_plan,
+        fitness_plan=fitness_plan,
     )
 
 
@@ -193,6 +202,7 @@ async def process_message_stream(
 
     full_response = ""
     meal_plan: MealPlanPayload | None = None
+    fitness_plan: FitnessPlanPayload | None = None
     try:
         async for event in stream_medical_agent(
             message=message,
@@ -208,6 +218,14 @@ async def process_message_stream(
                         "chat_stream meal_plan validation failed chat_id=%s", chat_id, exc_info=True
                     )
                 continue  # internal event — do not forward to SSE client
+            if event["event"] == "_fitness_plan_payload":
+                try:
+                    fitness_plan = FitnessPlanPayload.model_validate(event["data"]["fitness_plan"])
+                except Exception:
+                    logger.warning(
+                        "chat_stream fitness_plan validation failed chat_id=%s", chat_id, exc_info=True
+                    )
+                continue  # internal event — do not forward to SSE client
             if event["event"] == "token":
                 full_response += event["data"]["content"]
             yield _format_sse(event["event"], event["data"])
@@ -221,8 +239,14 @@ async def process_message_stream(
             full_response = "I wasn't able to generate a response. Please try again."
             yield _format_sse("token", {"content": full_response})
 
-        message_type = "meal_plan" if meal_plan is not None else "text"
+        if fitness_plan is not None:
+            message_type = "fitness_plan"
+        elif meal_plan is not None:
+            message_type = "meal_plan"
+        else:
+            message_type = "text"
         meal_plan_dict = meal_plan.model_dump() if meal_plan is not None else None
+        fitness_plan_dict = fitness_plan.model_dump() if fitness_plan is not None else None
 
         message_id = await chat_repo.save_message(
             db,
@@ -233,6 +257,7 @@ async def process_message_stream(
             doctor_id=doctor_id,
             message_type=message_type,
             meal_plan=meal_plan_dict,
+            fitness_plan=fitness_plan_dict,
         )
 
         # Run title after the main model finishes — avoids two concurrent Gemini calls (429).
@@ -253,6 +278,8 @@ async def process_message_stream(
         }
         if meal_plan_dict is not None:
             done_data["meal_plan"] = meal_plan_dict
+        if fitness_plan_dict is not None:
+            done_data["fitness_plan"] = fitness_plan_dict
         yield _format_sse("done", done_data)
 
     except Exception as e:
@@ -272,6 +299,17 @@ def _message_schema_from_doc(m: dict) -> MessageSchema:
                 m.get("message_id", "?"),
                 exc_info=True,
             )
+    raw_fp = m.get("fitness_plan")
+    fitness_plan: FitnessPlanPayload | None = None
+    if raw_fp is not None:
+        try:
+            fitness_plan = FitnessPlanPayload.model_validate(raw_fp)
+        except Exception:
+            logger.warning(
+                "Failed to deserialize fitness_plan for message_id=%s",
+                m.get("message_id", "?"),
+                exc_info=True,
+            )
     return MessageSchema(
         role=m["role"],
         content=m["content"],
@@ -279,6 +317,7 @@ def _message_schema_from_doc(m: dict) -> MessageSchema:
         message_id=str(m.get("message_id") or ""),
         message_type=m.get("message_type", "text"),
         meal_plan=meal_plan,
+        fitness_plan=fitness_plan,
     )
 
 

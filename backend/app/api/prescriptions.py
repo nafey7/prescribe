@@ -3,6 +3,10 @@ from pydantic import BaseModel
 
 from app.api.dependencies import ensure_doctor_route, resolve_actor_user
 from app.database.connection import get_database
+from app.schemas.drug_interaction import (
+    DrugInteractionCheckRequest,
+    DrugInteractionCheckResponse,
+)
 from app.schemas.enums import PrescriptionStatus
 from app.schemas.prescription import (
     Medication,
@@ -10,6 +14,7 @@ from app.schemas.prescription import (
     PrescriptionSuggestionRequest,
     PrescriptionSuggestionResponse,
 )
+from app.service import drug_interaction_service
 from app.service import prescription_copilot as prescription_copilot_service
 from app.service import prescriptions as prescriptions_service
 from app.service.auth import CurrentUser
@@ -148,4 +153,29 @@ async def suggest_prescription(
         raise HTTPException(
             status_code=500,
             detail="AI suggestion failed. Please try again.",
+        ) from None
+
+
+@router.post(
+    "/{doctor_id}/patients/{patient_id}/prescriptions/check-interactions",
+    response_model=DrugInteractionCheckResponse,
+)
+async def check_drug_interactions_route(
+    doctor_id: str,
+    patient_id: str,
+    body: DrugInteractionCheckRequest,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+) -> DrugInteractionCheckResponse:
+    ensure_doctor_route(actor, doctor_id)
+    db = get_database()
+    try:
+        return await drug_interaction_service.check_interactions(
+            db, doctor_id, patient_id, body
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Interaction check failed. Please try again.",
         ) from None
