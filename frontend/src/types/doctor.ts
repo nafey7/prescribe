@@ -136,6 +136,28 @@ export interface ConnectedPatientListResponse {
   limit: number;
 }
 
+/** Mirrors backend `app/schemas/connection.py` → `ConnectionResponse`. */
+export interface ConnectionResponse {
+  connection_id: string;
+  doctor_id: string;
+  patient_id: string;
+  status: string;
+  initiated_by: string;
+  initiated_at: string;
+  responded_at: string | null;
+  removed_at: string | null;
+  removed_by: string | null;
+  doctor_name: string | null;
+  patient_name: string | null;
+}
+
+export interface ConnectionListResponse {
+  connections: ConnectionResponse[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
 /** Doctor–patient chat sessions (`GET .../chat/sessions`). */
 export interface ChatSessionSummary {
   chat_id: string;
@@ -144,4 +166,58 @@ export interface ChatSessionSummary {
   title: string;
   created_at: string;
   updated_at: string;
+}
+
+/** Mirrors backend `app/schemas/prescription.py`. */
+export type PrescriptionStatus = "ACTIVE" | "DRAFT" | "CANCELLED" | "SUPERSEDED";
+
+export interface Medication {
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+}
+
+export interface Prescription {
+  prescription_id: string;
+  patient_id: string;
+  doctor_id: string;
+  created_by_user_id: string;
+  status: PrescriptionStatus;
+  diagnosis_summary: string;
+  notes: string;
+  medications: Medication[];
+  attachments: string[];
+  issued_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PrescriptionCreateRequest {
+  diagnosis_summary?: string;
+  notes?: string;
+  medications?: Medication[];
+}
+
+export interface PrescriptionStatusUpdateRequest {
+  status: PrescriptionStatus;
+}
+
+export interface PrescriptionSuggestionRequest {
+  prompt: string;
+}
+
+export interface MedicationSuggestion {
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+}
+
+export interface PrescriptionSuggestionResponse {
+  diagnosis_summary: string;
+  notes: string;
+  medications: MedicationSuggestion[];
 }

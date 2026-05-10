@@ -57,3 +57,21 @@ class PrescriptionRead(BaseModel):
     issued_at: datetime
     created_at: datetime
     updated_at: datetime
+
+
+class PrescriptionSuggestionRequest(BaseModel):
+    prompt: str = Field(..., min_length=5, max_length=2000)
+
+
+class MedicationSuggestion(BaseModel):
+    name: str
+    dosage: str = ""
+    frequency: str = ""
+    duration: str = ""
+    instructions: str = ""
+
+
+class PrescriptionSuggestionResponse(BaseModel):
+    diagnosis_summary: str = ""
+    notes: str = ""
+    medications: list[MedicationSuggestion]

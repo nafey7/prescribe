@@ -13,6 +13,7 @@ export * from "./doctorsApi";
 export * from "./connectionsApi";
 export * from "./documentsApi";
 export * from "./suggestionsApi";
+export * from "./prescriptionsApi";
 export * from "./chatApi";
 export * from "./chat";
 export * from "./chatStream";
