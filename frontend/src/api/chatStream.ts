@@ -1,5 +1,6 @@
 import { ensureFreshAccessToken } from "./authSession";
 import { applyPrescribeHeaders, getApiBase } from "./client";
+import type { DifferentialDiagnosisPayload } from "../types/differentialDiagnosis";
 import type { FitnessPlanPayload } from "../types/fitnessPlan";
 import type { MealPlanPayload } from "../types/mealPlan";
 import type { ThinkingPhase } from "../types/chat";
@@ -17,10 +18,17 @@ type StreamCallbacks = {
     messageId: string,
     messageType: string,
     mealPlan: MealPlanPayload | null,
-    fitnessPlan: FitnessPlanPayload | null
+    fitnessPlan: FitnessPlanPayload | null,
+    differentialDiagnosis: DifferentialDiagnosisPayload | null
   ) => void;
   onError: (error: string) => void;
   onChatTitle?: (title: string) => void;
+  /**
+   * Optional: fires when the backend emits a `differential_diagnosis` event before `done`.
+   * The same payload is also delivered through `onDone`, so consumers that only need
+   * end-of-stream state can ignore this callback.
+   */
+  onDifferentialDiagnosis?: (payload: DifferentialDiagnosisPayload) => void;
 };
 
 /** Exported for Vitest; used by `sendMessageStream` / `sendDoctorChatMessageStream`. */
@@ -58,7 +66,8 @@ export async function consumeSseStream(
                 rawPhase === "tool" ||
                 rawPhase === "thinking" ||
                 rawPhase === "meal_plan" ||
-                rawPhase === "fitness_plan"
+                rawPhase === "fitness_plan" ||
+                rawPhase === "differential"
                   ? rawPhase
                   : undefined;
               callbacks.onThinking({
@@ -70,6 +79,15 @@ export async function consumeSseStream(
             case "token":
               callbacks.onToken(String(data.content ?? ""));
               break;
+            case "differential_diagnosis": {
+              const payload = data.differential_diagnosis;
+              if (payload && typeof payload === "object") {
+                callbacks.onDifferentialDiagnosis?.(
+                  payload as DifferentialDiagnosisPayload
+                );
+              }
+              break;
+            }
             case "done": {
               const mealPlan =
                 data.meal_plan != null
@@ -79,12 +97,17 @@ export async function consumeSseStream(
                 data.fitness_plan != null
                   ? (data.fitness_plan as FitnessPlanPayload)
                   : null;
+              const differentialDiagnosis =
+                data.differential_diagnosis != null
+                  ? (data.differential_diagnosis as DifferentialDiagnosisPayload)
+                  : null;
               callbacks.onDone(
                 String(data.chat_id ?? ""),
                 String(data.message_id ?? ""),
                 String(data.message_type ?? "text"),
                 mealPlan,
-                fitnessPlan
+                fitnessPlan,
+                differentialDiagnosis
               );
               break;
             }

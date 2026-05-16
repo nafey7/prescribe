@@ -1,7 +1,15 @@
+import type { DifferentialDiagnosisPayload } from "./differentialDiagnosis";
 import type { FitnessPlanPayload } from "./fitnessPlan";
 import type { MealPlanPayload } from "./mealPlan";
 
-export type ThinkingPhase = "thinking" | "web_search" | "records" | "tool" | "meal_plan" | "fitness_plan";
+export type ThinkingPhase =
+  | "thinking"
+  | "web_search"
+  | "records"
+  | "tool"
+  | "meal_plan"
+  | "fitness_plan"
+  | "differential";
 
 export interface Message {
   role: "user" | "assistant";
@@ -14,12 +22,14 @@ export interface Message {
   thinkingStatus?: string;
   /** From streaming `thinking` events; drives assistant status UI (e.g. web search label). */
   thinkingPhase?: ThinkingPhase;
-  /** Structured message type — "text" (default), "meal_plan", or "fitness_plan". */
+  /** Structured message type — "text" (default), "meal_plan", "fitness_plan", or "differential_diagnosis". */
   message_type?: string;
   /** Present when message_type === "meal_plan". */
   meal_plan?: MealPlanPayload | null;
   /** Present when message_type === "fitness_plan". */
   fitness_plan?: FitnessPlanPayload | null;
+  /** Present when message_type === "differential_diagnosis". */
+  differential_diagnosis?: DifferentialDiagnosisPayload | null;
 }
 
 export interface ChatResponse {
@@ -30,6 +40,7 @@ export interface ChatResponse {
   message_type?: string;
   meal_plan?: MealPlanPayload | null;
   fitness_plan?: FitnessPlanPayload | null;
+  differential_diagnosis?: DifferentialDiagnosisPayload | null;
 }
 
 export interface ChatHistoryResponse {

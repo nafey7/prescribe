@@ -16,6 +16,8 @@ export type SidebarNavItem = {
   label: string;
   icon: typeof LayoutDashboard;
   end?: boolean;
+  /** Stable E2E hook — see e2e/pages/PatientShellPage.ts. */
+  testId: string;
 };
 
 export const patientNavItems: SidebarNavItem[] = [
@@ -24,12 +26,13 @@ export const patientNavItems: SidebarNavItem[] = [
     label: "Dashboard",
     icon: LayoutDashboard,
     end: true,
+    testId: "nav-dashboard",
   },
-  { path: paths.patient.profile, label: "My Profile", icon: User },
-  { path: paths.patient.documents, label: "Documents", icon: FileText },
-  { path: paths.patient.doctors, label: "My Doctors", icon: Stethoscope },
-  { path: paths.patient.mealPlans, label: "Meal plans", icon: Utensils },
-  { path: paths.patient.fitnessPlans, label: "Fitness plans", icon: Activity },
+  { path: paths.patient.profile, label: "My Profile", icon: User, testId: "nav-profile" },
+  { path: paths.patient.documents, label: "Documents", icon: FileText, testId: "nav-documents" },
+  { path: paths.patient.doctors, label: "My Doctors", icon: Stethoscope, testId: "nav-doctors" },
+  { path: paths.patient.mealPlans, label: "Meal plans", icon: Utensils, testId: "nav-meal-plans" },
+  { path: paths.patient.fitnessPlans, label: "Fitness plans", icon: Activity, testId: "nav-fitness-plans" },
 ];
 
 function SidebarInner({
@@ -56,6 +59,7 @@ function SidebarInner({
         onClick={onClose}
         selected={selected}
         className="sidebar-nav-link"
+        data-testid={item.testId}
       >
         <Box
           component="span"

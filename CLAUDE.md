@@ -31,11 +31,14 @@ A medical AI chat prototype: React + Vite frontend, FastAPI + LangGraph backend,
 | Product / business rules | `docs/PRODUCT.md` |
 | Cross-stack feature | `docs/ARCHITECTURE.md` + `docs/FRONTEND_BACKEND_COLLABORATION.md` |
 | New implementation plan | `docs/plans/` — use `/create-plan` command |
+| Testing strategy (any layer) | `docs/TESTING.md` |
+| E2E / Playwright work or setup | `docs/TESTING.md` (E2E section) → `e2e/README.md` |
 | Setup / onboarding | `docs/LOCAL_DEVELOPMENT.md` |
 
 ## Critical rules
 
 - **Backend tests always run in Docker.** Use `docker compose exec backend python -m pytest …` from the repo root with the stack running. Do **not** treat `cd backend && pytest` on the host as the primary or authoritative test run — deps and env can drift from the image. (Agents: default to the container command unless the user explicitly asks for a one-off host run.)
+- **E2E tests run against the live Docker stack.** Start it (`docker compose up -d`) and ensure seed users exist (`docker compose exec backend python -m seed`) before `npm --prefix e2e run test`.
 - **Do not hallucinate paths.** Only reference files that actually exist in the repo.
 - **Update docs when you change behavior.** If you modify an API endpoint, update `docs/FRONTEND_BACKEND_COLLABORATION.md`. If you change architecture, update `docs/ARCHITECTURE.md`.
 - **Patient data is educational.** Seeded and registered patient data in MongoDB is synthetic — never treat it as real PHI.
@@ -57,6 +60,9 @@ docker compose logs -f frontend
 
 # Run backend tests (always use the backend container; do not rely on host pytest)
 docker compose exec backend python -m pytest tests/ -v
+
+# Run end-to-end tests (Playwright; stack must be up first)
+npm --prefix e2e run test
 
 # Sync backend Python deps in the running container (after requirements.txt changes)
 docker compose exec backend pip install -r requirements.txt
@@ -105,6 +111,7 @@ Do not assume `pip install` or `npm install` only on the host affects behavior i
 prescribe-v2/
 ├── backend/          # FastAPI + LangGraph + MongoDB
 ├── frontend/         # React + Vite + MUI
+├── e2e/              # Playwright end-to-end suite (drives the live Docker stack)
 ├── docs/             # Deep reference documentation
 │   └── plans/        # Implementation plans
 └── .cursor/commands/ # Cursor slash-command docs

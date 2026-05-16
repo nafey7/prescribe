@@ -7,6 +7,10 @@ from pymongo import MongoClient
 from pymongo.database import Database
 
 from app.config import get_settings
+from app.schemas.differential_diagnosis import (
+    DEFAULT_DDX_DISCLAIMER,
+    Diagnosis,
+)
 from app.schemas.fitness_plan import DEFAULT_FITNESS_DISCLAIMER
 from app.schemas.meal_plan import MEAL_PLAN_DISCLAIMER, DayPlan, MealItem
 
@@ -507,4 +511,73 @@ def submit_fitness_plan(
     return (
         f"Fitness plan for {num_days} days has been structured ({n_days} day entries provided). "
         "Now write a brief narrative summary for the doctor."
+    )
+
+
+@tool
+def submit_differential_diagnosis(
+    summary: str,
+    diagnoses: list[Diagnosis],
+    red_flags: list[str] = [],
+    recommended_workup: list[str] = [],
+    reasoning_notes: str = "",
+    disclaimer: str = DEFAULT_DDX_DISCLAIMER,
+) -> str:
+    """Submit a ranked, patient-grounded differential diagnosis.
+
+    WHEN TO CALL: Call this tool ONLY when the doctor describes a patient's symptoms,
+    chief complaint, or examination findings, or explicitly asks for a differential
+    diagnosis, possible causes, or "what could this be". Do NOT call it for greetings,
+    general medical questions, chart summaries, drug lookups, lab interpretation alone,
+    or meal/fitness plan requests.
+
+    HOW TO CALL:
+    - First call `search_patient_records` with patient_id=... to retrieve the patient's
+      demographics, conditions, medications, allergies, family history, and lifestyle.
+    - If the symptoms or chief complaint plausibly relate to labs (chest pain → cardiac
+      enzymes/lipids; fatigue → CBC/TSH; etc.), also call `fetch_lab_results`.
+    - For each candidate diagnosis, write a short `rationale` (≤ 30 words) and populate
+      `supporting_evidence` with **named** patient factors that raise the probability
+      (e.g. "Type 2 diabetes", "metformin therapy", "father had HTN") and
+      `contradicting_evidence` with factors that argue against. These arrays are the
+      entire point of the differential — they make the patient grounding visible.
+      Generic population-level reasoning without naming the patient's actual factors is
+      unacceptable.
+    - Populate `key_workup` per diagnosis with the first-line test(s) that would most
+      meaningfully shift the probability.
+    - Set `tier` to "high", "moderate", or "low" matching the probability bucket
+      (high ≥ 30, moderate 10–29, low < 10) — these are relative likelihoods, not
+      normalized posteriors, and do not need to sum to 100.
+    - Populate top-level `red_flags` whenever the chief complaint includes any
+      can't-miss feature (chest pain, focal neurologic deficit, severe headache,
+      severe dyspnea, syncope, hemoptysis, GI bleeding, fever with altered mental
+      status, etc.) — list the specific diagnoses to rule out.
+    - Populate `recommended_workup` with the highest-yield initial tests / exam
+      steps across the differential.
+    - `summary` is a 2–3 sentence overview of the clinical picture grounded in the
+      patient's chart (≤ 60 words).
+    - Keep the default `disclaimer`.
+
+    After calling this tool, write a brief prose summary for the doctor highlighting
+    the top 1–2 candidates, the red flags, and the recommended next step. Do not
+    restate the structured payload verbatim.
+
+    Args:
+        summary: 2–3 sentence overview of the clinical picture.
+        diagnoses: Ranked list of candidate diagnoses (1–20).
+        red_flags: Can't-miss diagnoses to rule out regardless of probability.
+        recommended_workup: First-line tests / exam steps.
+        reasoning_notes: Brief overall reasoning, including which patient factors most
+            shaped the ranking.
+        disclaimer: Educational disclaimer (use the default).
+
+    Returns:
+        Confirmation string for the LLM to continue with a narrative summary.
+    """
+    n = len(diagnoses) if diagnoses else 0
+    logger.info("submit_differential_diagnosis called n_diagnoses=%d", n)
+    return (
+        f"Differential with {n} ranked diagnoses has been structured. "
+        "Now write a brief narrative summary for the doctor — highlight the top "
+        "1–2 candidates, any red flags, and the recommended initial workup."
     )

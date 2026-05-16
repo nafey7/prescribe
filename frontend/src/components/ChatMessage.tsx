@@ -10,6 +10,7 @@ import {
   chatMessageTimestampSx,
 } from "../theme/chatMessages";
 import { Markdown } from "../ui/Markdown";
+import { DifferentialDiagnosisMessage } from "./chat/DifferentialDiagnosisMessage";
 import { FitnessPlanMessage } from "./chat/FitnessPlanMessage";
 import { MealPlanMessage } from "./chat/MealPlanMessage";
 
@@ -75,7 +76,9 @@ function ChatMessageInner({ message, mealPlanContext }: ChatMessageProps) {
       <Box
         sx={(theme) => ({
           ...chatMessageBubbleSx(theme, role),
-          ...((message.message_type === "meal_plan" || message.message_type === "fitness_plan") && {
+          ...((message.message_type === "meal_plan" ||
+            message.message_type === "fitness_plan" ||
+            message.message_type === "differential_diagnosis") && {
             width: "100%",
             maxWidth: "min(92%, 680px)",
           }),
@@ -103,6 +106,29 @@ function ChatMessageInner({ message, mealPlanContext }: ChatMessageProps) {
             patientId={mealPlanContext?.patientId}
             chatId={mealPlanContext?.chatId}
           />
+        ) : message.message_type === "differential_diagnosis" &&
+          message.differential_diagnosis ? (
+          <Box sx={{ width: "100%" }}>
+            <DifferentialDiagnosisMessage
+              payload={message.differential_diagnosis}
+              isStreaming={message.isStreaming}
+            />
+            {message.content ? (
+              <Box
+                sx={{
+                  typography: "body2",
+                  lineHeight: 1.6,
+                  mt: 1.5,
+                  pt: 1.5,
+                  borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+                  "& > :first-child": { mt: 0 },
+                  "& > :last-child": { mb: 0 },
+                }}
+              >
+                <Markdown>{message.content}</Markdown>
+              </Box>
+            ) : null}
+          </Box>
         ) : (
           <Box
             sx={{
@@ -144,6 +170,7 @@ const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     p.message_type === n.message_type &&
     p.meal_plan === n.meal_plan &&
     p.fitness_plan === n.fitness_plan &&
+    p.differential_diagnosis === n.differential_diagnosis &&
     p.messageId === n.messageId &&
     pc?.doctorId === nc?.doctorId &&
     pc?.patientId === nc?.patientId &&

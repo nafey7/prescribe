@@ -111,6 +111,19 @@ Redux store → baseApi middleware → fetch (JSON)
 - **Markdown rendering:** `ChatMessage` uses `react-markdown` + `remark-gfm` via `ui/Markdown.tsx` (theme-aware typography).
 - **Tests:** `npm run test` / `npm run test:run` (Vitest + jsdom). API tests live next to modules (e.g. `api/client.test.ts`, `api/baseApi.test.ts`).
 
+## Testing — E2E (Playwright)
+
+Cross-page journeys (login, role routing, sidebar navigation) live in the top-level [`e2e/`](../e2e/) workspace. Operational details — quick start, fixtures, env vars — are in [`docs/TESTING.md`](../docs/TESTING.md) (E2E section).
+
+**Selector hygiene (enforced in review):**
+
+1. `getByRole` first.
+2. `getByLabel` when role is ambiguous.
+3. `getByText` for assertions on copy.
+4. `getByTestId` only when nothing above is stable.
+
+Class names and XPath are not allowed. New `data-testid` attributes ship in the **same PR** as the spec that consumes them; today the only ones in the patient surface are `login-email`, `login-password`, `login-submit`, `login-error`, and the patient sidebar nav links (`nav-dashboard`, `nav-profile`, `nav-documents`, `nav-doctors`, `nav-meal-plans`, `nav-fitness-plans`). Do not sprinkle more without a spec reaching for them.
+
 ## Dependencies
 
 - **Versioning:** Treat **`package-lock.json`** as the source of truth; commit it whenever `package.json` changes.

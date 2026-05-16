@@ -72,6 +72,8 @@ Do **not** use host `cd backend && python -m pytest` (or a local venv) as the de
 
 Tests live in `backend/tests/`. New tests should follow the existing pattern of one test file per module area.
 
+Cross-stack journeys (login, role routing, full request flow) are covered by the Playwright suite in `e2e/` — see [`docs/TESTING.md`](../docs/TESTING.md) (E2E section). Run it whenever a backend change touches `/auth/*`, `/me`, public allow-list, or anything observable from the patient/doctor portal shell.
+
 ## Deep docs
 
 - [Architecture and data flow](../docs/ARCHITECTURE.md)

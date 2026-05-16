@@ -29,7 +29,12 @@ function ThinkingIndicator({
   phase?: ThinkingPhase;
 }) {
   const isWebSearch = phase === "web_search";
-  const primaryLabel = isWebSearch ? "Searching the web..." : "Thinking...";
+  const isDifferential = phase === "differential";
+  const primaryLabel = isWebSearch
+    ? "Searching the web..."
+    : isDifferential
+      ? "Building differential..."
+      : "Thinking...";
   const showSubtitle = Boolean(status && status !== primaryLabel);
 
   return (

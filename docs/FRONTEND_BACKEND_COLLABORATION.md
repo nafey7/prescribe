@@ -337,11 +337,11 @@ The frontend API modules send `snake_case` in JSON bodies where applicable, atta
 
 ## Streaming protocol (SSE)
 
-The streaming endpoint returns `text/event-stream` with four event types:
+The streaming endpoint returns `text/event-stream` with the following event types:
 
 ```
 event: thinking
-data: {"status": "Searching patient records..."}
+data: {"status": "Searching patient records...", "phase": "records"}
 
 event: token
 data: {"content": "Based"}
@@ -349,25 +349,33 @@ data: {"content": "Based"}
 event: token
 data: {"content": " on the patient's records..."}
 
+event: differential_diagnosis
+data: {"differential_diagnosis": {"summary": "…", "diagnoses": [{"rank": 1, "condition": "ACS", "probability": 45, "tier": "high", "rationale": "…", "supporting_evidence": ["Type 2 diabetes"], "contradicting_evidence": [], "key_workup": ["12-lead ECG"]}], "red_flags": ["ACS — obtain ECG"], "recommended_workup": ["Troponin"], "reasoning_notes": "…", "disclaimer": "…"}}
+
 event: done
 data: {"chat_id": "abc-123", "message_id": "msg-456", "message_type": "text"}
 
 event: done
 data: {"chat_id": "abc-123", "message_id": "msg-456", "message_type": "meal_plan", "meal_plan": {"num_days": 1, "days": [{"day_index": 1, "meals": [{"name": "Oatmeal", "description": "", "items": []}]}], "summary": "Example", "disclaimer": "…"}}
 
+event: done
+data: {"chat_id": "abc-123", "message_id": "msg-456", "message_type": "differential_diagnosis", "differential_diagnosis": { … same shape as the streamed event … }}
+
 event: error
 data: {"detail": "LLM timeout"}
 ```
 
-**`done` event (streaming completion):** JSON includes at least `chat_id` and `message_id`. **`message_type`** defaults to `"text"` if omitted. **`meal_plan`** is included only when non-null (assistant turn with validated structured plan). Doctor chat streaming uses the same SSE format via `sendDoctorChatMessageStream()` in `frontend/src/api/chatStream.ts`, which parses `message_type` and `meal_plan` on `onDone`.
+**`differential_diagnosis` event:** Emitted by `service/chat.py` after the LLM calls `submit_differential_diagnosis` and the backend validates the structured payload against `DifferentialDiagnosisPayload` (`backend/app/schemas/differential_diagnosis.py`). The frontend's `consumeSseStream` (`frontend/src/api/chatStream.ts`) routes it to the optional `onDifferentialDiagnosis` callback so the doctor chat can render `<DifferentialDiagnosisMessage>` before the `done` event arrives. The mirror TypeScript type lives at `frontend/src/types/differentialDiagnosis.ts`.
+
+**`done` event (streaming completion):** JSON includes at least `chat_id` and `message_id`. **`message_type`** defaults to `"text"` if omitted. **`meal_plan`**, **`fitness_plan`**, and **`differential_diagnosis`** are each included only when non-null (assistant turn that submitted that structured payload). Doctor chat streaming uses the same SSE format via `sendDoctorChatMessageStream()` in `frontend/src/api/chatStream.ts`, which parses `message_type`, `meal_plan`, `fitness_plan`, and `differential_diagnosis` on `onDone`.
 
 ### Frontend SSE parsing
 
 `sendMessageStream()` and `sendDoctorChatMessageStream()` live in `frontend/src/api/chatStream.ts` (re-exported from `api/chat.ts` for patient). Both use:
 - Shared `fetch` from `api/client.ts` (`POST`, not `EventSource`, which only supports GET) so **`Authorization: Bearer`** and dev headers are attached the same way as other API calls
 - `response.body.getReader()` + `TextDecoder` for chunk reading
-- Manual SSE line parsing (`event:` / `data:` lines), including **`done`** → `message_type` and optional **`meal_plan`**
-- Callback dispatch to `onThinking`, `onToken`, `onDone`, `onError` (and optional `onChatTitle` for `event: title`)
+- Manual SSE line parsing (`event:` / `data:` lines), including **`done`** → `message_type` and optional **`meal_plan`** / **`fitness_plan`** / **`differential_diagnosis`**
+- Callback dispatch to `onThinking`, `onToken`, `onDone`, `onError` (plus optional `onChatTitle` for `event: title` and `onDifferentialDiagnosis` for the discrete `differential_diagnosis` event)
 
 ### Token buffering
 

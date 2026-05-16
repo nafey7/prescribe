@@ -49,6 +49,7 @@ Master index for all `prescribe-v2` documentation. Use the reading paths below t
 | Patient data model | [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) | `docs/FRONTEND_BACKEND_COLLABORATION.md`, `README.md` |
 | Docker setup | [`docs/LOCAL_DEVELOPMENT.md`](LOCAL_DEVELOPMENT.md) | `README.md` |
 | Testing | [`docs/TESTING.md`](TESTING.md) | area CLAUDE.md files |
+| E2E tests (Playwright) | [`docs/TESTING.md`](TESTING.md) (E2E section) | [`e2e/README.md`](../e2e/README.md), [`docs/plans/PLAN_playwright-e2e-tests.md`](plans/PLAN_playwright-e2e-tests.md) |
 | Code conventions | [`docs/CODE_QUALITY.md`](CODE_QUALITY.md) | area CLAUDE.md files |
 | Backend folder layout | [`backend/CLAUDE.md`](../backend/CLAUDE.md) | `docs/ARCHITECTURE.md` |
 | Frontend component layout | [`frontend/CLAUDE.md`](../frontend/CLAUDE.md) | — |
@@ -66,7 +67,7 @@ Master index for all `prescribe-v2` documentation. Use the reading paths below t
 
 ## Known gaps
 
-- No E2E / Playwright test documentation (no E2E tests exist yet)
+- E2E suite covers only smoke + auth + patient sidebar nav today. Doctor-portal flows, mocked-LLM chat specs, and a CI workflow are deferred follow-ups (see [`docs/plans/PLAN_playwright-e2e-tests.md`](plans/PLAN_playwright-e2e-tests.md) Phases 6–8).
 - No CI/CD documentation (no pipeline configured)
 - No deployment / production documentation
 - No API versioning strategy documented

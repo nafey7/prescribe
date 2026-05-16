@@ -75,7 +75,93 @@ Running `pytest` on the host (`cd backend && python -m pytest`) can drift from t
 - Tests must be deterministic — mock LLMs and avoid live external APIs
 - Prefer Mongo-dependent tests only when the stack provides Mongo (Docker compose)
 
+## E2E tests (Playwright)
+
+A Playwright-based E2E suite lives at the repo root as a sibling workspace to `backend/` and `frontend/`. It drives the real Docker stack (frontend on `:5173`, FastAPI on `:8000`, MongoDB on `:27017`) and exercises critical user journeys end-to-end.
+
+The architectural plan with full rationale and follow-up phases is in [`docs/plans/PLAN_playwright-e2e-tests.md`](plans/PLAN_playwright-e2e-tests.md).
+
+### When to run
+
+- After any UI change that crosses pages (login → portal, sidebar nav).
+- Before merging anything that touches auth, role routing, or `RequireAuth`.
+- Before merging changes that alter the shape of `POST /api/auth/login` or `GET /api/auth/me`.
+
+### Quick start
+
+```bash
+docker compose up -d
+docker compose exec backend python -m seed   # idempotent — only needed once locally
+npm --prefix e2e install                     # first time only
+npx --prefix e2e playwright install --with-deps chromium  # first time only
+npm --prefix e2e run test
+```
+
+### Folder map
+
+```
+e2e/
+├── playwright.config.ts        # projects: setup, anonymous, patient, doctor
+├── global.setup.ts             # waits on /health, logs each seed role in via API, writes .auth/*.json
+├── fixtures/                   # extended `test` + seedUsers constants
+├── pages/                      # POM-lite (LandingPage, PatientShellPage, DoctorShellPage, BasePage)
+├── utils/                      # env.ts, waitForHealth.ts, apiClient.ts
+└── tests/
+    ├── smoke/                  # health.anonymous.spec.ts, landing.anonymous.spec.ts
+    ├── auth/                   # patient-login, doctor-login, invalid-login, logout, protected-redirect
+    └── patient/                # sidebar-nav.spec.ts
+```
+
+### Auth fixtures
+
+The `setup` project runs once per test run and produces `.auth/patient.json` / `.auth/doctor.json` storage states via the real `POST /api/auth/login`. The `patient` and `doctor` projects load those into every browser context, so individual specs start authenticated without going through the login UI. Files in `.auth/` are gitignored and always overwritten on a fresh run.
+
+### Selector hygiene
+
+In order of preference: **`getByRole`** → **`getByLabel`** → **`getByText`** → **`getByTestId`**. CSS class names and XPath are not allowed.
+
+Add `data-testid` deliberately, not as a sprinkle — only when a semantic selector is ambiguous or fragile. Today the suite uses test ids for the landing-login form (`login-email`, `login-password`, `login-submit`, `login-error`) and the patient sidebar (`nav-dashboard`, `nav-profile`, `nav-documents`, `nav-doctors`, `nav-meal-plans`, `nav-fitness-plans`). New test ids must ship in the **same PR** as the spec that consumes them.
+
+### Data strategy
+
+- Phase 1 specs are read-only on seed user state.
+- Mutating specs (later phases) must namespace their accounts: `e2e-${Date.now()}-${randomSuffix}@example.test`.
+- The suite never wipes Mongo — isolation is by data namespace, not by reset.
+
+### Rules of engagement
+
+1. One concern per spec.
+2. No `waitForTimeout`. Prefer `expect(locator).toBeVisible()` / `toHaveURL`.
+3. Auth is a fixture, not a UI step (except in the auth-flow specs themselves).
+4. No real LLM calls in the default suite. Future LLM specs go behind a tag and an env flag.
+5. Network mocks must be explicit and scoped (`page.route(...)`) — no global mocks.
+6. Traces, screenshots, and video on **first retry only**.
+7. Local retries default to `0` — if a spec flakes, fix it; do not paper over with retries.
+
+### Common commands
+
+| Command | Purpose |
+|---------|---------|
+| `npm --prefix e2e run test` | Run the full suite headless. |
+| `npm --prefix e2e run test:headed` | Run with a visible browser. |
+| `npm --prefix e2e run test:debug` | Run with the Playwright Inspector. |
+| `npm --prefix e2e run test:report` | Open the last HTML report. |
+| `npx --prefix e2e playwright test --project=anonymous` | Just the unauthenticated specs. |
+| `npx --prefix e2e playwright test --project=patient` | Just the authenticated-patient specs. |
+
+### Env vars
+
+| Var | Default | Purpose |
+|-----|---------|---------|
+| `PW_BASE_URL` | `http://localhost:5173` | Frontend URL (`baseURL`). |
+| `PW_API_URL` | `http://localhost:8000` | Backend URL for `apiClient`. |
+| `PW_PATIENT_EMAIL` | `john@example.com` | Patient seed email. |
+| `PW_DOCTOR_EMAIL` | `sarah@example.com` | Doctor seed email. |
+| `PW_PASSWORD` | falls back to `DEV_DEFAULT_PASSWORD` | Seed password. Fails fast if unresolved. |
+
 ## Known gaps
 
-- No full Playwright E2E suite in-repo yet
-- Frontend unit coverage is limited to selected modules (Vitest)
+- Doctor-portal E2E specs are not yet implemented (Phase 6 of the plan).
+- Chat / LLM-dependent E2E specs (mocked SSE) are not yet implemented (Phase 7).
+- No CI workflow yet (Phase 8) — local runner is CI-ready.
+- Frontend unit coverage is limited to selected modules (Vitest).

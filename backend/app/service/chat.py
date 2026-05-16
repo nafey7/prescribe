@@ -22,6 +22,7 @@ from app.schemas.chat import (
     MessageSchema,
     PatientInfo,
 )
+from app.schemas.differential_diagnosis import DifferentialDiagnosisPayload
 from app.schemas.fitness_plan import FitnessPlanPayload
 from app.schemas.meal_plan import MealPlanPayload
 from app.schemas.patient import document_to_profile_response
@@ -119,7 +120,7 @@ async def process_message(
     )
 
     try:
-        ai_response, meal_plan, fitness_plan = await invoke_medical_agent(
+        ai_response, meal_plan, fitness_plan, differential = await invoke_medical_agent(
             message=message,
             patient_id=patient_id,
             chat_id=chat_id,
@@ -128,7 +129,9 @@ async def process_message(
     except Exception:
         raise
 
-    if fitness_plan is not None:
+    if differential is not None:
+        message_type = "differential_diagnosis"
+    elif fitness_plan is not None:
         message_type = "fitness_plan"
     elif meal_plan is not None:
         message_type = "meal_plan"
@@ -136,6 +139,9 @@ async def process_message(
         message_type = "text"
     meal_plan_dict = meal_plan.model_dump() if meal_plan is not None else None
     fitness_plan_dict = fitness_plan.model_dump() if fitness_plan is not None else None
+    differential_dict = (
+        differential.model_dump() if differential is not None else None
+    )
 
     message_id = await chat_repo.save_message(
         db,
@@ -147,6 +153,7 @@ async def process_message(
         message_type=message_type,
         meal_plan=meal_plan_dict,
         fitness_plan=fitness_plan_dict,
+        differential_diagnosis=differential_dict,
     )
 
     chat_title: str | None = None
@@ -167,6 +174,7 @@ async def process_message(
         message_type=message_type,
         meal_plan=meal_plan,
         fitness_plan=fitness_plan,
+        differential_diagnosis=differential,
     )
 
 
@@ -203,6 +211,7 @@ async def process_message_stream(
     full_response = ""
     meal_plan: MealPlanPayload | None = None
     fitness_plan: FitnessPlanPayload | None = None
+    differential: DifferentialDiagnosisPayload | None = None
     try:
         async for event in stream_medical_agent(
             message=message,
@@ -226,6 +235,25 @@ async def process_message_stream(
                         "chat_stream fitness_plan validation failed chat_id=%s", chat_id, exc_info=True
                     )
                 continue  # internal event — do not forward to SSE client
+            if event["event"] == "_differential_diagnosis_payload":
+                try:
+                    differential = DifferentialDiagnosisPayload.model_validate(
+                        event["data"]["differential_diagnosis"]
+                    )
+                except Exception:
+                    logger.warning(
+                        "chat_stream differential_diagnosis validation failed chat_id=%s",
+                        chat_id,
+                        exc_info=True,
+                    )
+                else:
+                    # Forward the validated payload to the client as a public SSE event so
+                    # the frontend can render the differential card before `done` arrives.
+                    yield _format_sse(
+                        "differential_diagnosis",
+                        {"differential_diagnosis": differential.model_dump()},
+                    )
+                continue
             if event["event"] == "token":
                 full_response += event["data"]["content"]
             yield _format_sse(event["event"], event["data"])
@@ -239,7 +267,9 @@ async def process_message_stream(
             full_response = "I wasn't able to generate a response. Please try again."
             yield _format_sse("token", {"content": full_response})
 
-        if fitness_plan is not None:
+        if differential is not None:
+            message_type = "differential_diagnosis"
+        elif fitness_plan is not None:
             message_type = "fitness_plan"
         elif meal_plan is not None:
             message_type = "meal_plan"
@@ -247,6 +277,9 @@ async def process_message_stream(
             message_type = "text"
         meal_plan_dict = meal_plan.model_dump() if meal_plan is not None else None
         fitness_plan_dict = fitness_plan.model_dump() if fitness_plan is not None else None
+        differential_dict = (
+            differential.model_dump() if differential is not None else None
+        )
 
         message_id = await chat_repo.save_message(
             db,
@@ -258,6 +291,7 @@ async def process_message_stream(
             message_type=message_type,
             meal_plan=meal_plan_dict,
             fitness_plan=fitness_plan_dict,
+            differential_diagnosis=differential_dict,
         )
 
         # Run title after the main model finishes — avoids two concurrent Gemini calls (429).
@@ -280,6 +314,8 @@ async def process_message_stream(
             done_data["meal_plan"] = meal_plan_dict
         if fitness_plan_dict is not None:
             done_data["fitness_plan"] = fitness_plan_dict
+        if differential_dict is not None:
+            done_data["differential_diagnosis"] = differential_dict
         yield _format_sse("done", done_data)
 
     except Exception as e:
@@ -310,6 +346,17 @@ def _message_schema_from_doc(m: dict) -> MessageSchema:
                 m.get("message_id", "?"),
                 exc_info=True,
             )
+    raw_dd = m.get("differential_diagnosis")
+    differential: DifferentialDiagnosisPayload | None = None
+    if raw_dd is not None:
+        try:
+            differential = DifferentialDiagnosisPayload.model_validate(raw_dd)
+        except Exception:
+            logger.warning(
+                "Failed to deserialize differential_diagnosis for message_id=%s",
+                m.get("message_id", "?"),
+                exc_info=True,
+            )
     return MessageSchema(
         role=m["role"],
         content=m["content"],
@@ -318,6 +365,7 @@ def _message_schema_from_doc(m: dict) -> MessageSchema:
         message_type=m.get("message_type", "text"),
         meal_plan=meal_plan,
         fitness_plan=fitness_plan,
+        differential_diagnosis=differential,
     )
 
 

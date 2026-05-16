@@ -137,6 +137,7 @@ export default function LandingAuthForm({
                 value={email}
                 onChange={(e) => onEmailChange(e.target.value)}
                 sx={inputSx}
+                slotProps={{ htmlInput: { "data-testid": "login-email" } }}
               />
               <TextField
                 id="landing-login-password"
@@ -149,9 +150,10 @@ export default function LandingAuthForm({
                 value={password}
                 onChange={(e) => onPasswordChange(e.target.value)}
                 sx={inputSx}
+                slotProps={{ htmlInput: { "data-testid": "login-password" } }}
               />
               {error ? (
-                <Alert severity="error" role="alert">
+                <Alert severity="error" role="alert" data-testid="login-error">
                   {error}
                 </Alert>
               ) : null}
@@ -161,6 +163,7 @@ export default function LandingAuthForm({
                 disabled={submitting}
                 fullWidth
                 sx={{ py: 1.25, textTransform: "none", fontWeight: 500 }}
+                data-testid="login-submit"
               >
                 {submitting ? "Signing in…" : "Sign in"}
               </Button>

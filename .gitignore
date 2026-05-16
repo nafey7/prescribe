@@ -39,3 +39,9 @@ mongodb-data/
 
 # Logs
 *.log
+
+# Playwright E2E (workspace also has its own .gitignore; these are redundant safety nets)
+e2e/.auth/
+e2e/playwright-report/
+e2e/test-results/
+e2e/node_modules/

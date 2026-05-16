@@ -56,9 +56,10 @@ Three Docker Compose services: `frontend`, `backend`, `mongodb`.
 
 | Event | Data shape | When |
 |-------|-----------|------|
-| `thinking` | `{ status: string }` | Tool starts/ends, initial "Thinking..." |
+| `thinking` | `{ status: string, phase?: string }` | Tool starts/ends, initial "Thinking..." (phases include `differential` when the differential tool is invoked) |
 | `token` | `{ content: string }` | Each text chunk from the LLM |
-| `done` | `{ chat_id, message_id }` | Stream complete, message persisted |
+| `differential_diagnosis` | `{ differential_diagnosis: DifferentialDiagnosisPayload }` | After the LLM calls `submit_differential_diagnosis` and the payload validates. Parallel to the meal-plan / fitness-plan `done`-bundled payloads, but emitted as a discrete event so the card can render before `done`. |
+| `done` | `{ chat_id, message_id, message_type, meal_plan?, fitness_plan?, differential_diagnosis? }` | Stream complete, message persisted |
 | `error` | `{ detail: string }` | Unrecoverable error mid-stream |
 
 ## LangGraph agent flow
@@ -86,6 +87,7 @@ _should_continue?
 | `web_search` | DuckDuckGo search for time-sensitive or general medical knowledge |
 | `submit_meal_plan` | Emits a structured meal plan payload for the frontend renderer |
 | `submit_fitness_plan` | Emits a structured fitness plan payload for the frontend renderer |
+| `submit_differential_diagnosis` | Emits a ranked, patient-grounded differential (per-diagnosis rationale + supporting/contradicting chart evidence, red flags, recommended workup) for the doctor-portal renderer |
 
 ## Prescription AI graphs
 

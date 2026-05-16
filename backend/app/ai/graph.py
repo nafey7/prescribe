@@ -8,13 +8,24 @@ from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 from pymongo import MongoClient
 
+from app.ai.differential_diagnosis_extract import (
+    extract_differential_diagnosis_from_messages,
+)
 from app.ai.fitness_plan_extract import extract_fitness_plan_from_messages
 from app.ai.llm import get_llm
 from app.ai.meal_plan_extract import extract_meal_plan_from_messages
 from app.ai.prompts import MEDICAL_SYSTEM_PROMPT_TEMPLATE, get_runtime_prompt_context
 from app.ai.state import MedicalChatState
-from app.ai.tools import fetch_lab_results, search_patient_records, submit_fitness_plan, submit_meal_plan, web_search
+from app.ai.tools import (
+    fetch_lab_results,
+    search_patient_records,
+    submit_differential_diagnosis,
+    submit_fitness_plan,
+    submit_meal_plan,
+    web_search,
+)
 from app.config import get_settings
+from app.schemas.differential_diagnosis import DifferentialDiagnosisPayload
 from app.schemas.fitness_plan import FitnessPlanPayload
 from app.schemas.meal_plan import MealPlanPayload
 
@@ -44,7 +55,14 @@ _compiled_graph = None
 _checkpointer = None
 _mongo_client: MongoClient | None = None
 
-TOOLS = [search_patient_records, fetch_lab_results, web_search, submit_meal_plan, submit_fitness_plan]
+TOOLS = [
+    search_patient_records,
+    fetch_lab_results,
+    web_search,
+    submit_meal_plan,
+    submit_fitness_plan,
+    submit_differential_diagnosis,
+]
 
 
 def _get_checkpointer():
@@ -119,8 +137,13 @@ async def invoke_medical_agent(
     chat_id: str,
     *,
     system_prompt: str | None = None,
-) -> tuple[str, MealPlanPayload | None, FitnessPlanPayload | None]:
-    """Invoke the medical agent and return (response_text, meal_plan_or_None, fitness_plan_or_None)."""
+) -> tuple[
+    str,
+    MealPlanPayload | None,
+    FitnessPlanPayload | None,
+    DifferentialDiagnosisPayload | None,
+]:
+    """Invoke the medical agent and return (response_text, meal_plan, fitness_plan, differential)."""
     graph = get_medical_graph()
 
     input_state: MedicalChatState = {
@@ -137,6 +160,7 @@ async def invoke_medical_agent(
     all_messages = result.get("messages", [])
     meal_plan = extract_meal_plan_from_messages(all_messages)
     fitness_plan = extract_fitness_plan_from_messages(all_messages)
+    differential = extract_differential_diagnosis_from_messages(all_messages)
 
     ai_messages = [
         m for m in all_messages
@@ -146,7 +170,7 @@ async def invoke_medical_agent(
     if ai_messages:
         text = _flat_text_content(ai_messages[-1].content)
         if text:
-            return text, meal_plan, fitness_plan
+            return text, meal_plan, fitness_plan, differential
         logger.warning(
             "invoke_medical_agent: last AI message empty after normalize (chat_id=%s content_type=%s)",
             chat_id,
@@ -167,7 +191,12 @@ async def invoke_medical_agent(
             "; ".join(desc) if desc else "(no messages)",
         )
 
-    return "I wasn't able to generate a response. Please try again.", meal_plan, fitness_plan
+    return (
+        "I wasn't able to generate a response. Please try again.",
+        meal_plan,
+        fitness_plan,
+        differential,
+    )
 
 
 _TOOL_THINKING_UI: dict[str, tuple[str, str]] = {
@@ -176,6 +205,7 @@ _TOOL_THINKING_UI: dict[str, tuple[str, str]] = {
     "web_search": ("Searching the web...", "web_search"),
     "submit_meal_plan": ("Structuring meal plan...", "meal_plan"),
     "submit_fitness_plan": ("Structuring fitness plan...", "fitness_plan"),
+    "submit_differential_diagnosis": ("Building differential...", "differential"),
 }
 
 
@@ -189,9 +219,11 @@ async def stream_medical_agent(
     """Async generator that yields streaming events from the medical agent.
 
     Yields dicts with shape:
-        {"event": "thinking",          "data": {"status": "..."}}
-        {"event": "token",             "data": {"content": "..."}}
-        {"event": "_meal_plan_payload","data": {"meal_plan": {...}}}  # internal; not forwarded to SSE
+        {"event": "thinking",                           "data": {"status": "..."}}
+        {"event": "token",                              "data": {"content": "..."}}
+        {"event": "_meal_plan_payload",                 "data": {"meal_plan": {...}}}                # internal
+        {"event": "_fitness_plan_payload",              "data": {"fitness_plan": {...}}}             # internal
+        {"event": "_differential_diagnosis_payload",    "data": {"differential_diagnosis": {...}}}   # internal
     """
     graph = get_medical_graph()
 
@@ -223,6 +255,7 @@ async def stream_medical_agent(
     last_content_type: str | None = None
     captured_meal_plan: MealPlanPayload | None = None
     captured_fitness_plan: FitnessPlanPayload | None = None
+    captured_differential: DifferentialDiagnosisPayload | None = None
 
     try:
         try:
@@ -260,6 +293,24 @@ async def stream_medical_agent(
                             except Exception:
                                 logger.warning(
                                     "fitness_plan_stream_validation_failed chat_id=%s",
+                                    chat_id,
+                                    exc_info=True,
+                                )
+                    elif name == "submit_differential_diagnosis":
+                        tool_input = event["data"].get("input", {})
+                        if isinstance(tool_input, dict):
+                            try:
+                                captured_differential = (
+                                    DifferentialDiagnosisPayload.model_validate(tool_input)
+                                )
+                                logger.info(
+                                    "differential_captured_from_stream chat_id=%s n_diagnoses=%d",
+                                    chat_id,
+                                    len(captured_differential.diagnoses),
+                                )
+                            except Exception:
+                                logger.warning(
+                                    "differential_stream_validation_failed chat_id=%s",
                                     chat_id,
                                     exc_info=True,
                                 )
@@ -354,6 +405,11 @@ async def stream_medical_agent(
         yield {
             "event": "_fitness_plan_payload",
             "data": {"fitness_plan": captured_fitness_plan.model_dump()},
+        }
+    if captured_differential is not None:
+        yield {
+            "event": "_differential_diagnosis_payload",
+            "data": {"differential_diagnosis": captured_differential.model_dump()},
         }
 
 

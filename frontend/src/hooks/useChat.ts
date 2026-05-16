@@ -89,7 +89,21 @@ export function useChat(patientId: string) {
             tokenBufferRef.current += token;
             scheduleFlush();
           },
-          onDone: (newChatId, messageId, messageType, mealPlan, fitnessPlan) => {
+          onDifferentialDiagnosis: (payload) => {
+            updateLast((msg) => ({
+              ...msg,
+              differential_diagnosis: payload,
+              message_type: "differential_diagnosis",
+            }));
+          },
+          onDone: (
+            newChatId,
+            messageId,
+            messageType,
+            mealPlan,
+            fitnessPlan,
+            differentialDiagnosis
+          ) => {
             if (rafIdRef.current !== null) {
               cancelAnimationFrame(rafIdRef.current);
               rafIdRef.current = null;
@@ -107,6 +121,8 @@ export function useChat(patientId: string) {
               message_type: messageType,
               meal_plan: mealPlan ?? undefined,
               fitness_plan: fitnessPlan ?? undefined,
+              differential_diagnosis:
+                differentialDiagnosis ?? msg.differential_diagnosis ?? undefined,
             }));
           },
           onError: (errMsg) => {
