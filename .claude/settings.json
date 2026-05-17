@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --prefix e2e run test)",
+      "Bash(npm --prefix e2e run test -- --project=patient \"tests/patient/doctors/list.spec.ts\" --repeat-each=3)",
+      "Bash(npm --prefix e2e run test -- --project=patient \"tests/patient/profile/view.spec.ts\")",
+      "Bash(npm --prefix e2e run test -- --project=patient \"tests/patient/profile/view.spec.ts\" \"tests/patient/plans/meal-plans-list.spec.ts\" \"tests/patient/documents/upload.spec.ts\")",
+      "Bash(npm --prefix e2e run test -- --project=doctor \"tests/doctor/chat/start-and-stream.spec.ts\")",
+      "Bash(npm --prefix e2e run test -- --project=doctor \"tests/doctor/prescriptions/create.spec.ts\" \"tests/doctor/profile/view-edit.spec.ts\")",
+      "Bash(npm --prefix e2e run test -- --project=doctor \"tests/doctor/prescriptions/\" \"tests/doctor/connections/\")",
+      "Bash(npm --prefix e2e run test -- --project=patient \"tests/patient/profile/\" \"tests/patient/plans/\" \"tests/patient/documents/\")",
+      "Bash(npm --prefix e2e run test -- --project=patient \"tests/patient/documents/delete.spec.ts\")",
+      "Bash(npm --prefix e2e run test -- --grep \"doctor connections page renders\")",
+      "Bash(npm --prefix e2e run test -- --grep \"doctor profile edit\")",
+      "Bash(npm --prefix e2e run test -- --grep \"fitness plans list\")"
+    ]
+  }
+}
