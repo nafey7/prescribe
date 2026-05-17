@@ -23,6 +23,11 @@ export function registerAccessTokenGetter(fn: () => string): void {
   getAccessToken = fn;
 }
 
+/** Returns the current access token, or empty string if unauthenticated. */
+export function getCurrentAccessToken(): string {
+  return getAccessToken().trim();
+}
+
 export function getApiBase(): string {
   return getApiBaseUrl();
 }

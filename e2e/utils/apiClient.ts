@@ -1,5 +1,7 @@
 import type { APIRequestContext } from "@playwright/test";
-import { LOGIN_URL, LOGOUT_URL } from "./env";
+import { LOGIN_URL, LOGOUT_URL, PW_API_URL } from "./env";
+
+const SIGNUP_URL = `${PW_API_URL}/api/auth/signup`;
 
 /** Subset of the backend's MeResponse shape we care about in E2E. */
 export type AuthUser = {
@@ -42,6 +44,25 @@ export function createApiClient(ctx: APIRequestContext) {
         data: { refresh_token: refreshToken },
         headers: { "Content-Type": "application/json" },
       });
+    },
+    async signup(data: {
+      email: string;
+      password: string;
+      role: "patient" | "doctor";
+      first_name: string;
+      last_name: string;
+    }): Promise<AuthSession> {
+      const res = await ctx.post(SIGNUP_URL, {
+        data,
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok()) {
+        const body = await res.text().catch(() => "");
+        throw new Error(
+          `[e2e] Signup failed for ${data.email} (${res.status()}). ${body}`,
+        );
+      }
+      return (await res.json()) as AuthSession;
     },
   };
 }

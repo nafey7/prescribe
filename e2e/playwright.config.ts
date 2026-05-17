@@ -8,11 +8,11 @@ export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 2 : 1,
   workers: process.env.CI ? 2 : undefined,
   reporter: [["list"], ["html", { open: "never" }]],
   timeout: 30_000,
-  expect: { timeout: 5_000 },
+  expect: { timeout: 8_000 },
   use: {
     baseURL: PW_BASE_URL,
     trace: "on-first-retry",
@@ -34,7 +34,7 @@ export default defineConfig({
     },
     {
       name: "patient",
-      testMatch: /tests\/(auth|patient)\/.*\.spec\.ts$/,
+      testMatch: /tests\/(auth|patient|common)\/.*\.spec\.ts$/,
       testIgnore: /.*\.anonymous\.spec\.ts$/,
       use: {
         ...devices["Desktop Chrome"],

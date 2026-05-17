@@ -27,6 +27,13 @@ export type DoctorNavItem = {
   badge?: number;
 };
 
+const DOCTOR_NAV_TESTIDS: Record<string, string> = {
+  "Dashboard": "nav-dashboard",
+  "My Patients": "nav-patients",
+  "Connections": "nav-connections",
+  "My Profile": "nav-profile",
+};
+
 const defaultDoctorNavItems: DoctorNavItem[] = [
   {
     path: paths.doctor.root,
@@ -90,6 +97,7 @@ function DoctorSidebarInner({
         onClick={onClose}
         selected={selected}
         className="doctor-sidebar-nav-link"
+        data-testid={DOCTOR_NAV_TESTIDS[item.label]}
       >
         <Box
           component="span"
@@ -172,6 +180,7 @@ function DoctorSidebarInner({
             $accent="secondary"
             onClick={() => void logout()}
             sx={{ width: "100%" }}
+            data-testid="doctor-logout"
           >
             <Box
               component="span"

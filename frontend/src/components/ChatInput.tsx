@@ -162,6 +162,7 @@ export default function ChatInput({ onSend, isLoading, value, onChange }: ChatIn
           type="button"
           onClick={handleSubmit}
           disabled={!value.trim() || isLoading}
+          aria-label="Send message"
           color="secondary"
           size="medium"
           sx={(theme) => {

@@ -1,4 +1,4 @@
-import { apiFetch, getApiBase } from "./client";
+import { apiFetch, getApiBase, getCurrentAccessToken } from "./client";
 import type {
   DocumentUploadResponse,
 } from "../types/document";
@@ -45,7 +45,12 @@ export async function uploadDocument(
     const url = `${getApiBase()}/patients/${encodeURIComponent(patientId)}/documents`;
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url);
-    xhr.setRequestHeader("X-Patient-Id", patientId);
+    const token = getCurrentAccessToken();
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    } else {
+      xhr.setRequestHeader("X-Patient-Id", patientId);
+    }
 
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable && onProgress) {

@@ -60,7 +60,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   if (status !== "authenticated") {
     return (
       <Navigate
-        to={`${paths.root}?returnUrl=${encodeURIComponent(
+        to={`${paths.login}?returnUrl=${encodeURIComponent(
           `${location.pathname}${location.search}`
         )}`}
         replace

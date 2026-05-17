@@ -75,6 +75,7 @@ export default function LandingAuthForm({
           type="button"
           fullWidth
           onClick={() => onModeChange("login")}
+          data-testid="auth-tab-login"
           sx={{
             py: 1,
             textTransform: "none",
@@ -96,6 +97,7 @@ export default function LandingAuthForm({
           type="button"
           fullWidth
           onClick={() => onModeChange("signup")}
+          data-testid="auth-tab-signup"
           sx={{
             py: 1,
             textTransform: "none",
@@ -231,6 +233,7 @@ export default function LandingAuthForm({
                   value={signupFirstName}
                   onChange={(e) => onSignupFirstNameChange(e.target.value)}
                   sx={inputSx}
+                  slotProps={{ htmlInput: { "data-testid": "signup-first-name" } }}
                 />
                 <TextField
                   id="landing-signup-last-name"
@@ -242,6 +245,7 @@ export default function LandingAuthForm({
                   value={signupLastName}
                   onChange={(e) => onSignupLastNameChange(e.target.value)}
                   sx={inputSx}
+                  slotProps={{ htmlInput: { "data-testid": "signup-last-name" } }}
                 />
               </Stack>
               <TextField
@@ -255,6 +259,7 @@ export default function LandingAuthForm({
                 value={email}
                 onChange={(e) => onEmailChange(e.target.value)}
                 sx={inputSx}
+                slotProps={{ htmlInput: { "data-testid": "signup-email" } }}
               />
               <TextField
                 id="landing-signup-password"
@@ -267,7 +272,7 @@ export default function LandingAuthForm({
                 value={password}
                 onChange={(e) => onPasswordChange(e.target.value)}
                 sx={inputSx}
-                slotProps={{ htmlInput: { minLength: 8 } }}
+                slotProps={{ htmlInput: { minLength: 8, "data-testid": "signup-password" } }}
               />
               <TextField
                 id="landing-signup-confirm-password"
@@ -280,7 +285,7 @@ export default function LandingAuthForm({
                 value={signupConfirmPassword}
                 onChange={(e) => onSignupConfirmPasswordChange(e.target.value)}
                 sx={inputSx}
-                slotProps={{ htmlInput: { minLength: 8 } }}
+                slotProps={{ htmlInput: { minLength: 8, "data-testid": "signup-confirm-password" } }}
               />
               {error ? (
                 <Alert severity="error" role="alert">
@@ -293,6 +298,7 @@ export default function LandingAuthForm({
                 disabled={submitting}
                 fullWidth
                 sx={{ py: 1.25, textTransform: "none", fontWeight: 500 }}
+                data-testid="signup-submit"
               >
                 {submitting ? "Creating account…" : "Sign up"}
               </Button>

@@ -113,6 +113,7 @@ function Section({
     <Paper variant="outlined" sx={{ p: 2.5 }}>
       <Typography
         variant="overline"
+        component="h3"
         color="text.secondary"
         sx={{ display: "block", mb: 2, letterSpacing: 1 }}
       >
