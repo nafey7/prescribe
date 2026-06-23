@@ -7,6 +7,7 @@ import DashboardSkeleton from "../../components/dashboard/DashboardSkeleton";
 import PatientOverviewTab from "../../components/doctor/PatientOverviewTab";
 import { useIdentity } from "../../contexts/IdentityContext";
 import { usePatientDetail } from "../../hooks/usePatientDetail";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 
 function ageFromDob(dob: string | null | undefined): number | null {
   if (!dob) return null;
@@ -26,6 +27,7 @@ export default function DoctorPatientDetailPage() {
     currentDoctorId,
     patientId
   );
+  useScrollToHash(Boolean(history && !isLoading));
 
   const subtitle = useMemo(() => {
     if (!profile) return null;

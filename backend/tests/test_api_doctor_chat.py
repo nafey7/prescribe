@@ -206,9 +206,14 @@ def test_doctor_delete_patient_chat_ok(client):
             new_callable=AsyncMock,
         ):
             with patch(
-                "app.service.doctor_chat.chat_repo.delete_session_and_messages",
+                "app.service.doctor_chat.delete_medical_thread",
                 new_callable=AsyncMock,
-            ) as mock_del:
-                r = client.delete("/api/doctors/dr-1/patients/pat-1/chat/c1")
-                assert r.status_code == 204
-                mock_del.assert_called_once()
+            ) as mock_checkpoint_del:
+                with patch(
+                    "app.service.doctor_chat.chat_repo.delete_session_and_messages",
+                    new_callable=AsyncMock,
+                ) as mock_del:
+                    r = client.delete("/api/doctors/dr-1/patients/pat-1/chat/c1")
+                    assert r.status_code == 204
+                    mock_checkpoint_del.assert_awaited_once_with("c1")
+                    mock_del.assert_awaited_once()

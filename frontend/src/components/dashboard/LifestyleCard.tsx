@@ -25,7 +25,7 @@ function LifestyleHeader() {
 export default function LifestyleCard({ lifestyle }: Props) {
   if (!lifestyle) {
     return (
-      <Paper variant="outlined" sx={{ p: 2.5, height: "100%" }}>
+      <Paper id="profile-lifestyle" variant="outlined" sx={{ p: 2.5, height: "100%", scrollMarginTop: 80 }}>
         <LifestyleHeader />
         <Typography variant="body2" color="text.secondary">
           Not recorded.
@@ -48,7 +48,7 @@ export default function LifestyleCard({ lifestyle }: Props) {
   if (lifestyle.diet_notes) rows.push({ label: "Diet", value: lifestyle.diet_notes });
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, height: "100%" }}>
+    <Paper id="profile-lifestyle" variant="outlined" sx={{ p: 2.5, height: "100%", scrollMarginTop: 80 }}>
       <LifestyleHeader />
       {rows.length === 0 ? (
         <Typography variant="body2" color="text.secondary">

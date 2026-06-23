@@ -17,7 +17,7 @@ export default function PatientSummaryCard({ summary }: Props) {
   if (summary.blood_type) parts.push(`Blood ${summary.blood_type}`);
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5 }}>
+    <Paper id="profile-demographics" variant="outlined" sx={{ p: 2.5, scrollMarginTop: 80 }}>
       <Stack direction="row" spacing={1.5} sx={{ alignItems: "flex-start" }}>
         <Box
           sx={{

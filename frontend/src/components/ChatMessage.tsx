@@ -1,9 +1,14 @@
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { Bot, User } from "lucide-react";
-import { memo, useMemo } from "react";
-import type { Message } from "../types/chat";
+import { Bot, FileText, User, UserRound } from "lucide-react";
+import { memo, useCallback, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { fetchConnectedPatientDocumentBlob } from "../api/doctors";
+import { fetchDocumentBlob } from "../api/documents";
+import { paths } from "../router/paths";
+import type { CitationSource, Message } from "../types/chat";
 import {
   chatMessageAvatarSx,
   chatMessageBubbleSx,
@@ -14,8 +19,8 @@ import { DifferentialDiagnosisMessage } from "./chat/DifferentialDiagnosisMessag
 import { FitnessPlanMessage } from "./chat/FitnessPlanMessage";
 import { MealPlanMessage } from "./chat/MealPlanMessage";
 
-export type MealPlanDoctorContext = {
-  doctorId: string;
+export type ChatMessageContext = {
+  doctorId?: string;
   patientId: string;
   chatId?: string;
 };
@@ -23,7 +28,7 @@ export type MealPlanDoctorContext = {
 interface ChatMessageProps {
   message: Message;
   /** When set (doctor chat), meal-plan rows can download PDF / share with patient. */
-  mealPlanContext?: MealPlanDoctorContext;
+  messageContext?: ChatMessageContext;
 }
 
 function StreamingCursor() {
@@ -48,11 +53,54 @@ function StreamingCursor() {
   );
 }
 
-function ChatMessageInner({ message, mealPlanContext }: ChatMessageProps) {
+function ChatMessageInner({ message, messageContext }: ChatMessageProps) {
   const isUser = message.role === "user";
   const role = isUser ? "user" : "assistant";
+  const navigate = useNavigate();
+  const [citationError, setCitationError] = useState<string | null>(null);
 
   const content = useMemo(() => message.content, [message.content]);
+  const citations = message.citations ?? [];
+
+  const openCitation = useCallback(
+    async (source: CitationSource) => {
+      if (!messageContext) return;
+      setCitationError(null);
+      if (source.source_type === "profile_field") {
+        const field = source.profile_field || "demographics";
+        const base = messageContext.doctorId
+          ? paths.doctor.patientDetail(messageContext.patientId)
+          : field === "medications"
+            ? paths.patient.root
+            : paths.patient.profile;
+        navigate(`${base}#profile-${field}`);
+        return;
+      }
+
+      if (!source.document_id) return;
+      const pendingWindow = window.open("about:blank", "_blank");
+      if (pendingWindow) pendingWindow.opener = null;
+      try {
+        const blob = messageContext.doctorId
+          ? await fetchConnectedPatientDocumentBlob(
+              messageContext.doctorId,
+              messageContext.patientId,
+              source.document_id
+            )
+          : await fetchDocumentBlob(messageContext.patientId, source.document_id);
+        const blobUrl = URL.createObjectURL(blob);
+        if (pendingWindow) pendingWindow.location.replace(blobUrl);
+        else window.open(blobUrl, "_blank", "noopener,noreferrer");
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      } catch (error) {
+        pendingWindow?.close();
+        setCitationError(
+          error instanceof Error ? error.message : "Could not open this source."
+        );
+      }
+    },
+    [messageContext, navigate]
+  );
 
   return (
     <Stack
@@ -93,18 +141,18 @@ function ChatMessageInner({ message, mealPlanContext }: ChatMessageProps) {
             payload={message.meal_plan}
             isStreaming={message.isStreaming}
             messageId={message.messageId}
-            doctorId={mealPlanContext?.doctorId}
-            patientId={mealPlanContext?.patientId}
-            chatId={mealPlanContext?.chatId}
+            doctorId={messageContext?.doctorId}
+            patientId={messageContext?.patientId}
+            chatId={messageContext?.chatId}
           />
         ) : message.message_type === "fitness_plan" && message.fitness_plan ? (
           <FitnessPlanMessage
             payload={message.fitness_plan}
             isStreaming={message.isStreaming}
             messageId={message.messageId}
-            doctorId={mealPlanContext?.doctorId}
-            patientId={mealPlanContext?.patientId}
-            chatId={mealPlanContext?.chatId}
+            doctorId={messageContext?.doctorId}
+            patientId={messageContext?.patientId}
+            chatId={messageContext?.chatId}
           />
         ) : message.message_type === "differential_diagnosis" &&
           message.differential_diagnosis ? (
@@ -125,7 +173,9 @@ function ChatMessageInner({ message, mealPlanContext }: ChatMessageProps) {
                   "& > :last-child": { mb: 0 },
                 }}
               >
-                <Markdown>{message.content}</Markdown>
+                <Markdown citations={citations} onCitationClick={openCitation}>
+                  {message.content}
+                </Markdown>
               </Box>
             ) : null}
           </Box>
@@ -141,10 +191,42 @@ function ChatMessageInner({ message, mealPlanContext }: ChatMessageProps) {
               }),
             }}
           >
-            <Markdown>{content}</Markdown>
+            <Markdown citations={citations} onCitationClick={openCitation}>
+              {content}
+            </Markdown>
             {message.isStreaming ? <StreamingCursor /> : null}
           </Box>
         )}
+
+        {!isUser && citations.length > 0 ? (
+          <Stack
+            direction="row"
+            spacing={0.75}
+            useFlexGap
+            sx={{ mt: 1.25, pt: 1, borderTop: 1, borderColor: "divider", flexWrap: "wrap" }}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ alignSelf: "center", mr: 0.25 }}>
+              Sources
+            </Typography>
+            {citations.map((source) => (
+              <Chip
+                key={source.source_id}
+                size="small"
+                variant="outlined"
+                icon={source.source_type === "document" ? <FileText size={13} /> : <UserRound size={13} />}
+                label={source.title}
+                title={[source.title, source.detail].filter(Boolean).join(" — ")}
+                onClick={() => void openCitation(source)}
+                sx={{ height: 24, fontSize: "0.7rem" }}
+              />
+            ))}
+          </Stack>
+        ) : null}
+        {citationError ? (
+          <Typography variant="caption" color="error.main" role="alert" sx={{ display: "block", mt: 0.75 }}>
+            {citationError}
+          </Typography>
+        ) : null}
 
         <Typography variant="caption" sx={(theme) => chatMessageTimestampSx(theme, role)}>
           {new Date(message.timestamp).toLocaleTimeString([], {
@@ -160,8 +242,8 @@ function ChatMessageInner({ message, mealPlanContext }: ChatMessageProps) {
 const ChatMessage = memo(ChatMessageInner, (prev, next) => {
   const p = prev.message;
   const n = next.message;
-  const pc = prev.mealPlanContext;
-  const nc = next.mealPlanContext;
+  const pc = prev.messageContext;
+  const nc = next.messageContext;
   return (
     p.content === n.content &&
     p.isStreaming === n.isStreaming &&
@@ -171,6 +253,7 @@ const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     p.meal_plan === n.meal_plan &&
     p.fitness_plan === n.fitness_plan &&
     p.differential_diagnosis === n.differential_diagnosis &&
+    p.citations === n.citations &&
     p.messageId === n.messageId &&
     pc?.doctorId === nc?.doctorId &&
     pc?.patientId === nc?.patientId &&

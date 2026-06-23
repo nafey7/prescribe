@@ -1,7 +1,24 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import ASCENDING, DESCENDING, ReturnDocument
+
+
+async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
+    """Create identity and query indexes required by chat persistence."""
+    await db.chat_sessions.create_index(
+        [("chat_id", ASCENDING)], unique=True
+    )
+    await db.chat_sessions.create_index(
+        [("doctor_id", ASCENDING), ("patient_id", ASCENDING), ("updated_at", DESCENDING)],
+    )
+    await db.chat_messages.create_index(
+        [("message_id", ASCENDING)], unique=True
+    )
+    await db.chat_messages.create_index(
+        [("chat_id", ASCENDING), ("timestamp", ASCENDING)],
+    )
 
 
 async def create_session(
@@ -40,6 +57,46 @@ async def count_messages(db: AsyncIOMotorDatabase, chat_id: str) -> int:
     return await db.chat_messages.count_documents({"chat_id": chat_id})
 
 
+async def acquire_turn(
+    db: AsyncIOMotorDatabase,
+    chat_id: str,
+    turn_id: str,
+    *,
+    lease_seconds: int = 180,
+) -> bool:
+    """Acquire a cross-process lease so one LangGraph run mutates a thread at a time."""
+    now = datetime.now(timezone.utc)
+    result = await db.chat_sessions.find_one_and_update(
+        {
+            "chat_id": chat_id,
+            "$or": [
+                {"active_turn_id": {"$exists": False}},
+                {"active_turn_expires_at": {"$lte": now}},
+            ],
+        },
+        {
+            "$set": {
+                "active_turn_id": turn_id,
+                "active_turn_expires_at": now + timedelta(seconds=lease_seconds),
+            }
+        },
+        return_document=ReturnDocument.AFTER,
+        projection={"_id": 1},
+    )
+    return result is not None
+
+
+async def release_turn(
+    db: AsyncIOMotorDatabase,
+    chat_id: str,
+    turn_id: str,
+) -> None:
+    await db.chat_sessions.update_one(
+        {"chat_id": chat_id, "active_turn_id": turn_id},
+        {"$unset": {"active_turn_id": "", "active_turn_expires_at": ""}},
+    )
+
+
 async def set_session_title(db: AsyncIOMotorDatabase, chat_id: str, title: str) -> None:
     cleaned = (title or "").strip()
     if len(cleaned) > 200:
@@ -67,6 +124,8 @@ async def save_message(
     meal_plan: dict | None = None,
     fitness_plan: dict | None = None,
     differential_diagnosis: dict | None = None,
+    citations: list[dict] | None = None,
+    status: str = "completed",
 ) -> str:
     message_id = str(uuid4())
     doc: dict = {
@@ -77,6 +136,7 @@ async def save_message(
         "content": content,
         "timestamp": datetime.now(timezone.utc),
         "message_type": message_type,
+        "status": status,
     }
     if doctor_id is not None:
         doc["doctor_id"] = doctor_id
@@ -86,9 +146,23 @@ async def save_message(
         doc["fitness_plan"] = fitness_plan
     if differential_diagnosis is not None:
         doc["differential_diagnosis"] = differential_diagnosis
+    if citations:
+        doc["citations"] = citations
     await db.chat_messages.insert_one(doc)
     await touch_session(db, chat_id)
     return message_id
+
+
+async def update_message_status(
+    db: AsyncIOMotorDatabase,
+    chat_id: str,
+    message_id: str,
+    status: str,
+) -> None:
+    await db.chat_messages.update_one(
+        {"chat_id": chat_id, "message_id": message_id},
+        {"$set": {"status": status}},
+    )
 
 
 async def get_message(
@@ -107,10 +181,12 @@ async def get_messages(
 ) -> list[dict]:
     cursor = (
         db.chat_messages.find({"chat_id": chat_id})
-        .sort("timestamp", 1)
+        .sort("timestamp", -1)
         .limit(limit)
     )
-    return await cursor.to_list(length=limit)
+    rows = await cursor.to_list(length=limit)
+    rows.reverse()
+    return rows
 
 
 async def list_sessions(

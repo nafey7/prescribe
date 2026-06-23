@@ -156,7 +156,7 @@ export default function DoctorChatPage() {
               messages={messages}
               isLoading={isLoading}
               onSuggestionClick={sendMessage}
-              mealPlanContext={{
+              messageContext={{
                 doctorId: currentDoctorId,
                 patientId: patientId,
                 chatId,

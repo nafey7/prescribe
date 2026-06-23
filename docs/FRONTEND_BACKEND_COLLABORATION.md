@@ -34,8 +34,8 @@ Protected routes expect **`Authorization: Bearer <access_token>`** when `AUTH_RE
 
 | Method | Path | Request | Response | Description |
 |--------|------|---------|----------|-------------|
-| `POST` | `/api/chat/message` | `ChatRequest` (JSON) + **`Authorization: Bearer`** (or legacy `X-Patient-Id` in dev bypass) | `ChatResponse` (JSON) | Non-streaming message; patient resolved from JWT when authenticated |
-| `POST` | `/api/chat/message/stream` | `ChatRequest` (JSON) + Bearer (or legacy `X-Patient-Id` in dev bypass) | SSE stream | Same identity rules as non-streaming |
+| `POST` | `/api/chat/message` | `ChatRequest` (JSON) + **`Authorization: Bearer`** (or legacy `X-Patient-Id` in dev bypass) | `ChatResponse` (JSON) | Non-streaming message; patient resolved from JWT when authenticated; **404** if a supplied `chat_id` does not exist; **409** if another turn is running on the chat |
+| `POST` | `/api/chat/message/stream` | `ChatRequest` (JSON) + Bearer (or legacy `X-Patient-Id` in dev bypass) | SSE stream | Same identity and missing-session rules as non-streaming |
 | `GET` | `/api/chat/history/{chat_id}` | Bearer + `X-Patient-Id` only in dev bypass | `ChatHistoryResponse` | **403** if session not owned by caller; **404** if missing |
 | `GET` | `/api/chat/patients` | Bearer (patient: self list) or dev bypass | `PatientInfo[]` | Legacy alias; same data as `/api/patients/for-chat` for patients |
 | `GET` | `/api/patients/for-chat` | Bearer or dev bypass | `PatientInfo[]` | Chat-oriented patient list for picker / portal |
@@ -44,7 +44,7 @@ Protected routes expect **`Authorization: Bearer <access_token>`** when `AUTH_RE
 | `GET` | `/api/patients/{patient_id}` | Bearer (**patient**, own profile) or dev bypass | `PatientProfileResponse` | Get profile by `user_id` (UUID) or `patient_slug` |
 | `GET` | `/api/patients/{patient_id}/medical-history` | Bearer (**patient**, own) or dev bypass | `MedicalHistoryResponse` | Aggregated dashboard: profile + parsed Markdown (`medications`, labs, timeline) + recent `documents` rows when present |
 | `PUT` | `/api/patients/{patient_id}` | `PatientProfileUpdate` (JSON) + auth as above | `PatientProfileResponse` | Update profile (same id rules as GET) |
-| `POST` | `/api/patients/{patient_id}/documents` | Multipart: `file`, `category`, `description` | `DocumentUploadResponse` (201) | Upload PDF/image to GridFS + `documents` metadata |
+| `POST` | `/api/patients/{patient_id}/documents` | Multipart: `file`, `category`, `description` | `DocumentUploadResponse` (201) | Upload PDF/image to GridFS + metadata; readable text is extracted and bounded for scoped AI document retrieval |
 | `GET` | `/api/patients/{patient_id}/documents` | Query: `category`, `page`, `page_size` | `DocumentListResponse` | Paginated document list (optional category filter) |
 | `GET` | `/api/patients/{patient_id}/documents/{document_id}` | — | Binary stream | Download/view file (`Content-Type`, `Content-Disposition: inline`) |
 | `GET` | `/api/patients/{patient_id}/documents/{document_id}/metadata` | — | `DocumentMetadata` | JSON metadata only |
@@ -74,7 +74,7 @@ Protected routes expect **`Authorization: Bearer <access_token>`** when `AUTH_RE
 | `PATCH` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions/{prescription_id}` | `{ status }` | `PrescriptionRead` | Update prescription status |
 | `DELETE` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions/{prescription_id}` | — | `PrescriptionRead` | Cancel prescription |
 | `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions/suggest` | `{ prompt }` | `PrescriptionSuggestionResponse` | AI copilot suggestion; **403** if not connected; **500** on LLM failure |
-| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions/check-interactions` | `DrugInteractionCheckRequest` (JSON) | `DrugInteractionCheckResponse` | AI drug interaction screen; **403** if not connected; **422** blank/missing medication name; **500** on LLM failure (returns generic error, not AI error) |
+| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/prescriptions/check-interactions` | `DrugInteractionCheckRequest` (JSON) | `DrugInteractionCheckResponse` | AI drug interaction screen; **403** if not connected; **422** blank/missing medication name; **503** when screening is unavailable (never represented as an empty safe result) |
 | `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/meal-plan-shares` | `MealPlanShareCreate` — `{ chat_id, message_id }` | `MealPlanShareResponse` | Creates a **snapshot** in `meal_plan_shares` for the patient portal. **201** when inserted; **200** when an active share already exists for the same `(patient_id, source_message_id)` (idempotent). **403** / **404** same rules as PDF |
 | `GET` | `/api/patients/{patient_id}/meal-plan-shares` | Query: `skip`, `limit` | `MealPlanShareListResponse` | Patient self (**JWT** `patient_id` must match path, or dev bypass). Active shares only (`revoked_at` null) |
 | `GET` | `/api/patients/{patient_id}/meal-plan-shares/{share_id}` | — | `MealPlanShareResponse` | Full snapshot including `meal_plan`. **404** if revoked, wrong patient, or unknown `share_id` |
@@ -191,10 +191,26 @@ class ChatResponse(BaseModel):
     chat_title: str | None = None
     message_type: str = "text"  # "text" | "meal_plan" (extensible)
     meal_plan: MealPlanPayload | None = None
+    citations: list[CitationSource] = []
 ```
 
 - **`message_type`** — `"text"` for plain assistant replies; `"meal_plan"` when a structured meal plan was submitted and validated (see `MealPlanPayload` in `backend/app/schemas/meal_plan.py`).
 - **`meal_plan`** — Omitted or `null` when there is no structured plan; when present, JSON is **snake_case** end-to-end (`num_days`, `days`, `summary`, `disclaimer`, nested `day_index`, `meals`, etc.).
+- **`citations`** — Sources actually referenced by inline links in `message`. Always an array; legacy/uncited responses return `[]`.
+
+`CitationSource` is snake_case on the wire:
+
+```python
+class CitationSource(BaseModel):
+    source_id: str
+    source_type: Literal["profile_field", "document"]
+    title: str
+    detail: str = ""
+    profile_field: str | None = None
+    document_id: str | None = None
+```
+
+Inline patient-source links use `#citation-{source_id}`. Clients must use the structured source object—not an untrusted URL from model text—to decide what opens. Document sources are opened through the authenticated download endpoints already listed above; profile sources route to the appropriate profile/dashboard section.
 
 ### `MessageSchema` (history)
 
@@ -207,6 +223,7 @@ class MessageSchema(BaseModel):
     timestamp: datetime
     message_type: str = "text"
     meal_plan: MealPlanPayload | None = None
+    citations: list[CitationSource] = []
 ```
 
 Legacy rows without `message_type` / `meal_plan` in MongoDB are treated as **`"text"`** / **`null`** when mapped to this schema.
@@ -307,6 +324,7 @@ interface ChatResponse {
   chat_title?: string | null;
   message_type?: string;
   meal_plan?: MealPlanPayload | null;
+  citations?: CitationSource[];
 }
 
 // Mirrors backend/app/schemas/meal_plan.py — snake_case on the wire.
@@ -362,7 +380,7 @@ event: done
 data: {"chat_id": "abc-123", "message_id": "msg-456", "message_type": "differential_diagnosis", "differential_diagnosis": { … same shape as the streamed event … }}
 
 event: error
-data: {"detail": "LLM timeout"}
+data: {"detail": "AI response generation failed. Please retry."}
 ```
 
 **`differential_diagnosis` event:** Emitted by `service/chat.py` after the LLM calls `submit_differential_diagnosis` and the backend validates the structured payload against `DifferentialDiagnosisPayload` (`backend/app/schemas/differential_diagnosis.py`). The frontend's `consumeSseStream` (`frontend/src/api/chatStream.ts`) routes it to the optional `onDifferentialDiagnosis` callback so the doctor chat can render `<DifferentialDiagnosisMessage>` before the `done` event arrives. The mirror TypeScript type lives at `frontend/src/types/differentialDiagnosis.ts`.

@@ -12,7 +12,7 @@ interface Props {
 
 export default function ConditionsCard({ conditions }: Props) {
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, height: "100%" }}>
+    <Paper id="profile-conditions" variant="outlined" sx={{ p: 2.5, height: "100%", scrollMarginTop: 80 }}>
       <Stack direction="row" spacing={1} sx={{ mb: 1.5, alignItems: "center" }}>
         <Box sx={{ color: "success.main", display: "flex" }}>
           <Activity size={18} />

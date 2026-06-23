@@ -11,9 +11,11 @@ import MedicationsTable from "../components/dashboard/MedicationsTable";
 import PatientSummaryCard from "../components/dashboard/PatientSummaryCard";
 import RecentDocumentsCard from "../components/dashboard/RecentDocumentsCard";
 import { useMedicalHistory } from "../hooks/useMedicalHistory";
+import { useScrollToHash } from "../hooks/useScrollToHash";
 
 export default function DashboardPage() {
   const { data, isLoading, error } = useMedicalHistory();
+  useScrollToHash(Boolean(data && !isLoading));
 
   return (
     <>

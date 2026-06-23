@@ -24,7 +24,7 @@ def extract_fitness_plan_from_messages(messages: list[Any]) -> FitnessPlanPayloa
     Returns a validated FitnessPlanPayload or None if no valid call is found.
     Logs a warning if args are present but fail validation.
     """
-    for msg in messages:
+    for msg in reversed(messages):
         tool_calls = getattr(msg, "tool_calls", None)
         if not tool_calls:
             continue

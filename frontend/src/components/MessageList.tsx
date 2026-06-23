@@ -10,7 +10,7 @@ import {
   chatAssistantStatusBubbleSx,
 } from "../theme/chatMessages";
 import type { Message, ThinkingPhase } from "../types/chat";
-import ChatMessage, { type MealPlanDoctorContext } from "./ChatMessage";
+import ChatMessage, { type ChatMessageContext } from "./ChatMessage";
 
 interface MessageListProps {
   messages: Message[];
@@ -18,7 +18,7 @@ interface MessageListProps {
   /** When set, empty-state suggestion chips send this text (e.g. `sendMessage`). */
   onSuggestionClick?: (text: string) => void;
   /** Doctor chat: enables meal-plan PDF + share actions. */
-  mealPlanContext?: MealPlanDoctorContext;
+  messageContext?: ChatMessageContext;
 }
 
 function ThinkingIndicator({
@@ -152,7 +152,7 @@ export default function MessageList({
   messages,
   isLoading,
   onSuggestionClick,
-  mealPlanContext,
+  messageContext,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastScrollRef = useRef(0);
@@ -216,7 +216,7 @@ export default function MessageList({
           <ChatMessage
             key={`${msg.timestamp}-${i}-${msg.messageId ?? ""}`}
             message={msg}
-            mealPlanContext={mealPlanContext}
+            messageContext={messageContext}
           />
         )
       )}

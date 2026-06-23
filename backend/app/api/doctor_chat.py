@@ -62,6 +62,9 @@ async def doctor_send_message_stream(
     ensure_doctor_route(actor, doctor_id)
     db = get_database()
     await connection_service.verify_connection(db, doctor_id, patient_id)
+    await chat_service.validate_message_session(
+        db, request.chat_id, patient_id, doctor_id
+    )
     return StreamingResponse(
         chat_service.process_message_stream(
             message=request.message,

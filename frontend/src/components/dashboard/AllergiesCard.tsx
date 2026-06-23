@@ -13,12 +13,14 @@ interface Props {
 export default function AllergiesCard({ allergies }: Props) {
   return (
     <Paper
+      id="profile-allergies"
       variant="outlined"
       sx={(t) => ({
         p: 2.5,
         height: "100%",
         borderColor: t.palette.warning.light,
         bgcolor: alpha(t.palette.warning.light, 0.35),
+        scrollMarginTop: 80,
       })}
     >
       <Stack

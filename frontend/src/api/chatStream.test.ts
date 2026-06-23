@@ -29,7 +29,7 @@ describe("consumeSseStream", () => {
       onError: () => {},
     });
     expect(onDone).toHaveBeenCalledTimes(1);
-    expect(onDone).toHaveBeenCalledWith("c1", "m1", "text", null, null, null);
+    expect(onDone).toHaveBeenCalledWith("c1", "m1", "text", null, null, null, []);
   });
 
   it("parses done with message_type meal_plan and meal_plan payload", async () => {
@@ -64,7 +64,8 @@ describe("consumeSseStream", () => {
       "meal_plan",
       mealPlan,
       null,
-      null
+      null,
+      []
     );
   });
 
@@ -81,7 +82,7 @@ describe("consumeSseStream", () => {
       onError: () => {},
     });
     expect(onToken).toHaveBeenCalledWith("Hello");
-    expect(onDone).toHaveBeenCalledWith("x", "y", "text", null, null, null);
+    expect(onDone).toHaveBeenCalledWith("x", "y", "text", null, null, null, []);
   });
 
   it("dispatches thinking with optional phase", async () => {
@@ -163,7 +164,40 @@ describe("consumeSseStream", () => {
       "differential_diagnosis",
       null,
       null,
-      dd
+      dd,
+      []
+    );
+  });
+
+  it("parses structured citation sources from done", async () => {
+    const onDone = vi.fn();
+    const citations = [
+      {
+        source_id: "profile-medications",
+        source_type: "profile_field",
+        title: "Current medications",
+        detail: "Patient profile",
+        profile_field: "medications",
+        document_id: null,
+      },
+    ];
+    const res = sseResponse(
+      `event: done\ndata: ${JSON.stringify({ chat_id: "c4", message_id: "m4", citations })}\n\n`
+    );
+    await consumeSseStream(res, {
+      onThinking: () => {},
+      onToken: () => {},
+      onDone,
+      onError: () => {},
+    });
+    expect(onDone).toHaveBeenCalledWith(
+      "c4",
+      "m4",
+      "text",
+      null,
+      null,
+      null,
+      citations
     );
   });
 });

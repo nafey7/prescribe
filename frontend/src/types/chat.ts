@@ -11,6 +11,15 @@ export type ThinkingPhase =
   | "fitness_plan"
   | "differential";
 
+export interface CitationSource {
+  source_id: string;
+  source_type: "profile_field" | "document";
+  title: string;
+  detail: string;
+  profile_field?: string | null;
+  document_id?: string | null;
+}
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
@@ -30,6 +39,8 @@ export interface Message {
   fitness_plan?: FitnessPlanPayload | null;
   /** Present when message_type === "differential_diagnosis". */
   differential_diagnosis?: DifferentialDiagnosisPayload | null;
+  /** Sources referenced by inline citation links in this answer. */
+  citations?: CitationSource[];
 }
 
 export interface ChatResponse {
@@ -41,6 +52,7 @@ export interface ChatResponse {
   meal_plan?: MealPlanPayload | null;
   fitness_plan?: FitnessPlanPayload | null;
   differential_diagnosis?: DifferentialDiagnosisPayload | null;
+  citations?: CitationSource[];
 }
 
 export interface ChatHistoryResponse {

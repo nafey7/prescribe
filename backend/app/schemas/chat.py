@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.schemas.citation import CitationSource
 from app.schemas.differential_diagnosis import DifferentialDiagnosisPayload
 from app.schemas.enums import ChatType, SenderType, UserRole
 from app.schemas.fitness_plan import FitnessPlanPayload
@@ -30,6 +31,7 @@ class ChatResponse(BaseModel):
     meal_plan: MealPlanPayload | None = None
     fitness_plan: FitnessPlanPayload | None = None
     differential_diagnosis: DifferentialDiagnosisPayload | None = None
+    citations: list[CitationSource] = Field(default_factory=list)
 
 
 class MessageSchema(BaseModel):
@@ -41,6 +43,7 @@ class MessageSchema(BaseModel):
     meal_plan: MealPlanPayload | None = None
     fitness_plan: FitnessPlanPayload | None = None
     differential_diagnosis: DifferentialDiagnosisPayload | None = None
+    citations: list[CitationSource] = Field(default_factory=list)
 
 
 class ChatHistoryResponse(BaseModel):

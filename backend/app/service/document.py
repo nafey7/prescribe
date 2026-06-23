@@ -11,6 +11,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.repository import document as document_repo
 from app.repository import patient as patient_repo
+from app.document_text import extract_text_from_document
 from app.schemas.document import (
     DOCUMENT_CATEGORIES,
     DocumentListResponse,
@@ -116,6 +117,9 @@ async def upload_document(
     filename = _safe_filename(original)
     now = datetime.now(timezone.utc)
     document_id = str(uuid.uuid4())
+    extracted_text = await extract_text_from_document(raw, content_type)
+    # Bound storage and downstream prompt size while retaining enough content for retrieval.
+    extracted_text = extracted_text[:100_000]
 
     gridfs_id = await document_repo.upload_file(
         db, raw, filename, content_type
@@ -134,6 +138,8 @@ async def upload_document(
         "tags": [],
         "uploaded_at": now,
         "updated_at": now,
+        "extracted_text": extracted_text,
+        "text_extraction_status": "completed" if extracted_text else "empty",
     }
     await document_repo.create_document(db, meta)
 

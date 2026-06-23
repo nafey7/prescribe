@@ -22,10 +22,12 @@ from app.schemas.chat import (
     MessageSchema,
     PatientInfo,
 )
+from app.schemas.citation import CitationSource
 from app.schemas.differential_diagnosis import DifferentialDiagnosisPayload
 from app.schemas.fitness_plan import FitnessPlanPayload
 from app.schemas.meal_plan import MealPlanPayload
 from app.schemas.patient import document_to_profile_response
+from app.service.citations import resolve_citation_sources
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +52,21 @@ def _validate_existing_session(
                 status_code=403,
                 detail="Chat session does not belong to this doctor",
             )
+
+
+async def validate_message_session(
+    db: AsyncIOMotorDatabase,
+    chat_id: str | None,
+    patient_id: str,
+    doctor_id: str | None = None,
+) -> None:
+    """Validate a supplied chat before streaming headers are committed."""
+    if chat_id is None:
+        return
+    session = await chat_repo.get_session(db, chat_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    _validate_existing_session(session, patient_id, doctor_id)
 
 
 async def _resolve_system_prompt(
@@ -102,11 +119,14 @@ async def process_message(
     db: AsyncIOMotorDatabase,
     doctor_id: str | None = None,
 ) -> ChatResponse:
-    if chat_id is None:
+    is_new_session = chat_id is None
+    if is_new_session:
         chat_id = str(uuid4())
 
     session = await chat_repo.get_session(db, chat_id)
     if session is None:
+        if not is_new_session:
+            raise HTTPException(status_code=404, detail="Chat session not found")
         await chat_repo.create_session(db, chat_id, patient_id, doctor_id=doctor_id)
     else:
         _validate_existing_session(session, patient_id, doctor_id)
@@ -115,9 +135,26 @@ async def process_message(
 
     is_first_message = await chat_repo.count_messages(db, chat_id) == 0
 
-    await chat_repo.save_message(
-        db, chat_id, patient_id, "user", message, doctor_id=doctor_id
-    )
+    turn_id = str(uuid4())
+    if not await chat_repo.acquire_turn(db, chat_id, turn_id):
+        raise HTTPException(
+            status_code=409,
+            detail="Another response is already in progress for this chat",
+        )
+
+    try:
+        user_message_id = await chat_repo.save_message(
+            db,
+            chat_id,
+            patient_id,
+            "user",
+            message,
+            doctor_id=doctor_id,
+            status="pending",
+        )
+    except Exception:
+        await chat_repo.release_turn(db, chat_id, turn_id)
+        raise
 
     try:
         ai_response, meal_plan, fitness_plan, differential = await invoke_medical_agent(
@@ -127,6 +164,8 @@ async def process_message(
             system_prompt=system_prompt,
         )
     except Exception:
+        await chat_repo.update_message_status(db, chat_id, user_message_id, "failed")
+        await chat_repo.release_turn(db, chat_id, turn_id)
         raise
 
     if differential is not None:
@@ -142,19 +181,28 @@ async def process_message(
     differential_dict = (
         differential.model_dump() if differential is not None else None
     )
-
-    message_id = await chat_repo.save_message(
-        db,
-        chat_id,
-        patient_id,
-        "assistant",
-        ai_response,
-        doctor_id=doctor_id,
-        message_type=message_type,
-        meal_plan=meal_plan_dict,
-        fitness_plan=fitness_plan_dict,
-        differential_diagnosis=differential_dict,
-    )
+    try:
+        citations = await resolve_citation_sources(db, patient_id, ai_response)
+        citations_dict = [citation.model_dump() for citation in citations]
+        message_id = await chat_repo.save_message(
+            db,
+            chat_id,
+            patient_id,
+            "assistant",
+            ai_response,
+            doctor_id=doctor_id,
+            message_type=message_type,
+            meal_plan=meal_plan_dict,
+            fitness_plan=fitness_plan_dict,
+            differential_diagnosis=differential_dict,
+            citations=citations_dict,
+        )
+    except Exception:
+        await chat_repo.update_message_status(db, chat_id, user_message_id, "failed")
+        await chat_repo.release_turn(db, chat_id, turn_id)
+        raise
+    await chat_repo.update_message_status(db, chat_id, user_message_id, "completed")
+    await chat_repo.release_turn(db, chat_id, turn_id)
 
     chat_title: str | None = None
     if is_first_message:
@@ -175,6 +223,7 @@ async def process_message(
         meal_plan=meal_plan,
         fitness_plan=fitness_plan,
         differential_diagnosis=differential,
+        citations=citations,
     )
 
 
@@ -189,11 +238,14 @@ async def process_message_stream(
     db: AsyncIOMotorDatabase,
     doctor_id: str | None = None,
 ) -> AsyncGenerator[str, None]:
-    if chat_id is None:
+    is_new_session = chat_id is None
+    if is_new_session:
         chat_id = str(uuid4())
 
     session = await chat_repo.get_session(db, chat_id)
     if session is None:
+        if not is_new_session:
+            raise HTTPException(status_code=404, detail="Chat session not found")
         await chat_repo.create_session(db, chat_id, patient_id, doctor_id=doctor_id)
     else:
         _validate_existing_session(session, patient_id, doctor_id)
@@ -202,17 +254,33 @@ async def process_message_stream(
 
     is_first_message = await chat_repo.count_messages(db, chat_id) == 0
 
-    await chat_repo.save_message(
-        db, chat_id, patient_id, "user", message, doctor_id=doctor_id
-    )
+    turn_id = str(uuid4())
+    if not await chat_repo.acquire_turn(db, chat_id, turn_id):
+        raise HTTPException(
+            status_code=409,
+            detail="Another response is already in progress for this chat",
+        )
 
-    yield _format_sse("thinking", {"status": "Thinking...", "phase": "thinking"})
+    try:
+        user_message_id = await chat_repo.save_message(
+            db,
+            chat_id,
+            patient_id,
+            "user",
+            message,
+            doctor_id=doctor_id,
+            status="pending",
+        )
+    except Exception:
+        await chat_repo.release_turn(db, chat_id, turn_id)
+        raise
 
     full_response = ""
     meal_plan: MealPlanPayload | None = None
     fitness_plan: FitnessPlanPayload | None = None
     differential: DifferentialDiagnosisPayload | None = None
     try:
+        yield _format_sse("thinking", {"status": "Thinking...", "phase": "thinking"})
         async for event in stream_medical_agent(
             message=message,
             patient_id=patient_id,
@@ -280,6 +348,8 @@ async def process_message_stream(
         differential_dict = (
             differential.model_dump() if differential is not None else None
         )
+        citations = await resolve_citation_sources(db, patient_id, full_response)
+        citations_dict = [citation.model_dump() for citation in citations]
 
         message_id = await chat_repo.save_message(
             db,
@@ -292,7 +362,9 @@ async def process_message_stream(
             meal_plan=meal_plan_dict,
             fitness_plan=fitness_plan_dict,
             differential_diagnosis=differential_dict,
+            citations=citations_dict,
         )
+        await chat_repo.update_message_status(db, chat_id, user_message_id, "completed")
 
         # Run title after the main model finishes — avoids two concurrent Gemini calls (429).
         if is_first_message:
@@ -316,11 +388,20 @@ async def process_message_stream(
             done_data["fitness_plan"] = fitness_plan_dict
         if differential_dict is not None:
             done_data["differential_diagnosis"] = differential_dict
+        done_data["citations"] = citations_dict
         yield _format_sse("done", done_data)
 
-    except Exception as e:
+    except (asyncio.CancelledError, GeneratorExit):
+        await chat_repo.update_message_status(db, chat_id, user_message_id, "cancelled")
+        raise
+    except Exception:
         logger.exception("Error during streaming")
-        yield _format_sse("error", {"detail": str(e)})
+        await chat_repo.update_message_status(db, chat_id, user_message_id, "failed")
+        yield _format_sse(
+            "error", {"detail": "AI response generation failed. Please retry."}
+        )
+    finally:
+        await chat_repo.release_turn(db, chat_id, turn_id)
 
 
 def _message_schema_from_doc(m: dict) -> MessageSchema:
@@ -357,6 +438,16 @@ def _message_schema_from_doc(m: dict) -> MessageSchema:
                 m.get("message_id", "?"),
                 exc_info=True,
             )
+    citations: list[CitationSource] = []
+    for raw_citation in m.get("citations") or []:
+        try:
+            citations.append(CitationSource.model_validate(raw_citation))
+        except Exception:
+            logger.warning(
+                "Failed to deserialize citation for message_id=%s",
+                m.get("message_id", "?"),
+                exc_info=True,
+            )
     return MessageSchema(
         role=m["role"],
         content=m["content"],
@@ -366,6 +457,7 @@ def _message_schema_from_doc(m: dict) -> MessageSchema:
         meal_plan=meal_plan,
         fitness_plan=fitness_plan,
         differential_diagnosis=differential,
+        citations=citations,
     )
 
 

@@ -15,6 +15,8 @@ def get_llm() -> BaseChatModel:
             api_key=settings.OPENAI_API_KEY,
             temperature=0.3,
             max_tokens=2048,
+            timeout=settings.AI_RUN_TIMEOUT_SECONDS,
+            max_retries=2,
         )
 
     from langchain_google_genai import ChatGoogleGenerativeAI
@@ -24,6 +26,8 @@ def get_llm() -> BaseChatModel:
         google_api_key=settings.GOOGLE_API_KEY,
         temperature=0.3,
         max_output_tokens=2048,
+        request_timeout=settings.AI_RUN_TIMEOUT_SECONDS,
+        retries=2,
     )
 
 
@@ -39,6 +43,8 @@ def get_llm_deterministic() -> BaseChatModel:
             api_key=settings.OPENAI_API_KEY,
             temperature=0.0,
             max_tokens=2048,
+            timeout=settings.AI_RUN_TIMEOUT_SECONDS,
+            max_retries=2,
         )
 
     from langchain_google_genai import ChatGoogleGenerativeAI
@@ -48,4 +54,6 @@ def get_llm_deterministic() -> BaseChatModel:
         google_api_key=settings.GOOGLE_API_KEY,
         temperature=0.0,
         max_output_tokens=2048,
+        request_timeout=settings.AI_RUN_TIMEOUT_SECONDS,
+        retries=2,
     )

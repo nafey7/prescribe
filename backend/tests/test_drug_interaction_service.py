@@ -275,8 +275,8 @@ class TestCheckInteractionsService:
 
 
 @pytest.mark.asyncio
-async def test_llm_failure_returns_empty_interactions():
-    """LLM raising an exception should return empty interactions, not propagate."""
+async def test_llm_failure_fails_closed():
+    """LLM failure must not be represented as a safe, empty interaction result."""
     from app.ai.drug_interaction_graph import check_drug_interactions
 
     with patch(
@@ -288,9 +288,7 @@ async def test_llm_failure_returns_empty_interactions():
         )
         mock_get_llm.return_value = mock_llm
 
-        result = await check_drug_interactions(
-            [{"name": "Aspirin"}], "Patient: Test\nAllergies:\n- (none on record)"
-        )
-
-    assert result.interactions == []
-    assert result.checked_at  # timestamp still present
+        with pytest.raises(RuntimeError, match="screening is unavailable"):
+            await check_drug_interactions(
+                [{"name": "Aspirin"}], "Patient: Test\nAllergies:\n- (none on record)"
+            )

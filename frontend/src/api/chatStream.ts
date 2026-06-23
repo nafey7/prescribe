@@ -3,7 +3,7 @@ import { applyPrescribeHeaders, getApiBase } from "./client";
 import type { DifferentialDiagnosisPayload } from "../types/differentialDiagnosis";
 import type { FitnessPlanPayload } from "../types/fitnessPlan";
 import type { MealPlanPayload } from "../types/mealPlan";
-import type { ThinkingPhase } from "../types/chat";
+import type { CitationSource, ThinkingPhase } from "../types/chat";
 
 export type ThinkingUpdate = {
   status: string;
@@ -19,7 +19,8 @@ type StreamCallbacks = {
     messageType: string,
     mealPlan: MealPlanPayload | null,
     fitnessPlan: FitnessPlanPayload | null,
-    differentialDiagnosis: DifferentialDiagnosisPayload | null
+    differentialDiagnosis: DifferentialDiagnosisPayload | null,
+    citations: CitationSource[]
   ) => void;
   onError: (error: string) => void;
   onChatTitle?: (title: string) => void;
@@ -101,13 +102,17 @@ export async function consumeSseStream(
                 data.differential_diagnosis != null
                   ? (data.differential_diagnosis as DifferentialDiagnosisPayload)
                   : null;
+              const citations = Array.isArray(data.citations)
+                ? (data.citations as CitationSource[])
+                : [];
               callbacks.onDone(
                 String(data.chat_id ?? ""),
                 String(data.message_id ?? ""),
                 String(data.message_type ?? "text"),
                 mealPlan,
                 fitnessPlan,
-                differentialDiagnosis
+                differentialDiagnosis,
+                citations
               );
               break;
             }

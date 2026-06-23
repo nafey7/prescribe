@@ -102,7 +102,8 @@ export function useChat(patientId: string) {
             messageType,
             mealPlan,
             fitnessPlan,
-            differentialDiagnosis
+            differentialDiagnosis,
+            citations
           ) => {
             if (rafIdRef.current !== null) {
               cancelAnimationFrame(rafIdRef.current);
@@ -123,6 +124,7 @@ export function useChat(patientId: string) {
               fitness_plan: fitnessPlan ?? undefined,
               differential_diagnosis:
                 differentialDiagnosis ?? msg.differential_diagnosis ?? undefined,
+              citations,
             }));
           },
           onError: (errMsg) => {

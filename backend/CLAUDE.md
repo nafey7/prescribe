@@ -54,7 +54,7 @@ HTTP request
 - **Async with Motor:** All MongoDB operations use Motor's async driver. The LangGraph graph runs sync internally but is wrapped with `asyncio.to_thread` for the non-streaming path.
 - **Streaming via SSE:** `POST /message/stream` returns `text/event-stream` with `thinking`, `token`, `done`, and `error` events. Full response is only persisted after stream completion.
 - **LangGraph checkpointing:** Graph state is checkpointed to MongoDB via `langgraph-checkpoint-mongodb`, keyed by `chat_id` as `thread_id`.
-- **Tool pattern:** Tools are LangChain `@tool`-decorated functions. Currently only `search_patient_records`, which looks up the patient's `patient_profile` document in MongoDB (by `user_id` or `patient_slug`) and formats a grounded summary for the LLM.
+- **Tool pattern:** Tools are LangChain `@tool`-decorated functions. Patient-data tools receive the authorized `patient_id` through hidden LangGraph state injection, never from model-visible arguments. Profile, lab, and extracted-document retrieval are available alongside privacy-filtered web search and structured-output tools.
 
 ## Dependencies
 

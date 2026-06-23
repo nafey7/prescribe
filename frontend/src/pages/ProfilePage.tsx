@@ -26,6 +26,7 @@ import type {
   PatientProfile,
   PatientUpdateRequest,
 } from "../types/patient";
+import { useScrollToHash } from "../hooks/useScrollToHash";
 
 function emptyAddress(): Address {
   return { street: "", city: "", state: "", zip: "" };
@@ -103,14 +104,16 @@ function draftToUpdate(d: Draft): PatientUpdateRequest {
 }
 
 function Section({
+  id,
   title,
   children,
 }: {
+  id: string;
   title: string;
   children: ReactNode;
 }) {
   return (
-    <Paper variant="outlined" sx={{ p: 2.5 }}>
+    <Paper id={id} variant="outlined" sx={{ p: 2.5, scrollMarginTop: 80 }}>
       <Typography
         variant="overline"
         component="h3"
@@ -143,6 +146,7 @@ export default function ProfilePage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useScrollToHash(Boolean(profile && draft));
 
   useEffect(() => {
     setEditing(false);
@@ -283,7 +287,7 @@ export default function ProfilePage() {
           </Typography>
         </Paper>
 
-        <Section title="Demographics">
+        <Section id="profile-demographics" title="Demographics">
           <PatientDemographicsForm
             first_name={draft.first_name}
             last_name={draft.last_name}
@@ -300,7 +304,7 @@ export default function ProfilePage() {
           />
         </Section>
 
-        <Section title="Allergies">
+        <Section id="profile-allergies" title="Allergies">
           <AllergiesEditor
             items={draft.allergies}
             disabled={!editing}
@@ -308,7 +312,7 @@ export default function ProfilePage() {
           />
         </Section>
 
-        <Section title="Conditions">
+        <Section id="profile-conditions" title="Conditions">
           <ConditionsEditor
             items={draft.conditions}
             disabled={!editing}
@@ -316,7 +320,7 @@ export default function ProfilePage() {
           />
         </Section>
 
-        <Section title="Family history">
+        <Section id="profile-family-history" title="Family history">
           <FamilyHistoryEditor
             items={draft.family_history}
             disabled={!editing}
@@ -324,7 +328,7 @@ export default function ProfilePage() {
           />
         </Section>
 
-        <Section title="Lifestyle">
+        <Section id="profile-lifestyle" title="Lifestyle">
           <LifestyleEditor
             value={draft.lifestyle}
             disabled={!editing}
@@ -332,7 +336,7 @@ export default function ProfilePage() {
           />
         </Section>
 
-        <Section title="Emergency contact">
+        <Section id="profile-emergency-contact" title="Emergency contact">
           <EmergencyContactForm
             value={draft.emergency_contact}
             disabled={!editing}

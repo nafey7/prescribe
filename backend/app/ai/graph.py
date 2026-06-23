@@ -2,8 +2,9 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from typing import Any
+from uuid import uuid4
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, RemoveMessage, SystemMessage, trim_messages
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 from pymongo import MongoClient
@@ -18,6 +19,7 @@ from app.ai.prompts import MEDICAL_SYSTEM_PROMPT_TEMPLATE, get_runtime_prompt_co
 from app.ai.state import MedicalChatState
 from app.ai.tools import (
     fetch_lab_results,
+    search_patient_documents,
     search_patient_records,
     submit_differential_diagnosis,
     submit_fitness_plan,
@@ -58,6 +60,7 @@ _mongo_client: MongoClient | None = None
 TOOLS = [
     search_patient_records,
     fetch_lab_results,
+    search_patient_documents,
     web_search,
     submit_meal_plan,
     submit_fitness_plan,
@@ -84,7 +87,27 @@ def _should_continue(state: MedicalChatState) -> str:
     last_message = state["messages"][-1]
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
         return "tools"
-    return END
+    return "compact"
+
+
+def _compact_memory(state: MedicalChatState) -> dict[str, Any]:
+    """Bound durable graph memory while application chat history remains authoritative."""
+    messages = state["messages"]
+    kept = trim_messages(
+        messages,
+        max_tokens=get_settings().CHAT_CONTEXT_MAX_TOKENS,
+        token_counter="approximate",
+        strategy="last",
+        start_on="human",
+        allow_partial=False,
+    )
+    kept_ids = {message.id for message in kept if getattr(message, "id", None)}
+    removals = [
+        RemoveMessage(id=message.id)
+        for message in messages
+        if getattr(message, "id", None) and message.id not in kept_ids
+    ]
+    return {"messages": removals}
 
 
 def _agent_node(state: MedicalChatState) -> dict[str, Any]:
@@ -99,7 +122,15 @@ def _agent_node(state: MedicalChatState) -> dict[str, Any]:
             runtime_context=get_runtime_prompt_context(),
         )
 
-    messages = state["messages"]
+    settings = get_settings()
+    messages = trim_messages(
+        state["messages"],
+        max_tokens=settings.CHAT_CONTEXT_MAX_TOKENS,
+        token_counter="approximate",
+        strategy="last",
+        start_on="human",
+        allow_partial=False,
+    )
     has_system = any(
         isinstance(m, SystemMessage) for m in messages
     )
@@ -121,10 +152,12 @@ def get_medical_graph():
 
     workflow.add_node("agent", _agent_node)
     workflow.add_node("tools", ToolNode(TOOLS))
+    workflow.add_node("compact", _compact_memory)
 
     workflow.set_entry_point("agent")
     workflow.add_conditional_edges("agent", _should_continue)
     workflow.add_edge("tools", "agent")
+    workflow.add_edge("compact", END)
 
     _compiled_graph = workflow.compile(checkpointer=checkpointer)
     logger.info("Medical AI graph compiled successfully")
@@ -146,8 +179,9 @@ async def invoke_medical_agent(
     """Invoke the medical agent and return (response_text, meal_plan, fitness_plan, differential)."""
     graph = get_medical_graph()
 
+    turn_message_id = f"turn-{uuid4()}"
     input_state: MedicalChatState = {
-        "messages": [HumanMessage(content=message)],
+        "messages": [HumanMessage(content=message, id=turn_message_id)],
         "patient_id": patient_id,
     }
     if system_prompt:
@@ -158,12 +192,13 @@ async def invoke_medical_agent(
     result = await asyncio.to_thread(graph.invoke, input_state, config)
 
     all_messages = result.get("messages", [])
-    meal_plan = extract_meal_plan_from_messages(all_messages)
-    fitness_plan = extract_fitness_plan_from_messages(all_messages)
-    differential = extract_differential_diagnosis_from_messages(all_messages)
+    current_turn_messages = _messages_from_turn(all_messages, turn_message_id)
+    meal_plan = extract_meal_plan_from_messages(current_turn_messages)
+    fitness_plan = extract_fitness_plan_from_messages(current_turn_messages)
+    differential = extract_differential_diagnosis_from_messages(current_turn_messages)
 
     ai_messages = [
-        m for m in all_messages
+        m for m in current_turn_messages
         if hasattr(m, "content") and m.type == "ai" and not getattr(m, "tool_calls", None)
     ]
 
@@ -177,7 +212,7 @@ async def invoke_medical_agent(
             type(ai_messages[-1].content).__name__,
         )
     else:
-        tail = all_messages
+        tail = current_turn_messages
         desc: list[str] = []
         for m in tail[-6:]:
             desc.append(
@@ -199,9 +234,19 @@ async def invoke_medical_agent(
     )
 
 
+def _messages_from_turn(messages: list[Any], turn_message_id: str) -> list[Any]:
+    """Return only messages produced for the input message with ``turn_message_id``."""
+    for index in range(len(messages) - 1, -1, -1):
+        if getattr(messages[index], "id", None) == turn_message_id:
+            return messages[index:]
+    logger.error("Current turn marker missing from LangGraph result")
+    return []
+
+
 _TOOL_THINKING_UI: dict[str, tuple[str, str]] = {
     "search_patient_records": ("Searching patient records...", "records"),
     "fetch_lab_results": ("Fetching lab results...", "lab_results"),
+    "search_patient_documents": ("Searching patient documents...", "documents"),
     "web_search": ("Searching the web...", "web_search"),
     "submit_meal_plan": ("Structuring meal plan...", "meal_plan"),
     "submit_fitness_plan": ("Structuring fitness plan...", "fitness_plan"),
@@ -228,7 +273,7 @@ async def stream_medical_agent(
     graph = get_medical_graph()
 
     input_state: MedicalChatState = {
-        "messages": [HumanMessage(content=message)],
+        "messages": [HumanMessage(content=message, id=f"turn-{uuid4()}")],
         "patient_id": patient_id,
     }
     if system_prompt:
@@ -258,123 +303,98 @@ async def stream_medical_agent(
     captured_differential: DifferentialDiagnosisPayload | None = None
 
     try:
-        try:
-            async for event in graph.astream_events(input_state, config, version="v2"):
-                kind = event["event"]
+        async for event in graph.astream_events(input_state, config, version="v2"):
+            kind = event["event"]
 
-                if kind == "on_tool_start":
-                    name = event.get("name", "tool")
-                    if name == "submit_meal_plan":
-                        tool_input = event["data"].get("input", {})
-                        if isinstance(tool_input, dict):
-                            try:
-                                captured_meal_plan = MealPlanPayload.model_validate(tool_input)
-                                logger.info(
-                                    "meal_plan_captured_from_stream chat_id=%s num_days=%d",
-                                    chat_id,
-                                    captured_meal_plan.num_days,
-                                )
-                            except Exception:
-                                logger.warning(
-                                    "meal_plan_stream_validation_failed chat_id=%s",
-                                    chat_id,
-                                    exc_info=True,
-                                )
-                    elif name == "submit_fitness_plan":
-                        tool_input = event["data"].get("input", {})
-                        if isinstance(tool_input, dict):
-                            try:
-                                captured_fitness_plan = FitnessPlanPayload.model_validate(tool_input)
-                                logger.info(
-                                    "fitness_plan_captured_from_stream chat_id=%s num_days=%d",
-                                    chat_id,
-                                    captured_fitness_plan.num_days,
-                                )
-                            except Exception:
-                                logger.warning(
-                                    "fitness_plan_stream_validation_failed chat_id=%s",
-                                    chat_id,
-                                    exc_info=True,
-                                )
-                    elif name == "submit_differential_diagnosis":
-                        tool_input = event["data"].get("input", {})
-                        if isinstance(tool_input, dict):
-                            try:
-                                captured_differential = (
-                                    DifferentialDiagnosisPayload.model_validate(tool_input)
-                                )
-                                logger.info(
-                                    "differential_captured_from_stream chat_id=%s n_diagnoses=%d",
-                                    chat_id,
-                                    len(captured_differential.diagnoses),
-                                )
-                            except Exception:
-                                logger.warning(
-                                    "differential_stream_validation_failed chat_id=%s",
-                                    chat_id,
-                                    exc_info=True,
-                                )
-                    if name in _TOOL_THINKING_UI:
-                        status, phase = _TOOL_THINKING_UI[name]
-                    else:
-                        status = f"Running {name}..."
-                        phase = "tool"
-                    yield {
-                        "event": "thinking",
-                        "data": {"status": status, "phase": phase},
-                    }
-
-                elif kind == "on_tool_end":
-                    yield {
-                        "event": "thinking",
-                        "data": {"status": "Analyzing results...", "phase": "thinking"},
-                    }
-
-                elif kind == "on_chat_model_stream":
-                    stats["on_chat_model_stream"] += 1
-                    chunk = event["data"].get("chunk")
-                    if not chunk or not hasattr(chunk, "content"):
-                        stats["skipped_empty_text"] += 1
-                        continue
-                    if getattr(chunk, "tool_calls", None) or getattr(
-                        chunk, "tool_call_chunks", None
-                    ):
-                        stats["skipped_tool_chunk"] += 1
-                        continue
-                    last_content_type = type(chunk.content).__name__
-                    text = _flat_text_content(chunk.content)
-                    if not text:
-                        stats["skipped_empty_text"] += 1
-                        if logger.isEnabledFor(logging.DEBUG):
-                            logger.debug(
-                                "stream skip empty flatten content_type=%s raw_repr=%r",
-                                last_content_type,
-                                chunk.content,
+            if kind == "on_tool_start":
+                name = event.get("name", "tool")
+                if name == "submit_meal_plan":
+                    tool_input = event["data"].get("input", {})
+                    if isinstance(tool_input, dict):
+                        try:
+                            captured_meal_plan = MealPlanPayload.model_validate(tool_input)
+                            logger.info(
+                                "meal_plan_captured_from_stream chat_id=%s num_days=%d",
+                                chat_id,
+                                captured_meal_plan.num_days,
                             )
-                        continue
-                    stats["tokens"] += 1
-                    yield {"event": "token", "data": {"content": text}}
+                        except Exception:
+                            logger.warning(
+                                "meal_plan_stream_validation_failed chat_id=%s",
+                                chat_id,
+                                exc_info=True,
+                            )
+                elif name == "submit_fitness_plan":
+                    tool_input = event["data"].get("input", {})
+                    if isinstance(tool_input, dict):
+                        try:
+                            captured_fitness_plan = FitnessPlanPayload.model_validate(tool_input)
+                            logger.info(
+                                "fitness_plan_captured_from_stream chat_id=%s num_days=%d",
+                                chat_id,
+                                captured_fitness_plan.num_days,
+                            )
+                        except Exception:
+                            logger.warning(
+                                "fitness_plan_stream_validation_failed chat_id=%s",
+                                chat_id,
+                                exc_info=True,
+                            )
+                elif name == "submit_differential_diagnosis":
+                    tool_input = event["data"].get("input", {})
+                    if isinstance(tool_input, dict):
+                        try:
+                            captured_differential = (
+                                DifferentialDiagnosisPayload.model_validate(tool_input)
+                            )
+                            logger.info(
+                                "differential_captured_from_stream chat_id=%s n_diagnoses=%d",
+                                chat_id,
+                                len(captured_differential.diagnoses),
+                            )
+                        except Exception:
+                            logger.warning(
+                                "differential_stream_validation_failed chat_id=%s",
+                                chat_id,
+                                exc_info=True,
+                            )
+                if name in _TOOL_THINKING_UI:
+                    status, phase = _TOOL_THINKING_UI[name]
+                else:
+                    status = f"Running {name}..."
+                    phase = "tool"
+                yield {
+                    "event": "thinking",
+                    "data": {"status": status, "phase": phase},
+                }
 
-        except Exception as e:
-            stream_mode = "astream_messages_fallback"
-            logger.warning(
-                "astream_events failed, falling back to astream (chat_id=%s err=%s)",
-                chat_id,
-                e,
-                exc_info=True,
-            )
-            async for chunk in graph.astream(
-                input_state, config, stream_mode="messages"
-            ):
-                stats["fallback_message_chunks"] += 1
-                msg = chunk[0] if isinstance(chunk, tuple) else chunk
-                if getattr(msg, "tool_calls", None) or getattr(
-                    msg, "tool_call_chunks", None
-                ):
+            elif kind == "on_tool_end":
+                yield {
+                    "event": "thinking",
+                    "data": {"status": "Analyzing results...", "phase": "thinking"},
+                }
+
+            elif kind == "on_chat_model_stream":
+                stats["on_chat_model_stream"] += 1
+                chunk = event["data"].get("chunk")
+                if not chunk or not hasattr(chunk, "content"):
+                    stats["skipped_empty_text"] += 1
                     continue
-                last_content_type = type(getattr(msg, "content", None)).__name__
-                text = _flat_text_content(getattr(msg, "content", None))
+                if getattr(chunk, "tool_calls", None) or getattr(
+                    chunk, "tool_call_chunks", None
+                ):
+                    stats["skipped_tool_chunk"] += 1
+                    continue
+                last_content_type = type(chunk.content).__name__
+                text = _flat_text_content(chunk.content)
                 if not text:
+                    stats["skipped_empty_text"] += 1
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(
+                            "stream skip empty flatten content_type=%s raw_repr=%r",
+                            last_content_type,
+                            chunk.content,
+                        )
                     continue
                 stats["tokens"] += 1
                 yield {"event": "token", "data": {"content": text}}
@@ -421,3 +441,9 @@ def cleanup_graph() -> None:
     _checkpointer = None
     _compiled_graph = None
     logger.info("Graph resources cleaned up")
+
+
+async def delete_medical_thread(thread_id: str) -> None:
+    """Delete durable LangGraph state for a chat before its public records are removed."""
+    checkpointer = _get_checkpointer()
+    await asyncio.to_thread(checkpointer.delete_thread, thread_id)

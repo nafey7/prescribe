@@ -127,6 +127,6 @@ async def check_drug_interactions(
             interactions=ai_result.interactions,
             checked_at=checked_at,
         )
-    except Exception:
-        logger.exception("drug_interaction_check failed; returning empty result")
-        return DrugInteractionCheckResponse(interactions=[], checked_at=checked_at)
+    except Exception as exc:
+        logger.exception("drug_interaction_check failed")
+        raise RuntimeError("Drug interaction screening is unavailable") from exc

@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.ai.graph import delete_medical_thread
 from app.repository import chat as chat_repo
 from app.schemas.chat import ChatHistoryResponse, ChatRequest, ChatResponse, ChatSessionSummary
 from app.service import chat as chat_service
@@ -104,4 +105,5 @@ async def delete_doctor_patient_chat(
             status_code=403,
             detail="Not authorized for this chat session",
         )
+    await delete_medical_thread(chat_id)
     await chat_repo.delete_session_and_messages(db, chat_id)

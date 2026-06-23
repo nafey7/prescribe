@@ -176,6 +176,6 @@ async def check_drug_interactions_route(
         raise
     except Exception:
         raise HTTPException(
-            status_code=500,
+            status_code=503,
             detail="Interaction check failed. Please try again.",
         ) from None

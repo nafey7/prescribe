@@ -50,7 +50,7 @@ export default function MedicationsTable({ medications }: Props) {
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5 }}>
+    <Paper id="profile-medications" variant="outlined" sx={{ p: 2.5, scrollMarginTop: 80 }}>
       <Typography variant="subtitle1" component="h2" sx={{ mb: 1.5, fontWeight: 600 }}>
         Current medications
       </Typography>

@@ -151,7 +151,7 @@ class TestExtractMealPlanFromMessages:
         # missing required `days` field → validation fails → returns None
         assert extract_meal_plan_from_messages([msg]) is None
 
-    def test_scans_multiple_messages_finds_last(self):
+    def test_scans_multiple_messages_finds_latest(self):
         from app.ai.meal_plan_extract import extract_meal_plan_from_messages
 
         args1 = _make_payload(num_days=3)
@@ -159,10 +159,9 @@ class TestExtractMealPlanFromMessages:
         msg1 = _make_ai_message([_make_tool_call("submit_meal_plan", args1)])
         msg2 = SimpleNamespace(tool_calls=[], type="ai")
         msg3 = _make_ai_message([_make_tool_call("submit_meal_plan", args2)])
-        # Returns the first match encountered
         result = extract_meal_plan_from_messages([msg1, msg2, msg3])
         assert result is not None
-        assert result.num_days == 3
+        assert result.num_days == 5
 
     def test_no_tool_calls_attribute(self):
         from app.ai.meal_plan_extract import extract_meal_plan_from_messages

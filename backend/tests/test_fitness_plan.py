@@ -187,7 +187,7 @@ class TestExtractFitnessPlanFromMessages:
         msg = SimpleNamespace(type="human")
         assert extract_fitness_plan_from_messages([msg]) is None
 
-    def test_finds_first_match_in_list(self):
+    def test_finds_latest_match_in_list(self):
         from app.ai.fitness_plan_extract import extract_fitness_plan_from_messages
 
         a1 = _make_payload(goal="Goal A")
@@ -196,7 +196,7 @@ class TestExtractFitnessPlanFromMessages:
         msg2 = _make_ai_message([_make_tool_call("submit_fitness_plan", a2)])
         result = extract_fitness_plan_from_messages([msg1, msg2])
         assert result is not None
-        assert result.goal == "Goal A"
+        assert result.goal == "Goal B"
 
     def test_clamps_in_extraction(self):
         from app.ai.fitness_plan_extract import extract_fitness_plan_from_messages

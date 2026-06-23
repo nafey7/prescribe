@@ -11,10 +11,15 @@ import { alpha, useTheme, type Theme } from "@mui/material";
 import { useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { CitationSource } from "../types/chat";
 
 const remarkPlugins = [remarkGfm];
 
-function createMarkdownComponents(theme: Theme): Components {
+function createMarkdownComponents(
+  theme: Theme,
+  citations: Map<string, CitationSource>,
+  onCitationClick?: (source: CitationSource) => void
+): Components {
   return {
     h1: ({ children }) => (
       <Typography
@@ -211,24 +216,69 @@ function createMarkdownComponents(theme: Theme): Components {
       </TableCell>
     ),
     hr: () => <Box component="hr" sx={{ my: 1.5, border: 0, borderTop: 1, borderColor: "divider" }} />,
-    a: ({ children, href }) => (
-      <Link href={href} target="_blank" rel="noopener noreferrer" variant="body2" underline="hover">
-        {children}
-      </Link>
-    ),
+    a: ({ children, href }) => {
+      const sourceId = href?.startsWith("#citation-")
+        ? href.slice("#citation-".length)
+        : null;
+      const source = sourceId ? citations.get(sourceId) : undefined;
+      if (sourceId) {
+        return (
+          <Link
+            component="button"
+            type="button"
+            disabled={!source || !onCitationClick}
+            onClick={() => source && onCitationClick?.(source)}
+            title={source ? `Open source: ${source.title}` : "Source is loading"}
+            variant="caption"
+            underline="none"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              mx: 0.25,
+              px: 0.6,
+              py: 0.1,
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 1,
+              bgcolor: "action.hover",
+              color: "primary.main",
+              fontWeight: 600,
+              verticalAlign: "baseline",
+              cursor: source ? "pointer" : "default",
+            }}
+          >
+            {children}
+          </Link>
+        );
+      }
+      return (
+        <Link href={href} target="_blank" rel="noopener noreferrer" variant="body2" underline="hover">
+          {children}
+        </Link>
+      );
+    },
   };
 }
 
 type MarkdownProps = {
   children: string;
+  citations?: CitationSource[];
+  onCitationClick?: (source: CitationSource) => void;
 };
 
 /**
  * `react-markdown` + `remark-gfm` with MUI primitives and theme tokens (replaces Tailwind / prose).
  */
-export function Markdown({ children }: MarkdownProps) {
+export function Markdown({ children, citations = [], onCitationClick }: MarkdownProps) {
   const theme = useTheme();
-  const components = useMemo(() => createMarkdownComponents(theme), [theme]);
+  const citationMap = useMemo(
+    () => new Map(citations.map((source) => [source.source_id, source])),
+    [citations]
+  );
+  const components = useMemo(
+    () => createMarkdownComponents(theme, citationMap, onCitationClick),
+    [theme, citationMap, onCitationClick]
+  );
 
   return (
     <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>

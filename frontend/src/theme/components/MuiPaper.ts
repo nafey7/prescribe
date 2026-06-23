@@ -6,7 +6,7 @@ export const MuiPaper: Components<Theme>["MuiPaper"] = {
   },
   styleOverrides: {
     root: ({ theme }) => ({
-      borderRadius: theme.shape.borderRadius * 2,
+      borderRadius: Number(theme.shape.borderRadius) * 2,
     }),
   },
 };

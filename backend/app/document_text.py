@@ -1,5 +1,6 @@
 """Extract readable text from PDF or image documents."""
 
+import asyncio
 import io
 import logging
 
@@ -13,9 +14,9 @@ async def extract_text_from_document(file_bytes: bytes, content_type: str) -> st
     """
     try:
         if "pdf" in content_type:
-            return _extract_pdf_text(file_bytes)
+            return await asyncio.to_thread(_extract_pdf_text, file_bytes)
         if content_type in ("image/jpeg", "image/png"):
-            return _extract_image_text(file_bytes)
+            return await asyncio.to_thread(_extract_image_text, file_bytes)
     except Exception:
         logger.warning("Text extraction failed for content_type=%s", content_type, exc_info=True)
     return ""

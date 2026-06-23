@@ -61,6 +61,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
               meal_plan: m.meal_plan ?? undefined,
               fitness_plan: m.fitness_plan ?? undefined,
               differential_diagnosis: m.differential_diagnosis ?? undefined,
+              citations: m.citations ?? [],
             };
           })
         );
@@ -220,7 +221,8 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
             messageType,
             mealPlan,
             fitnessPlan,
-            differentialDiagnosis
+            differentialDiagnosis,
+            citations
           ) => {
             if (rafIdRef.current !== null) {
               cancelAnimationFrame(rafIdRef.current);
@@ -247,6 +249,7 @@ export function useDoctorChat(doctorId: string | null, patientId: string | null)
               fitness_plan: fitnessPlan ?? undefined,
               differential_diagnosis:
                 differentialDiagnosis ?? msg.differential_diagnosis ?? undefined,
+              citations,
             }));
           },
           onError: (errMsg) => {

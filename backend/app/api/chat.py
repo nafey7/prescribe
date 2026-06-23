@@ -23,6 +23,7 @@ from app.service.chat import (
     list_patients_for_self,
     process_message,
     process_message_stream,
+    validate_message_session,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ async def chat_message_stream(
     patient_id: str = Depends(resolve_patient_chat_patient_id),
 ):
     db = get_database()
+    await validate_message_session(db, request.chat_id, patient_id)
     return StreamingResponse(
         process_message_stream(
             message=request.message,

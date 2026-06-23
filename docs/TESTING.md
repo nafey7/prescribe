@@ -25,6 +25,7 @@ Running `pytest` on the host (`cd backend && python -m pytest`) can drift from t
 | `tests/test_refresh_repository.py` | `refresh_tokens` collection: indexes, atomic rotation, family revoke |
 | `tests/test_route_audit.py` | **Route audit:** unauthenticated requests to non–allow-listed routes must return **401, 403, or 405** |
 | `tests/test_api_chat.py` | Chat routes, history ownership, SSE / patient context |
+| `tests/test_ai_architecture.py` | Hidden runtime patient scope, checkpoint deletion, current-turn artifacts, failure status, newest-page history |
 | `tests/test_api_patients.py` | Patient profile APIs and auth gates |
 | `tests/test_api_documents.py` | Document upload/list/download and patient scoping |
 | `tests/test_api_doctors.py`, `tests/test_api_doctor_patients.py`, `tests/test_api_doctor_chat.py` | Doctor portal and connection-aware routes |

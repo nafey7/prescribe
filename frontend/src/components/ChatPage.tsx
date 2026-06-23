@@ -26,8 +26,7 @@ export default function ChatPage() {
       setDraftMessage(prefill);
       setSearchParams({}, { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams, setDraftMessage, setSearchParams]);
 
   const profileHref = paths.patient.profile;
 
@@ -169,6 +168,7 @@ export default function ChatPage() {
       >
         <Box sx={{ display: "flex", minHeight: 0, flex: 1, flexDirection: "column", overflowY: "auto" }}>
           <MessageList
+            messageContext={{ patientId: currentPatientId }}
             messages={messages}
             isLoading={isLoading}
             onSuggestionClick={sendMessage}
