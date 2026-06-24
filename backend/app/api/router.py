@@ -2,6 +2,8 @@ from fastapi import APIRouter
 
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
+from app.api.clinical_notes import doctor_router as clinical_notes_doctor_router
+from app.api.clinical_notes import patient_router as clinical_notes_patient_router
 from app.api.config import router as config_router
 from app.api.connections import router as connections_router
 from app.api.doctor_chat import router as doctor_chat_router
@@ -19,6 +21,12 @@ api_router.include_router(patients_router, prefix="/patients", tags=["patients"]
 api_router.include_router(doctors_router, prefix="/doctors", tags=["doctors"])
 api_router.include_router(doctor_patients_router, prefix="/doctors", tags=["doctors"])
 api_router.include_router(doctor_chat_router, prefix="/doctors", tags=["doctors"])
+api_router.include_router(
+    clinical_notes_doctor_router, prefix="/doctors", tags=["clinical-notes"]
+)
+api_router.include_router(
+    clinical_notes_patient_router, prefix="/patients", tags=["clinical-notes"]
+)
 api_router.include_router(prescriptions_router, prefix="/doctors", tags=["prescriptions"])
 api_router.include_router(connections_router, prefix="/connections", tags=["connections"])
 api_router.include_router(documents_router, prefix="/patients", tags=["documents"])

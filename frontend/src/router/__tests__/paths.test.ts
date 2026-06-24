@@ -18,6 +18,10 @@ describe("paths", () => {
     expect(paths.patient.mealPlanDetail("abc-123")).toBe(
       "/patient/meal-plans/abc-123"
     );
+    expect(paths.patient.clinicalNotes).toBe("/patient/clinical-notes");
+    expect(paths.patient.clinicalNoteDetail("note 1")).toBe(
+      "/patient/clinical-notes/note%201"
+    );
     expect(paths.patient.profileLegacy("u1")).toBe("/patient/profile/u1");
   });
 

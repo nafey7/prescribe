@@ -10,7 +10,7 @@ Client-side routes (`react-router-dom`, `createBrowserRouter` in `frontend/src/r
 |------|--------|---------|
 | `/` | `RootLayout` | Public landing (sign in / create account); `?auth=login` or `signup`, `?returnUrl=`, optional `?role=doctor` when `allow_doctor_self_signup` |
 | `/login`, `/signup` | — | Redirect to `/?auth=…` (preserves query) |
-| `/patient`, `/patient/profile`, `/patient/documents`, `/patient/doctors`, `/patient/chat`, `/patient/meal-plans`, `/patient/meal-plans/:shareId` | `PatientLayout` | Patient portal (dashboard, profile, documents, “my doctors”, AI chat, **shared meal plans** list/detail) |
+| `/patient`, `/patient/profile`, `/patient/documents`, `/patient/doctors`, `/patient/chat`, `/patient/meal-plans`, `/patient/meal-plans/:shareId`, `/patient/clinical-notes`, `/patient/clinical-notes/:noteId` | `PatientLayout` | Patient portal (dashboard, profile, documents, “my doctors”, AI chat, shared plans, and shared clinical-note list/detail) |
 | `/patient/profile/:userId` | `PatientLayout` | Legacy under `/patient`: syncs picker → `/patient/profile` |
 | `/doctor`, `/doctor/...` | `DoctorLayout` | Doctor portal: profile, patients list/detail, documents, chat, prescriptions, connections |
 | `/admin`, `/admin/*` | — | Reserved; **`Navigate replace`** to `/` until an admin portal exists |
@@ -79,6 +79,14 @@ Protected routes expect **`Authorization: Bearer <access_token>`** when `AUTH_RE
 | `GET` | `/api/patients/{patient_id}/meal-plan-shares` | Query: `skip`, `limit` | `MealPlanShareListResponse` | Patient self (**JWT** `patient_id` must match path, or dev bypass). Active shares only (`revoked_at` null) |
 | `GET` | `/api/patients/{patient_id}/meal-plan-shares/{share_id}` | — | `MealPlanShareResponse` | Full snapshot including `meal_plan`. **404** if revoked, wrong patient, or unknown `share_id` |
 | `GET` | `/api/patients/{patient_id}/meal-plan-shares/{share_id}/pdf` | — | `application/pdf` (stream) | PDF rendered from stored snapshot (works even if source chat was deleted). Same attachment naming pattern using `share_id` |
+| `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/clinical-notes` | Query: `skip`, `limit` | `ClinicalNoteListResponse` | Lists notes authored by this connected doctor for the patient |
+| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/clinical-notes/generate` | `{ note_type, encounter_date, clinician_context }` | `ClinicalNoteDraft` | Generates a non-persisted, structured AI draft; **503** if generation is unavailable |
+| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/clinical-notes` | `ClinicalNoteCreate` | `ClinicalNoteResponse` (201) | Publishes reviewed content to the connected patient |
+| `PATCH` | `/api/doctors/{doctor_id}/patients/{patient_id}/clinical-notes/{note_id}` | `{ title?, content? }` | `ClinicalNoteResponse` | Author revises patient-visible content; at least one field required |
+| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/clinical-notes/{note_id}/correction-requests/{correction_id}/resolve` | `{ resolution_note }` | `ClinicalNoteCorrectionResponse` | Author resolves an open correction request |
+| `GET` | `/api/patients/{patient_id}/clinical-notes` | Query: `skip`, `limit` | `ClinicalNoteListResponse` | Patient-self list across all publishing doctors |
+| `GET` | `/api/patients/{patient_id}/clinical-notes/{note_id}` | — | `ClinicalNoteResponse` | Patient-self note detail; **404** for another patient's note |
+| `POST` | `/api/patients/{patient_id}/clinical-notes/{note_id}/correction-requests` | `{ comment }` | `ClinicalNoteCorrectionResponse` (201) | Opens a correction request; **409** when one is already open |
 | `GET` | `/api/config/features` | — | `{ ai_suggestions_enabled, auth_relaxed, allow_doctor_self_signup }` | Public config snapshot the frontend reads at boot (snake_case on the wire; camelCase in `FeatureFlagContext`) |
 | `GET` | `/api/config/ai-provider` | Bearer (**doctor**) or dev bypass | `AIProviderResponse` | Read the active LLM provider and which API keys are configured |
 | `POST` | `/api/config/ai-provider` | Bearer (**doctor**) or dev bypass; body `{ "provider": "openai" \| "gemini" }` | `AIProviderResponse` | Switch the active LLM provider at runtime; **400** if target provider's key is missing; **422** for unknown provider |
@@ -274,6 +282,14 @@ class MealPlanShareListResponse(BaseModel):
     skip: int
     limit: int
 ```
+
+### Shared clinical notes
+
+Published notes live in `clinical_notes`; correction requests live in `clinical_note_corrections`. AI generation returns only `{ title, content }` and does not persist or publish. `note_type` is `"encounter_note"` or `"after_visit_summary"`; correction `status` is `"open"` or `"resolved"`.
+
+`ClinicalNoteResponse` contains `note_id`, canonical `patient_id`, author `doctor_id` / `doctor_display_name`, `note_type`, `title`, Markdown `content`, ISO `encounter_date`, `published_at`, `updated_at`, and the latest `correction_request` (nullable). A patient may have one open correction per note; resolved requests remain auditable and a later request may be opened.
+
+Doctor writes require an active connection and author ownership. Patient reads and correction writes use patient-self authorization plus the established patient-ID alias resolution. See [`PLAN_SHARED_CLINICAL_NOTES.md`](plans/PLAN_SHARED_CLINICAL_NOTES.md).
 
 ### `ChatSessionSummary`
 
