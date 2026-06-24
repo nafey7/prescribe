@@ -27,6 +27,8 @@ import PatientFitnessPlanDetailPage from "./pages/patient/PatientFitnessPlanDeta
 import PatientFitnessPlansPage from "./pages/patient/PatientFitnessPlansPage";
 import PatientMealPlanDetailPage from "./pages/patient/PatientMealPlanDetailPage";
 import PatientMealPlansPage from "./pages/patient/PatientMealPlansPage";
+import PatientClinicalNoteDetailPage from "./pages/patient/PatientClinicalNoteDetailPage";
+import PatientClinicalNotesPage from "./pages/patient/PatientClinicalNotesPage";
 import ProfilePage from "./pages/ProfilePage";
 import SignupPage from "./pages/SignupPage";
 import { paths } from "./router/paths";
@@ -110,6 +112,8 @@ export const appRouteTree: RouteObject[] = [
               { path: "meal-plans/:shareId", element: <PatientMealPlanDetailPage /> },
               { path: "fitness-plans", element: <PatientFitnessPlansPage /> },
               { path: "fitness-plans/:shareId", element: <PatientFitnessPlanDetailPage /> },
+              { path: "clinical-notes", element: <PatientClinicalNotesPage /> },
+              { path: "clinical-notes/:noteId", element: <PatientClinicalNoteDetailPage /> },
               { path: "chat", element: <ChatPage /> },
             ],
           },

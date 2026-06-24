@@ -14,6 +14,7 @@ Prescribe v2 is a **prescription management application** with an AI-powered doc
 2. **Doctor–patient connections** — Doctors and patients establish relationships by sending and accepting connection requests, much like a social network. A connection grants the doctor access to the patient's medical history.
 3. **Prescription management** — Connected doctors can view a patient's full history and write new prescriptions grounded in that context.
 4. **AI assistant (doctor-only)** — An AI layer, accessible only to doctors, has access to a connected patient's medical history documents. Doctors can chat with the AI to get summaries, ask health-related questions, and navigate large records quickly. Patients do not interact with the AI.
+5. **Transparent shared notes** — Doctors publish reviewed encounter notes and after-visit summaries that patients can read and flag for factual correction.
 
 ## User roles
 
@@ -35,6 +36,8 @@ Roles are mutually exclusive per account. A single `users` collection stores all
 | **Prescription** | A doctor-created medication order for a connected patient, stored as part of the patient's medical history |
 | **Document upload** | Patient-submitted files (PDFs, images) representing medical tests, reports, or other health records, added to their medical history |
 | **Chat session** | A conversation between a **doctor** and the AI, scoped to a single connected patient's medical history. Persisted in MongoDB (`chat_sessions` + `chat_messages`). Patients cannot initiate chat sessions |
+| **Shared clinical note** | A doctor-authored encounter note or after-visit summary explicitly published to a connected patient; AI may draft text but cannot publish it |
+| **Correction request** | A patient-authored, auditable request for the note author to review a specific factual issue |
 
 ## Business rules
 
@@ -46,6 +49,8 @@ Roles are mutually exclusive per account. A single `users` collection stores all
 6. **AI grounding** — The AI must base responses on actual patient record content. The system prompt instructs it to not fabricate medical data.
 7. **Admin access** — Admins manage users and system configuration but do not participate in clinical workflows or connections.
 8. **Data safety** — All seeded patient records in MongoDB are synthetic and educational. Never treat them as real PHI.
+9. **Clinical authorship** — AI-generated note text is an editable suggestion only. A connected doctor must review and explicitly publish it, and only the author may revise it or resolve its correction requests.
+10. **Patient transparency** — Patients can read notes published to them and may keep one correction request open per note. A correction request never edits clinical content automatically.
 
 ## Build sequence
 

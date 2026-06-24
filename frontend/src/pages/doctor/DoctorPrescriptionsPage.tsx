@@ -264,7 +264,6 @@ function NewPrescriptionDialog({
       void handleCheckInteractions();
     }
     // Only fire when the dialog opens with prefill data
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, prefill]);
 
   async function handleSubmit() {

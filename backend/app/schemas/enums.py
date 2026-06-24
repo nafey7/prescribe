@@ -87,3 +87,13 @@ class ConnectionStatus(StrEnum):
 class ConnectionRemovedBy(StrEnum):
     DOCTOR = "doctor"
     PATIENT = "patient"
+
+
+class ClinicalNoteType(StrEnum):
+    ENCOUNTER_NOTE = "encounter_note"
+    AFTER_VISIT_SUMMARY = "after_visit_summary"
+
+
+class ClinicalNoteCorrectionStatus(StrEnum):
+    OPEN = "open"
+    RESOLVED = "resolved"

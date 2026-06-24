@@ -116,10 +116,14 @@ Both use `with_structured_output()` against Pydantic models and wrap the sync LL
 | `refresh_tokens` | Rotating refresh JWT ledger | `jti`, `user_id`, `family_id`, `expires_at`, `revoked_at`, … |
 | `chat_sessions` | One doc per conversation | `chat_id`, `patient_id`, `created_at`, `updated_at` |
 | `chat_messages` | One doc per message | `message_id`, `chat_id`, `patient_id`, `role`, `content`, `timestamp`, assistant `citations[]` |
+| `clinical_notes` | Doctor-authored, patient-visible notes | `note_id`, `patient_id`, `doctor_id`, `note_type`, `title`, `content`, `encounter_date`, `published_at`, `updated_at` |
+| `clinical_note_corrections` | Auditable patient correction requests | `correction_id`, `note_id`, `patient_id`, `doctor_id`, `comment`, `status`, resolution fields |
 | `checkpoints` (LangGraph) | Graph state checkpoints | Managed by `MongoDBSaver` |
 | `checkpoint_writes` (LangGraph) | Checkpoint write log | Managed by `MongoDBSaver` |
 
 Messages are written in order: the user message is saved with `status=pending`, the assistant is saved after completion, and the user status becomes `completed`. Model failures and disconnected streams mark it `failed` or `cancelled`. History reads return the newest 50 messages in chronological display order.
+
+Shared clinical-note generation is deliberately outside the chat graph. A connected doctor supplies encounter context; a deterministic structured-output LLM combines it with a bounded patient-profile summary and returns an editable `ClinicalNoteDraft`. Only the doctor's subsequent publish request writes `clinical_notes`. Patient correction requests are separate records with a partial unique index enforcing one open request per patient/note; author resolution preserves the request and response for audit.
 
 ### Source-linked answers
 

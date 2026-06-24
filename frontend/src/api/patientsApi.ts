@@ -1,5 +1,10 @@
 import type { Patient } from "../types/chat";
 import type {
+  ClinicalNote,
+  ClinicalNoteCorrection,
+  ClinicalNoteListResponse,
+} from "../types/clinicalNote";
+import type {
   FitnessPlanShareListResponse,
   FitnessPlanShareResponse,
 } from "../types/fitnessPlanShare";
@@ -138,6 +143,40 @@ export const patientsApi = baseApi.injectEndpoints({
         responseHandler: (response: Response) => response.blob(),
       }),
     }),
+    listPatientClinicalNotes: builder.query<
+      ClinicalNoteListResponse,
+      { patientId: string; skip?: number; limit?: number }
+    >({
+      query: ({ patientId, skip = 0, limit = 50 }) =>
+        `/patients/${encodeURIComponent(patientId)}/clinical-notes?skip=${skip}&limit=${limit}`,
+      providesTags: (_r, _e, { patientId }) => [
+        { type: "ClinicalNotes", id: `patient-${patientId}` },
+      ],
+    }),
+    getPatientClinicalNote: builder.query<
+      ClinicalNote,
+      { patientId: string; noteId: string }
+    >({
+      query: ({ patientId, noteId }) =>
+        `/patients/${encodeURIComponent(patientId)}/clinical-notes/${encodeURIComponent(noteId)}`,
+      providesTags: (_r, _e, { noteId }) => [
+        { type: "ClinicalNotes", id: noteId },
+      ],
+    }),
+    requestClinicalNoteCorrection: builder.mutation<
+      ClinicalNoteCorrection,
+      { patientId: string; noteId: string; comment: string }
+    >({
+      query: ({ patientId, noteId, comment }) => ({
+        url: `/patients/${encodeURIComponent(patientId)}/clinical-notes/${encodeURIComponent(noteId)}/correction-requests`,
+        method: "POST",
+        body: JSON.stringify({ comment }),
+      }),
+      invalidatesTags: (_r, _e, { patientId, noteId }) => [
+        { type: "ClinicalNotes", id: `patient-${patientId}` },
+        { type: "ClinicalNotes", id: noteId },
+      ],
+    }),
   }),
 });
 
@@ -154,4 +193,7 @@ export const {
   useListPatientFitnessPlanSharesQuery,
   useGetPatientFitnessPlanShareQuery,
   useLazyGetPatientFitnessPlanSharePdfQuery,
+  useListPatientClinicalNotesQuery,
+  useGetPatientClinicalNoteQuery,
+  useRequestClinicalNoteCorrectionMutation,
 } = patientsApi;

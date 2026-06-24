@@ -29,6 +29,7 @@ Running `pytest` on the host (`cd backend && python -m pytest`) can drift from t
 | `tests/test_api_patients.py` | Patient profile APIs and auth gates |
 | `tests/test_api_documents.py` | Document upload/list/download and patient scoping |
 | `tests/test_api_doctors.py`, `tests/test_api_doctor_patients.py`, `tests/test_api_doctor_chat.py` | Doctor portal and connection-aware routes |
+| `tests/test_clinical_notes.py`, `tests/test_api_clinical_notes.py` | Clinical-note schemas, AI draft safety, canonical patient scope, publish/revise/read/correction API contracts |
 | `tests/test_meal_plan.py` | Meal plan schema, extraction, chat API fields; doctor history includes `meal_plan` |
 | `tests/test_repositories.py` | Repository helpers |
 | `tests/test_seed.py` | Seed script smoke |

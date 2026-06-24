@@ -5,6 +5,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import DashboardSkeleton from "../../components/dashboard/DashboardSkeleton";
 import PatientOverviewTab from "../../components/doctor/PatientOverviewTab";
+import ClinicalNotesPanel from "../../components/doctor/ClinicalNotesPanel";
 import { useIdentity } from "../../contexts/IdentityContext";
 import { usePatientDetail } from "../../hooks/usePatientDetail";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
@@ -82,7 +83,10 @@ export default function DoctorPatientDetailPage() {
       )}
 
       {!isLoading && history && patientId && (
-        <PatientOverviewTab data={history} patientId={patientId} />
+        <>
+          <PatientOverviewTab data={history} patientId={patientId} />
+          <ClinicalNotesPanel doctorId={currentDoctorId} patientId={patientId} />
+        </>
       )}
     </>
   );

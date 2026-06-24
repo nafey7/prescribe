@@ -1,4 +1,4 @@
-import { Activity, FileText, LayoutDashboard, Stethoscope, User, Utensils, X } from "lucide-react";
+import { Activity, ClipboardList, FileText, LayoutDashboard, Stethoscope, User, Utensils, X } from "lucide-react";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import IconButton from "@mui/material/IconButton";
@@ -33,6 +33,7 @@ export const patientNavItems: SidebarNavItem[] = [
   { path: paths.patient.doctors, label: "My Doctors", icon: Stethoscope, testId: "nav-doctors" },
   { path: paths.patient.mealPlans, label: "Meal plans", icon: Utensils, testId: "nav-meal-plans" },
   { path: paths.patient.fitnessPlans, label: "Fitness plans", icon: Activity, testId: "nav-fitness-plans" },
+  { path: paths.patient.clinicalNotes, label: "Clinical notes", icon: ClipboardList, testId: "nav-clinical-notes" },
 ];
 
 function SidebarInner({
