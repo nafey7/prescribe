@@ -3,6 +3,7 @@ import type {
   DoctorDashboardResponse,
   DoctorProfile,
   DoctorUpdateRequest,
+  PreVisitBrief,
 } from "../types/doctor";
 import type { MedicalHistory, PatientProfile } from "../types/patient";
 import type {
@@ -161,6 +162,16 @@ export const doctorsApi = baseApi.injectEndpoints({
         { type: "ClinicalNotes", id: noteId },
       ],
     }),
+    generatePreVisitBrief: builder.mutation<
+      PreVisitBrief,
+      { doctorId: string; patientId: string }
+    >({
+      query: ({ doctorId, patientId }) => ({
+        url: `/doctors/${encodeURIComponent(doctorId)}/patients/${encodeURIComponent(patientId)}/pre-visit-brief`,
+        method: "POST",
+        skipPatientHeader: true,
+      }),
+    }),
   }),
 });
 
@@ -176,4 +187,5 @@ export const {
   usePublishClinicalNoteMutation,
   useReviseClinicalNoteMutation,
   useResolveClinicalNoteCorrectionMutation,
+  useGeneratePreVisitBriefMutation,
 } = doctorsApi;

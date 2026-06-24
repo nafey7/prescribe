@@ -1,14 +1,22 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import { Sparkles } from "lucide-react";
+import { useGeneratePreVisitBriefMutation } from "../../api/doctorsApi";
 import DashboardSkeleton from "../../components/dashboard/DashboardSkeleton";
 import PatientOverviewTab from "../../components/doctor/PatientOverviewTab";
 import ClinicalNotesPanel from "../../components/doctor/ClinicalNotesPanel";
+import PreVisitBriefCard from "../../components/doctor/PreVisitBriefCard";
 import { useIdentity } from "../../contexts/IdentityContext";
 import { usePatientDetail } from "../../hooks/usePatientDetail";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
+import { rtkErrorMessage } from "../../lib/rtkErrorMessage";
+import type { PreVisitBrief } from "../../types/doctor";
 
 function ageFromDob(dob: string | null | undefined): number | null {
   if (!dob) return null;
@@ -28,7 +36,35 @@ export default function DoctorPatientDetailPage() {
     currentDoctorId,
     patientId
   );
+  const [brief, setBrief] = useState<PreVisitBrief | null>(null);
+  const [briefError, setBriefError] = useState<string | null>(null);
+  const briefScopeRef = useRef("");
+  const [generateBrief, { isLoading: isGeneratingBrief }] =
+    useGeneratePreVisitBriefMutation();
   useScrollToHash(Boolean(history && !isLoading));
+
+  useEffect(() => {
+    briefScopeRef.current = `${currentDoctorId ?? ""}:${patientId ?? ""}`;
+    setBrief(null);
+    setBriefError(null);
+  }, [currentDoctorId, patientId]);
+
+  async function handleGenerateBrief() {
+    if (!currentDoctorId || !patientId) return;
+    const requestScope = `${currentDoctorId}:${patientId}`;
+    setBriefError(null);
+    try {
+      const result = await generateBrief({
+        doctorId: currentDoctorId,
+        patientId,
+      }).unwrap();
+      if (briefScopeRef.current === requestScope) setBrief(result);
+    } catch (err) {
+      if (briefScopeRef.current === requestScope) {
+        setBriefError(rtkErrorMessage(err));
+      }
+    }
+  }
 
   const subtitle = useMemo(() => {
     if (!profile) return null;
@@ -70,17 +106,46 @@ export default function DoctorPatientDetailPage() {
       {isLoading && <DashboardSkeleton />}
 
       {!isLoading && profile && (
-        <Box component="header" sx={{ mb: 3 }}>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-            {`${profile.first_name} ${profile.last_name}`.trim() || "Patient"}
-          </Typography>
-          {subtitle && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {subtitle}
+        <Stack
+          component="header"
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          sx={{ mb: 3, alignItems: { sm: "center" }, justifyContent: "space-between" }}
+        >
+          <Box>
+            <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
+              {`${profile.first_name} ${profile.last_name}`.trim() || "Patient"}
             </Typography>
-          )}
-        </Box>
+            {subtitle && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={
+              isGeneratingBrief ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <Sparkles size={17} />
+              )
+            }
+            disabled={isGeneratingBrief}
+            onClick={() => void handleGenerateBrief()}
+          >
+            {brief ? "Regenerate brief" : "Generate AI brief"}
+          </Button>
+        </Stack>
       )}
+
+      {briefError && (
+        <Alert severity="error" sx={{ mb: 3 }} role="alert">
+          {briefError}
+        </Alert>
+      )}
+
+      {!isLoading && brief && <PreVisitBriefCard brief={brief} />}
 
       {!isLoading && history && patientId && (
         <>

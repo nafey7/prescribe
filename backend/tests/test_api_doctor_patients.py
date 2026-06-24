@@ -6,6 +6,10 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.schemas.doctor import DoctorPatientListItem, DoctorPatientListResponse
+from app.schemas.pre_visit_brief import (
+    PreVisitBriefEvidence,
+    PreVisitBriefResponse,
+)
 
 
 @pytest.fixture
@@ -114,3 +118,45 @@ def test_doctor_patient_document_download_ok(client):
         r = client.get("/api/doctors/d1/patients/p2/documents/doc-1")
         assert r.status_code == 200
         assert r.content == b"hello"
+
+
+def test_generate_pre_visit_brief_ok(client):
+    payload = PreVisitBriefResponse(
+        summary="One pending lab result needs review.",
+        abnormal_labs=["Hemoglobin is marked low."],
+        unresolved_concerns=["The finding is pending review."],
+        generated_at="2026-06-24T12:00:00+00:00",
+        lookback_days=180,
+        evidence=PreVisitBriefEvidence(
+            document_count=1,
+            prescription_count=0,
+            finding_count=1,
+            pending_finding_count=1,
+        ),
+    )
+    with patch(
+        "app.api.doctor_patients.pre_visit_brief_service.generate_pre_visit_brief",
+        new_callable=AsyncMock,
+        return_value=payload,
+    ) as mock_generate:
+        r = client.post("/api/doctors/d1/patients/p2/pre-visit-brief")
+
+    assert r.status_code == 200
+    assert r.json()["lookback_days"] == 180
+    assert r.json()["evidence"]["pending_finding_count"] == 1
+    mock_generate.assert_awaited_once()
+
+
+def test_generate_pre_visit_brief_sanitizes_ai_failure(client):
+    with patch(
+        "app.api.doctor_patients.pre_visit_brief_service.generate_pre_visit_brief",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("provider secret details"),
+    ):
+        r = client.post("/api/doctors/d1/patients/p2/pre-visit-brief")
+
+    assert r.status_code == 503
+    assert r.json() == {
+        "detail": "Pre-visit brief generation failed. Please try again."
+    }
+    assert "provider secret" not in r.text

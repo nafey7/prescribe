@@ -12,6 +12,8 @@ export class DoctorPatientDetailPage extends BasePage {
   // Upload/delete controls should NOT be present on doctor's view
   uploadButton() { return this.page.getByRole("button", { name: /upload/i }); }
   deleteButton() { return this.page.getByRole("button", { name: /delete/i }); }
+  generateBriefButton() { return this.page.getByRole("button", { name: /generate ai brief/i }); }
+  brief() { return this.page.getByLabel("Pre-visit AI brief"); }
 
   async expectLoaded(patientId: string): Promise<void> {
     await expect(this.page).toHaveURL(new RegExp(`/doctor/patients/${patientId}`));

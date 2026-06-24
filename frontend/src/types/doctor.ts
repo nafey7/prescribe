@@ -136,6 +136,24 @@ export interface ConnectedPatientListResponse {
   limit: number;
 }
 
+export interface PreVisitBriefEvidence {
+  document_count: number;
+  prescription_count: number;
+  finding_count: number;
+  pending_finding_count: number;
+}
+
+export interface PreVisitBrief {
+  summary: string;
+  recent_documents: string[];
+  medication_changes: string[];
+  abnormal_labs: string[];
+  unresolved_concerns: string[];
+  generated_at: string;
+  lookback_days: number;
+  evidence: PreVisitBriefEvidence;
+}
+
 /** Mirrors backend `app/schemas/connection.py` → `ConnectionResponse`. */
 export interface ConnectionResponse {
   connection_id: string;

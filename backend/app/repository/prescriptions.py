@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
@@ -36,11 +38,14 @@ async def list_prescriptions_for_patient(
     patient_id: str,
     *,
     status: PrescriptionStatus | None = None,
+    since: datetime | None = None,
     limit: int = 50,
 ) -> list[dict]:
     query: dict = {"patient_id": patient_id}
     if status is not None:
         query["status"] = status
+    if since is not None:
+        query["issued_at"] = {"$gte": since}
     cursor = (
         db.prescriptions.find(query, {"_id": 0})
         .sort("issued_at", -1)

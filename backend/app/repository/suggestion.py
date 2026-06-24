@@ -21,6 +21,8 @@ async def list_suggestions(
     status: str | None = None,
     document_id: str | None = None,
     category: str | None = None,
+    created_since: datetime | None = None,
+    limit: int = 500,
 ) -> list[dict[str, Any]]:
     query: dict[str, Any] = {"patient_id": patient_id}
     if status:
@@ -29,8 +31,10 @@ async def list_suggestions(
         query["document_id"] = document_id
     if category:
         query["category"] = category
+    if created_since is not None:
+        query["created_at"] = {"$gte": created_since}
     cursor = db.suggestions.find(query).sort("created_at", -1)
-    return await cursor.to_list(length=500)
+    return await cursor.to_list(length=limit)
 
 
 async def get_suggestion(
