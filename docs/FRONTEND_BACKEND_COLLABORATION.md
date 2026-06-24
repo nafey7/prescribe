@@ -60,6 +60,7 @@ Protected routes expect **`Authorization: Bearer <access_token>`** when `AUTH_RE
 | `GET` | `/api/doctors/{doctor_id}/patients` | Query: `search`, `sort` (`recent` \| `name` \| `last_visit`), `skip`, `limit` | `DoctorPatientListResponse` | Active connections only; 404 if doctor not found |
 | `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/profile` | — | `PatientProfileResponse` | **403** if no active connection |
 | `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/medical-history` | — | `MedicalHistoryResponse` | Same aggregation as patient dashboard; **403** if not connected |
+| `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/pre-visit-brief` | — | `PreVisitBriefResponse` | On-demand 180-day AI brief from bounded records; **403** if not connected; **503** when generation is unavailable |
 | `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/documents` | Query: `category`, `page`, `page_size` | `DocumentListResponse` | **403** if not connected |
 | `GET` | `/api/doctors/{doctor_id}/patients/{patient_id}/documents/{document_id}` | — | Binary stream | Download/view; **403** if not connected |
 | `POST` | `/api/doctors/{doctor_id}/patients/{patient_id}/chat/message` | `ChatRequest` (JSON) | `ChatResponse` | Doctor AI chat (non-streaming); **403** without active connection; session/messages store `doctor_id` |
@@ -125,6 +126,30 @@ Screens proposed medications against the patient's existing medications, allergi
 - Frontend state: `checked_at` is not persisted to the prescription; it is display-only.
 - React hook: `useCheckDrugInteractionsMutation` from `api/prescriptionsApi.ts`. TypeScript types: `DrugInteraction`, `DrugInteractionCheckResponse`, `DrugInteractionCheckRequest` in `types/doctor.ts`.
 - snake_case throughout on the wire; TypeScript type field names mirror the wire format.
+
+### `POST .../pre-visit-brief`
+
+Generates an on-demand doctor-facing summary from a 180-day window of recent `documents`, `prescriptions`, and non-rejected structured document `suggestions`. The current patient profile is supplied as baseline context. Patient chat history is excluded, and generated prose is not stored.
+
+```json
+{
+  "summary": "Two new records need review before the visit.",
+  "recent_documents": ["CBC uploaded June 20 reports mild anemia."],
+  "medication_changes": ["Lisinopril 10 mg daily was issued June 18 and remains active."],
+  "abnormal_labs": ["Hemoglobin 10.8 g/dL is marked low."],
+  "unresolved_concerns": ["The extracted anemia finding remains pending review."],
+  "generated_at": "2026-06-24T12:00:00+00:00",
+  "lookback_days": 180,
+  "evidence": {
+    "document_count": 1,
+    "prescription_count": 1,
+    "finding_count": 1,
+    "pending_finding_count": 1
+  }
+}
+```
+
+Each section contains at most four one-sentence bullets. Empty arrays are valid. The frontend uses `useGeneratePreVisitBriefMutation` from `api/doctorsApi.ts` and renders the result inline on the connected-patient overview.
 
 ### `GET /api/config/features`
 

@@ -93,16 +93,17 @@ _should_continue?
 | `submit_fitness_plan` | Emits a structured fitness plan payload for the frontend renderer |
 | `submit_differential_diagnosis` | Emits a ranked, patient-grounded differential (per-diagnosis rationale + supporting/contradicting chart evidence, red flags, recommended workup) for the doctor-portal renderer |
 
-## Prescription AI graphs
+## Doctor workflow AI
 
-Two standalone LangGraph-style AI functions run outside the main chat graph:
+Standalone structured-output AI functions run outside the main chat graph:
 
 | Module | Purpose | Called by |
 |--------|---------|-----------|
 | `ai/prescription_copilot_graph.py` | Structured-output suggestion from doctor's free-text prompt | `service/prescription_copilot.py` → `POST .../prescriptions/suggest` |
 | `ai/drug_interaction_graph.py` | Screens proposed medications for drug-drug, drug-allergy, and drug-condition interactions | `service/drug_interaction_service.py` → `POST .../prescriptions/check-interactions` |
+| `ai/pre_visit_brief.py` | Concise recent-document, prescription-activity, abnormal-lab, and unresolved-concern brief | `service/pre_visit_brief.py` → `POST .../pre-visit-brief` |
 
-Both use `with_structured_output()` against Pydantic models and wrap the sync LLM call in `asyncio.to_thread`. The drug interaction graph uses `get_llm_deterministic()` (temperature=0.0) and fails closed when the model or structured parsing is unavailable; an unavailable screen is never returned as an empty/safe result.
+These functions use `with_structured_output()` against Pydantic models and wrap the sync LLM call in `asyncio.to_thread`. The drug interaction graph and pre-visit brief use `get_llm_deterministic()` (temperature=0.0). An unavailable interaction screen is never returned as an empty/safe result; brief generation returns a sanitized 503. A brief with no recent evidence is produced deterministically without an LLM call.
 - **LLM:** Configurable via `LLM_PROVIDER` env var (`"openai"` default, or `"gemini"`). At runtime the active provider is held in `ai/provider.py` (`ProviderRegistry` singleton, thread-safe) and can be switched without a restart via `POST /api/config/ai-provider` (doctor-auth-gated). `get_llm()` and `get_title_llm()` both read from the registry; the env var is only the startup default.
 - **System prompt:** Injected as `SystemMessage` at the start of the model context. Patient-facing names may be included, but internal patient identifiers are not exposed as tool arguments.
 
@@ -143,6 +144,10 @@ Patient records live entirely in MongoDB. The `search_patient_records` tool:
 No filesystem dependency, no restart required to pick up new or edited patients — it's a live read every turn.
 
 New PDF/image uploads also run text extraction off the event loop and store a bounded `extracted_text` field. `search_patient_documents` retrieves up to three relevant recent documents. Older uploads without extracted text remain available as files but must be re-uploaded or backfilled before the agent can read their contents.
+
+### Pre-visit brief evidence flow
+
+The doctor patient-detail view can request an on-demand brief for an actively connected patient. `service/pre_visit_brief.py` resolves the path ID to the canonical patient `user_id`, verifies the connection, and builds a 180-day evidence packet from `documents`, `prescriptions`, and non-rejected `suggestions`, with `users.patient_profile` supplied only as baseline context. Inputs and extracted text are bounded before the deterministic structured-output call. The generated prose is not persisted, so regeneration always reflects current source records and does not create a stale clinical-summary lifecycle. Patient self-service chat history is not part of this evidence flow.
 
 ## Key dependencies
 

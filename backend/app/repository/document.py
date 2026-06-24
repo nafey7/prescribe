@@ -120,6 +120,24 @@ async def list_documents_for_patient(
     return await cursor.to_list(length=limit)
 
 
+async def list_recent_documents_for_patient(
+    db: AsyncIOMotorDatabase,
+    patient_user_id: str,
+    *,
+    since: datetime,
+    limit: int = 8,
+) -> list[dict]:
+    """Return recent document evidence, newest first, for brief generation."""
+    cursor = (
+        db.documents.find(
+            {"patient_id": patient_user_id, "uploaded_at": {"$gte": since}}
+        )
+        .sort("uploaded_at", -1)
+        .limit(limit)
+    )
+    return await cursor.to_list(length=limit)
+
+
 def _iso(dt: datetime | str | None) -> str:
     if dt is None:
         return ""

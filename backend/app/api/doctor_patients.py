@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.api.dependencies import ensure_doctor_route, resolve_actor_user
@@ -7,7 +7,9 @@ from app.schemas.document import DocumentListResponse
 from app.schemas.doctor import DoctorPatientListResponse
 from app.schemas.medical_history import MedicalHistoryResponse
 from app.schemas.patient import PatientProfileResponse
+from app.schemas.pre_visit_brief import PreVisitBriefResponse
 from app.service import doctor_patients as doctor_patients_service
+from app.service import pre_visit_brief as pre_visit_brief_service
 from app.service.auth import CurrentUser
 
 router = APIRouter()
@@ -67,6 +69,30 @@ async def get_doctor_patient_medical_history(
     return await doctor_patients_service.get_connected_patient_history(
         db, doctor_id, patient_id
     )
+
+
+@router.post(
+    "/{doctor_id}/patients/{patient_id}/pre-visit-brief",
+    response_model=PreVisitBriefResponse,
+)
+async def generate_doctor_patient_pre_visit_brief(
+    doctor_id: str,
+    patient_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+) -> PreVisitBriefResponse:
+    ensure_doctor_route(actor, doctor_id)
+    db = get_database()
+    try:
+        return await pre_visit_brief_service.generate_pre_visit_brief(
+            db, doctor_id, patient_id
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Pre-visit brief generation failed. Please try again.",
+        ) from None
 
 
 @router.get(
