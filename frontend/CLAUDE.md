@@ -39,7 +39,7 @@ frontend/src/
 │   ├── patientsApi.ts       # Patients + medical history (RTK Query)
 │   ├── doctorsApi.ts        # Doctor profile, dashboard, connected patient profile/history (RTK Query)
 │   ├── connectionsApi.ts    # accept/reject connection mutations
-│   ├── documentsApi.ts      # Document list/metadata mutations (RTK Query)
+│   ├── documentsApi.ts      # Document list/metadata + lab-analysis query/retry (RTK Query)
 │   ├── documents.ts         # XHR upload, blob download, public URLs (non-RTK)
 │   ├── doctors.ts           # Imperative helpers still on apiRequest (dev doctor list, blobs, …)
 │   ├── chatApi.ts           # Chat REST (history, send message, doctor chat)
@@ -68,7 +68,7 @@ frontend/src/
 │   ├── ChatMessage.tsx
 │   ├── ChatInput.tsx
 │   ├── PatientSelector.tsx  # Dropdown (used by DevIdentityBanner)
-│   ├── documents/           # UploadModal, DocumentCard, DocumentPreview, CategoryFilter, etc.
+│   ├── documents/           # Upload/preview plus LabAnalysisPanel/Dialog and document actions
 │   └── patient/             # Profile form sections (demographics, lists, lifestyle, etc.)
 ├── hooks/
 │   ├── useChat.ts           # Streaming + RTK invalidation where needed
@@ -91,6 +91,8 @@ frontend/src/
 **Dev identity headers** (`X-Patient-Id`, `X-Doctor-Id`) apply only when no Bearer token is active and the backend reports `auth_relaxed: true`. Routes that encode `patient_id` in the path and must not send `X-Patient-Id` pass **`skipPatientHeader`** (e.g. doctor chat, `GET /patients/for-chat`, feature flags).
 
 **Local UI state** (chat messages, streaming tokens, upload progress) stays in hooks and components. **SSE streaming** and **multipart upload** stay outside the RTK cache; on success they may `dispatch(baseApi.util.invalidateTags(...))` so RTK-backed lists stay consistent.
+
+**Protected document previews** must fetch binary content through the authenticated API client and render a temporary `blob:` URL. Do not place protected API URLs directly in `<iframe src>` or `<img src>` because those element requests cannot attach the app's Bearer header or use its refresh-and-retry flow.
 
 ```
 AuthContext → registerAccessTokenGetter → applyPrescribeHeaders (Bearer) / ensureFreshAccessToken

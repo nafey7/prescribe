@@ -19,6 +19,8 @@ function makeDoc(overrides: Partial<DocumentMetadata> = {}): DocumentMetadata {
     uploaded_at: "2026-04-15",
     updated_at: "2026-04-15",
     tags: [],
+    analysis_status: "completed",
+    analyzed_at: "2026-04-15",
     ...overrides,
   };
 }
@@ -68,6 +70,22 @@ describe("DocumentCard", () => {
     expect(
       screen.queryByRole("button", { name: /discuss with ai/i })
     ).toBeNull();
+  });
+
+  it("opens the durable lab analysis when onAnalyze is provided", () => {
+    const onAnalyze = vi.fn();
+    renderWithProviders(
+      <DocumentCard
+        doc={makeDoc()}
+        onView={vi.fn()}
+        onDownload={vi.fn()}
+        onAnalyze={onAnalyze}
+      />,
+      { router: { initialEntries: ["/"] } }
+    );
+    screen.getByRole("button", { name: /view ai analysis/i }).click();
+    expect(onAnalyze).toHaveBeenCalledOnce();
+    expect(screen.getByText(/ai analysis ready/i)).toBeInTheDocument();
   });
 
   it("shows Delete button when onDelete is provided and not readOnly", () => {

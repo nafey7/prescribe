@@ -13,14 +13,14 @@ Prescribe v2 is a **prescription management application** with an AI-powered doc
 1. **Medical history hub** — Patients consolidate all their health documents (prescriptions, lab results, imaging reports, clinical notes) in one place, creating a portable personal health record.
 2. **Doctor–patient connections** — Doctors and patients establish relationships by sending and accepting connection requests, much like a social network. A connection grants the doctor access to the patient's medical history.
 3. **Prescription management** — Connected doctors can view a patient's full history and write new prescriptions grounded in that context.
-4. **AI assistant (doctor-only)** — An AI layer, accessible only to doctors, has access to a connected patient's medical history documents. Doctors can chat with the AI to get summaries, ask health-related questions, and navigate large records quickly. Patients do not interact with the AI.
+4. **AI assistant (doctor-only)** — The conversational AI layer is accessible only to doctors and can query a connected patient's medical history. Patients may receive bounded, source-grounded automation attached to their own uploads (for example, the lab-report analyzer), but cannot use the clinician chat assistant.
 5. **Transparent shared notes** — Doctors publish reviewed encounter notes and after-visit summaries that patients can read and flag for factual correction.
 
 ## User roles
 
 | Role | Summary | Key capabilities |
 |------|---------|-----------------|
-| **Patient** | End-user with health records | Manage their medical history (upload documents, store prescriptions and test results), connect with doctors, view their own records |
+| **Patient** | End-user with health records | Manage their medical history (upload documents, store prescriptions and test results), review bounded analysis of their own lab uploads, connect with doctors, view their own records |
 | **Doctor** | Clinician who connects with patients | Send/accept connection requests, view linked patients' medical history, write prescriptions, chat with AI assistant about a patient's records |
 | **Admin** | System administrator | Manage users, roles, system configuration |
 
@@ -35,6 +35,7 @@ Roles are mutually exclusive per account. A single `users` collection stores all
 | **Connection request** | A pending invitation from a doctor to a patient (or vice versa) to establish a doctor–patient connection |
 | **Prescription** | A doctor-created medication order for a connected patient, stored as part of the patient's medical history |
 | **Document upload** | Patient-submitted files (PDFs, images) representing medical tests, reports, or other health records, added to their medical history |
+| **Lab report analysis** | A read-only, source-grounded summary attached to a patient-owned lab upload. It groups report metrics by the report's own flags/ranges, exposes uncertainty, and is not a diagnosis or profile update. |
 | **Chat session** | A conversation between a **doctor** and the AI, scoped to a single connected patient's medical history. Persisted in MongoDB (`chat_sessions` + `chat_messages`). Patients cannot initiate chat sessions |
 | **Shared clinical note** | A doctor-authored encounter note or after-visit summary explicitly published to a connected patient; AI may draft text but cannot publish it |
 | **Correction request** | A patient-authored, auditable request for the note author to review a specific factual issue |
@@ -45,7 +46,7 @@ Roles are mutually exclusive per account. A single `users` collection stores all
 2. **Connection-based access** — Doctors can only view a patient's medical history and write prescriptions after the patient has accepted their connection request (or vice versa). Enforced at the service layer.
 3. **Mutual connections** — Either party (doctor or patient) can initiate a connection request. The other party must accept before access is granted.
 4. **Prescription authority** — Only doctors may create prescriptions, and only for patients they are connected to.
-5. **AI is doctor-only** — Only doctors can access the AI assistant. Every chat session is initiated by a doctor and tied to exactly one connected patient. The AI agent only retrieves medical history documents for that patient, ensuring data isolation. Patients have no access to AI chat.
+5. **Conversational AI is doctor-only** — Only doctors can access the clinician AI assistant. Every clinician chat session is tied to exactly one connected patient, and the agent retrieves records only for that patient. Patient-facing upload automation is limited to the patient's own documents, remains read-only, shows uncertainty/source evidence, and never becomes a diagnosis or treatment recommendation.
 6. **AI grounding** — The AI must base responses on actual patient record content. The system prompt instructs it to not fabricate medical data.
 7. **Admin access** — Admins manage users and system configuration but do not participate in clinical workflows or connections.
 8. **Data safety** — All seeded patient records in MongoDB are synthetic and educational. Never treat them as real PHI.

@@ -117,6 +117,8 @@ Set `VITE_API_URL=http://localhost:8000/api` if the backend is not behind the Do
 | `LLM_PROVIDER` | `google` | LLM provider: `google` or `openai` |
 | `GOOGLE_API_KEY` | — | Gemini API key (required if provider=google) |
 | `OPENAI_API_KEY` | — | OpenAI API key (required if provider=openai) |
+| `DOCUMENT_MODEL_OPENAI` | `gpt-4o-mini` | OpenAI model for direct PDF classification and structured prescription/lab extraction |
+| `OCR_ENABLED` | `false` | Reserved for future local OCR processing; the current PDF flow sends files directly to OpenAI and does not invoke Tesseract |
 | `MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
 | `DATABASE_NAME` | `medical_chat` | MongoDB database name |
 | `VITE_API_URL` | `/api` | Frontend API base URL (set in Docker Compose) |

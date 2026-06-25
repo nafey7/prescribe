@@ -10,6 +10,7 @@ from app.schemas.document import (
     DocumentMetadata,
     DocumentUploadResponse,
 )
+from app.schemas.lab_analysis import LabAnalysisResponse
 
 
 @pytest.fixture
@@ -86,16 +87,22 @@ def test_list_documents_pagination(client):
 
 
 def test_upload_document_ok(client):
-    with patch(
-        "app.api.documents.document_service.upload_document",
-        new_callable=AsyncMock,
-    ) as mock_up:
+    with (
+        patch(
+            "app.api.documents.document_service.upload_document",
+            new_callable=AsyncMock,
+        ) as mock_up,
+        patch(
+            "app.api.documents.process_document_for_suggestions",
+            new_callable=AsyncMock,
+        ) as mock_process,
+    ):
         mock_up.return_value = DocumentUploadResponse(
             document_id="x",
             filename="f.pdf",
             content_type="application/pdf",
             file_size_bytes=10,
-            category="other",
+            category="lab_result",
             description="",
             uploaded_at="2025-01-01T00:00:00",
         )
@@ -105,6 +112,7 @@ def test_upload_document_ok(client):
             data={"category": "lab_result", "description": "Lab"},
         )
         assert r.status_code == 201
+        mock_process.assert_awaited_once()
 
 
 def test_upload_document_empty_file(client):
@@ -217,3 +225,41 @@ def test_update_metadata_ok(client):
         )
         assert r.status_code == 200
         assert r.json()["description"] == "Updated"
+
+
+def test_get_lab_analysis_ok(client):
+    response = LabAnalysisResponse(
+        document_id="lab-1",
+        status="processing",
+    )
+    with patch(
+        "app.api.documents.lab_analysis_service.get_lab_analysis",
+        new_callable=AsyncMock,
+        return_value=response,
+    ) as mock_get:
+        r = client.get("/api/patients/john_doe/documents/lab-1/analysis")
+
+    assert r.status_code == 200
+    assert r.json()["status"] == "processing"
+    mock_get.assert_awaited_once()
+
+
+def test_retry_lab_analysis_queues_background_work(client):
+    response = LabAnalysisResponse(document_id="lab-1", status="queued")
+    with (
+        patch(
+            "app.api.documents.lab_analysis_service.queue_lab_analysis",
+            new_callable=AsyncMock,
+            return_value=response,
+        ) as mock_queue,
+        patch(
+            "app.api.documents.lab_analysis_service.run_lab_analysis_for_document",
+            new_callable=AsyncMock,
+        ) as mock_run,
+    ):
+        r = client.post("/api/patients/john_doe/documents/lab-1/analysis")
+
+    assert r.status_code == 202
+    assert r.json()["status"] == "queued"
+    mock_queue.assert_awaited_once()
+    mock_run.assert_awaited_once()

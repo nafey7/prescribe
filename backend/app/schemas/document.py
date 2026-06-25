@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.schemas.enums import DocumentSource, DocumentType, DocumentVisibility
+from app.schemas.lab_analysis import AnalysisStatus
 from app.utils import document_id, utcnow
 
 
@@ -91,6 +92,7 @@ class DocumentUploadResponse(BaseModel):
     category: str
     description: str
     uploaded_at: str
+    analysis_status: AnalysisStatus = "not_applicable"
 
 
 class DocumentMetadata(BaseModel):
@@ -104,6 +106,8 @@ class DocumentMetadata(BaseModel):
     tags: list[str]
     uploaded_at: str
     updated_at: str
+    analysis_status: AnalysisStatus = "not_applicable"
+    analyzed_at: str | None = None
 
 
 class DocumentListResponse(BaseModel):

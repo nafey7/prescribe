@@ -2,6 +2,7 @@ import type {
   DocumentListResponse,
   DocumentMetadata,
   DocumentUpdateRequest,
+  LabAnalysisResponse,
 } from "../types/document";
 import { baseApi } from "./baseApi";
 
@@ -26,6 +27,13 @@ export const documentsApi = baseApi.injectEndpoints({
       providesTags: (_r, _e, arg) => [
         { type: "Documents", id: arg.patientId },
       ],
+    }),
+    getDocumentMetadata: builder.query<
+      DocumentMetadata,
+      { patientId: string; documentId: string }
+    >({
+      query: ({ patientId, documentId }) =>
+        `/patients/${encodeURIComponent(patientId)}/documents/${encodeURIComponent(documentId)}/metadata`,
     }),
     deleteDocument: builder.mutation<
       void,
@@ -56,11 +64,37 @@ export const documentsApi = baseApi.injectEndpoints({
         { type: "Documents", id: arg.patientId },
       ],
     }),
+    getLabAnalysis: builder.query<
+      LabAnalysisResponse,
+      { patientId: string; documentId: string }
+    >({
+      query: ({ patientId, documentId }) =>
+        `/patients/${encodeURIComponent(patientId)}/documents/${encodeURIComponent(documentId)}/analysis`,
+      providesTags: (_r, _e, arg) => [
+        { type: "LabAnalysis", id: arg.documentId },
+      ],
+    }),
+    retryLabAnalysis: builder.mutation<
+      LabAnalysisResponse,
+      { patientId: string; documentId: string }
+    >({
+      query: ({ patientId, documentId }) => ({
+        url: `/patients/${encodeURIComponent(patientId)}/documents/${encodeURIComponent(documentId)}/analysis`,
+        method: "POST",
+      }),
+      invalidatesTags: (_r, _e, arg) => [
+        { type: "LabAnalysis", id: arg.documentId },
+        { type: "Documents", id: arg.patientId },
+      ],
+    }),
   }),
 });
 
 export const {
   useListDocumentsQuery,
+  useLazyGetDocumentMetadataQuery,
   useDeleteDocumentMutation,
   useUpdateDocumentMetadataMutation,
+  useGetLabAnalysisQuery,
+  useRetryLabAnalysisMutation,
 } = documentsApi;

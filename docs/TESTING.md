@@ -28,6 +28,8 @@ Running `pytest` on the host (`cd backend && python -m pytest`) can drift from t
 | `tests/test_ai_architecture.py` | Hidden runtime patient scope, checkpoint deletion, current-turn artifacts, failure status, newest-page history |
 | `tests/test_api_patients.py` | Patient profile APIs and auth gates |
 | `tests/test_api_documents.py` | Document upload/list/download and patient scoping |
+| `tests/test_document_text.py` | Selectable-text PDF extraction, default-off OCR gating, and enabled embedded-image OCR deduplication |
+| `tests/test_lab_analysis.py` | Lab-analysis schema grouping, persistence/failure lifecycle, and lab-suggestion adaptation |
 | `tests/test_api_doctors.py`, `tests/test_api_doctor_patients.py`, `tests/test_api_doctor_chat.py` | Doctor portal and connection-aware routes |
 | `tests/test_clinical_notes.py`, `tests/test_api_clinical_notes.py` | Clinical-note schemas, AI draft safety, canonical patient scope, publish/revise/read/correction API contracts |
 | `tests/test_pre_visit_brief.py` | Pre-visit brief schema bounds, structured AI adapter, evidence collection, canonical scoping, and no-evidence behavior |

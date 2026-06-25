@@ -88,6 +88,7 @@ export const baseApi = createApi({
     "ChatSessions",
     "Config",
     "Suggestions",
+    "LabAnalysis",
     "Connections",
     "Auth",
     "MealPlanShares",

@@ -23,6 +23,7 @@ Implementation plans live in [`plans/`](plans/). Use the `/create-plan` Cursor c
 | [PLAN_MEDICAL_AI_CHAT_PROTOTYPE.md](plans/PLAN_MEDICAL_AI_CHAT_PROTOTYPE.md) | Original chat prototype implementation |
 | [PLAN_STREAMING_AND_THINKING_DISPLAY.md](plans/PLAN_STREAMING_AND_THINKING_DISPLAY.md) | SSE streaming and thinking UI |
 | [PLAN_AI_DOCUMENTATION_STRUCTURE.md](plans/PLAN_AI_DOCUMENTATION_STRUCTURE.md) | This documentation system |
+| [PLAN_LAB_REPORT_ANALYZER.md](plans/PLAN_LAB_REPORT_ANALYZER.md) | Structured, source-grounded lab report analysis after upload |
 
 ## Conventions
 

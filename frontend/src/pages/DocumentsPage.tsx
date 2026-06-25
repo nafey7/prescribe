@@ -13,6 +13,7 @@ import CategoryFilter from "../components/documents/CategoryFilter";
 import DocumentCard from "../components/documents/DocumentCard";
 import DocumentPagination from "../components/documents/DocumentPagination";
 import DocumentPreview from "../components/documents/DocumentPreview";
+import LabAnalysisDialog from "../components/documents/LabAnalysisDialog";
 import UploadModal from "../components/documents/UploadModal";
 import { usePatientContext } from "../contexts/PatientContext";
 import { useDocuments } from "../hooks/useDocuments";
@@ -27,6 +28,7 @@ export default function DocumentsPage() {
   const [page, setPage] = useState(1);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<DocumentMetadata | null>(null);
+  const [analysisDoc, setAnalysisDoc] = useState<DocumentMetadata | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const { data, isLoading, error } = useDocuments(currentPatientId, {
@@ -227,6 +229,7 @@ export default function DocumentsPage() {
                   onDownload={() => void handleDownload(d)}
                   onDelete={() => void handleDelete(d)}
                   onDiscuss={d.category === "lab_result" ? () => handleDiscuss(d) : undefined}
+                  onAnalyze={d.category === "lab_result" ? () => setAnalysisDoc(d) : undefined}
                 />
               </Box>
             ))}
@@ -254,6 +257,16 @@ export default function DocumentsPage() {
           patientId={currentPatientId}
           doc={previewDoc}
           onClose={closePreview}
+        />
+      )}
+
+      {analysisDoc && (
+        <LabAnalysisDialog
+          patientId={currentPatientId}
+          documentId={analysisDoc.document_id}
+          filename={analysisDoc.filename}
+          open
+          onClose={() => setAnalysisDoc(null)}
         />
       )}
     </>

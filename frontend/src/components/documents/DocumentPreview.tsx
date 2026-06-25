@@ -1,37 +1,75 @@
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { X } from "lucide-react";
-import { useMemo } from "react";
-import { getDocumentDownloadUrl } from "../../api/documents";
+import { useEffect, useState } from "react";
+import { fetchDocumentBlob } from "../../api/documents";
 import type { DocumentMetadata } from "../../types/document";
 
 interface Props {
   patientId: string;
   doc: DocumentMetadata;
   onClose: () => void;
-  /** When set (e.g. doctor connection-gated URL), used instead of patient document path. */
-  fileUrlOverride?: string;
+  /** Connected-doctor views provide their connection-gated authenticated loader. */
+  fetchBlobOverride?: () => Promise<Blob>;
 }
 
 export default function DocumentPreview({
   patientId,
   doc,
   onClose,
-  fileUrlOverride,
+  fetchBlobOverride,
 }: Props) {
-  const url = useMemo(
-    () =>
-      fileUrlOverride?.trim() ||
-      getDocumentDownloadUrl(patientId, doc.document_id),
-    [patientId, doc.document_id, fileUrlOverride]
-  );
-
   const isPdf = doc.content_type.includes("pdf");
   const isImage = doc.content_type.startsWith("image/");
+  const canPreview = isPdf || isImage;
+  const [url, setUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(canPreview);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!canPreview) {
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    setUrl(null);
+    setError(null);
+    setIsLoading(true);
+
+    const load = fetchBlobOverride
+      ? fetchBlobOverride()
+      : fetchDocumentBlob(patientId, doc.document_id);
+
+    void load
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch((reason: unknown) => {
+        if (cancelled) return;
+        setError(
+          reason instanceof Error ? reason.message : "Document preview failed."
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [canPreview, doc.document_id, fetchBlobOverride, patientId]);
 
   return (
     <Dialog
@@ -75,7 +113,20 @@ export default function DocumentPreview({
           overflow: "auto",
         }}
       >
-        {isPdf && (
+        {isLoading && (
+          <Stack
+            spacing={1}
+            sx={{ minHeight: "50vh", alignItems: "center", justifyContent: "center" }}
+            aria-busy="true"
+          >
+            <CircularProgress size={28} />
+            <Typography variant="body2" color="text.secondary">
+              Loading document…
+            </Typography>
+          </Stack>
+        )}
+        {error && <Alert severity="error">{error}</Alert>}
+        {url && isPdf && (
           <Box
             component="iframe"
             title={doc.filename}
@@ -89,7 +140,7 @@ export default function DocumentPreview({
             }}
           />
         )}
-        {isImage && (
+        {url && isImage && (
           <Box sx={{ display: "flex", justifyContent: "center", p: 1 }}>
             <Box
               component="img"
@@ -103,7 +154,7 @@ export default function DocumentPreview({
             />
           </Box>
         )}
-        {!isPdf && !isImage && (
+        {!canPreview && (
           <Typography align="center" color="text.secondary" sx={{ p: 3 }}>
             Preview is not available for this file type. Use Download.
           </Typography>

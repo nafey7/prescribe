@@ -17,6 +17,8 @@ class Settings(BaseSettings):
 
     # Main chat model for each provider (override via env).
     CHAT_MODEL_OPENAI: str = "gpt-4o-mini"
+    # OpenAI Responses API model used for direct PDF understanding.
+    DOCUMENT_MODEL_OPENAI: str = "gpt-4o-mini"
     CHAT_MODEL_GOOGLE: str = "gemini-2.5-flash"
     CHAT_CONTEXT_MAX_TOKENS: int = 24000
     AI_RUN_TIMEOUT_SECONDS: float = 120.0
@@ -27,6 +29,9 @@ class Settings(BaseSettings):
     CHAT_TITLE_MODEL_GOOGLE: str = "gemini-2.5-flash"
 
     AI_SUGGESTIONS_ENABLED: bool = True
+    # Selectable PDF text extraction remains available when this is off. This
+    # flag only controls Tesseract OCR for images and image-only PDFs.
+    OCR_ENABLED: bool = False
 
     # Auth (Phase D)
     JWT_SECRET: str = ""

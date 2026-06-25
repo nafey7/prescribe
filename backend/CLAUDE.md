@@ -13,15 +13,18 @@ backend/
 │   │   ├── router.py        # APIRouter aggregation (/api prefix)
 │   │   └── chat.py          # REST endpoints: /message, /message/stream, /history, /patients
 │   ├── service/
-│   │   └── chat.py          # Business logic: process_message, process_message_stream, list_patients
+│   │   ├── chat.py          # Business logic: process_message, process_message_stream, list_patients
+│   │   └── lab_analysis.py  # Durable lab-report analysis lifecycle + persistence
 │   ├── repository/
 │   │   └── chat.py          # MongoDB CRUD: sessions and messages (Motor async)
 │   ├── database/
 │   │   └── connection.py    # Motor client lifecycle (connect/close/get_database)
 │   ├── schemas/
-│   │   └── chat.py          # Pydantic request/response models (ChatRequest, ChatResponse, etc.)
+│   │   ├── chat.py          # Pydantic request/response models (ChatRequest, ChatResponse, etc.)
+│   │   └── lab_analysis.py  # Metric, result, lifecycle response contracts
 │   └── ai/
 │       ├── graph.py         # LangGraph StateGraph: agent ↔ tools loop, invoke + stream
+│       ├── lab_analysis.py  # Deterministic structured lab-report analyzer
 │       ├── tools.py         # search_patient_records tool (reads MongoDB users/documents)
 │       ├── prompts.py       # System prompt template
 │       ├── llm.py           # LLM factory (Google Gemini or OpenAI)

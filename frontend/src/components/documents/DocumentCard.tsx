@@ -5,7 +5,7 @@ import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { FileText, ImageIcon, MessageSquare, Trash2, Download, Eye } from "lucide-react";
+import { Activity, FileText, ImageIcon, MessageSquare, Trash2, Download, Eye } from "lucide-react";
 import type { DocumentCategory, DocumentMetadata } from "../../types/document";
 import { DOCUMENT_CATEGORY_LABELS } from "../../types/document";
 
@@ -17,6 +17,8 @@ interface Props {
   onDelete?: () => void;
   /** When provided, renders a "Discuss with AI" button (lab_result documents only). */
   onDiscuss?: () => void;
+  /** Opens the durable structured analysis for a lab report. */
+  onAnalyze?: () => void;
   readOnly?: boolean;
 }
 
@@ -39,6 +41,7 @@ export default function DocumentCard({
   onDownload,
   onDelete,
   onDiscuss,
+  onAnalyze,
   readOnly = false,
 }: Props) {
   const isImage = doc.content_type.startsWith("image/");
@@ -93,6 +96,29 @@ export default function DocumentCard({
                 )}
               </Typography>
             )}
+            {doc.category === "lab_result" && doc.analysis_status && (
+              <Chip
+                size="small"
+                variant="outlined"
+                label={
+                  doc.analysis_status === "completed"
+                    ? "AI analysis ready"
+                    : doc.analysis_status === "processing" || doc.analysis_status === "queued"
+                      ? "AI analysis in progress"
+                      : doc.analysis_status === "failed"
+                        ? "AI analysis needs retry"
+                        : "AI analysis unavailable"
+                }
+                color={
+                  doc.analysis_status === "completed"
+                    ? "success"
+                    : doc.analysis_status === "failed"
+                      ? "warning"
+                      : "default"
+                }
+                sx={{ mt: 1 }}
+              />
+            )}
             {doc.tags && doc.tags.length > 0 && (
               <Stack
                 direction="row"
@@ -139,6 +165,18 @@ export default function DocumentCard({
                   startIcon={<MessageSquare size={14} />}
                 >
                   Discuss with AI
+                </Button>
+              )}
+              {onAnalyze && (
+                <Button
+                  type="button"
+                  variant="contained"
+                  size="small"
+                  color="success"
+                  onClick={onAnalyze}
+                  startIcon={<Activity size={14} />}
+                >
+                  View AI analysis
                 </Button>
               )}
               {!readOnly && onDelete && (

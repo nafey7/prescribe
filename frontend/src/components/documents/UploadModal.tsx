@@ -34,6 +34,7 @@ import {
   useRejectSuggestionMutation,
 } from "../../api/suggestionsApi";
 import { baseApi } from "../../api/baseApi";
+import { useLazyGetDocumentMetadataQuery } from "../../api/documentsApi";
 import { useFeatureFlags } from "../../contexts/FeatureFlagContext";
 import { rtkErrorMessage } from "../../lib/rtkErrorMessage";
 import { useAppDispatch } from "../../store/hooks";
@@ -42,6 +43,7 @@ import { DOCUMENT_CATEGORY_LABELS } from "../../types/document";
 import type { Suggestion } from "../../types/suggestion";
 import SuggestionCard from "../suggestions/SuggestionCard";
 import UploadDropzone from "./UploadDropzone";
+import LabAnalysisPanel from "./LabAnalysisPanel";
 
 const CATEGORIES: DocumentCategory[] = [
   "lab_result",
@@ -53,7 +55,7 @@ const CATEGORIES: DocumentCategory[] = [
 ];
 
 const POLL_INTERVAL_MS = 3000;
-const MAX_POLL_ATTEMPTS = 20;
+const MAX_POLL_ATTEMPTS = 60;
 
 type Step = 1 | 2;
 
@@ -88,10 +90,12 @@ export default function UploadModal({
   const [suggestionsLoaded, setSuggestionsLoaded] = useState(false);
   const [allResolved, setAllResolved] = useState(false);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const [awaitingPdfAnalysis, setAwaitingPdfAnalysis] = useState(false);
 
   const { aiSuggestionsEnabled } = useFeatureFlags();
   const dispatch = useAppDispatch();
   const [triggerListSuggestions] = useLazyListSuggestionsQuery();
+  const [triggerDocumentMetadata] = useLazyGetDocumentMetadataQuery();
   const [acceptSuggestionMut] = useAcceptSuggestionMutation();
   const [rejectSuggestionMut] = useRejectSuggestionMutation();
   const [acceptAllMut] = useAcceptAllSuggestionsMutation();
@@ -124,6 +128,7 @@ export default function UploadModal({
       setSuggestionsLoaded(false);
       setAllResolved(false);
       setSuggestionError(null);
+      setAwaitingPdfAnalysis(false);
       pollCountRef.current = 0;
     }
   }, [open, clearPolling]);
@@ -185,6 +190,80 @@ export default function UploadModal({
     [patientId, triggerListSuggestions]
   );
 
+  const pollForPdfAnalysis = useCallback(
+    (docId: string) => {
+      cancelledRef.current = false;
+      pollCountRef.current = 0;
+      setAwaitingPdfAnalysis(true);
+      setAnalyzing(true);
+
+      const tick = async () => {
+        if (cancelledRef.current) return;
+        pollCountRef.current += 1;
+
+        try {
+          const metadata = await triggerDocumentMetadata({
+            patientId,
+            documentId: docId,
+          }).unwrap();
+          if (cancelledRef.current) return;
+
+          if (
+            metadata.analysis_status === "completed" ||
+            metadata.analysis_status === "failed" ||
+            metadata.analysis_status === "disabled"
+          ) {
+            const resolvedCategory = CATEGORIES.includes(
+              metadata.category as DocumentCategory
+            )
+              ? (metadata.category as DocumentCategory)
+              : "other";
+            setCategory(resolvedCategory);
+            setAwaitingPdfAnalysis(false);
+            setAnalyzing(false);
+            dispatch(
+              baseApi.util.invalidateTags([{ type: "Documents", id: patientId }])
+            );
+
+            if (metadata.analysis_status === "failed") {
+              setSuggestionError("AI could not analyze this PDF. You can retry from the document card.");
+              setSuggestionsLoaded(true);
+              return;
+            }
+
+            if (resolvedCategory !== "lab_result") {
+              const data = await triggerListSuggestions({
+                patientId,
+                documentId: docId,
+              }).unwrap();
+              if (cancelledRef.current) return;
+              setSuggestions(data.suggestions);
+              setSuggestionsLoaded(true);
+            }
+            return;
+          }
+        } catch {
+          // Keep polling on transient request failures.
+        }
+
+        if (pollCountRef.current >= MAX_POLL_ATTEMPTS) {
+          if (!cancelledRef.current) {
+            setAwaitingPdfAnalysis(false);
+            setAnalyzing(false);
+            setSuggestionsLoaded(true);
+            setSuggestionError("AI analysis is taking longer than expected. The document will continue processing in the background.");
+          }
+          return;
+        }
+
+        pollRef.current = setTimeout(() => void tick(), POLL_INTERVAL_MS);
+      };
+
+      pollRef.current = setTimeout(() => void tick(), 500);
+    },
+    [dispatch, patientId, triggerDocumentMetadata, triggerListSuggestions]
+  );
+
   const handleContinue = async () => {
     if (!file) {
       setError("Choose a file to upload.");
@@ -207,12 +286,20 @@ export default function UploadModal({
       );
       setUploadDone(true);
       setDocumentId(result.document_id);
+      const detectedCategory = CATEGORIES.includes(
+        result.category as DocumentCategory
+      )
+        ? (result.category as DocumentCategory)
+        : category;
+      setCategory(detectedCategory);
       dispatch(
         baseApi.util.invalidateTags([{ type: "Documents", id: patientId }])
       );
       onUploaded?.();
 
-      if (aiSuggestionsEnabled) {
+      if (aiSuggestionsEnabled && result.content_type.includes("pdf")) {
+        pollForPdfAnalysis(result.document_id);
+      } else if (aiSuggestionsEnabled && detectedCategory !== "lab_result") {
         pollForSuggestions(result.document_id);
       }
     } catch (e) {
@@ -232,6 +319,7 @@ export default function UploadModal({
     setStep(1);
     setError(null);
     setSuggestionError(null);
+    setAwaitingPdfAnalysis(false);
     setUploadDone(false);
     setDocumentId(null);
     setAnalyzing(false);
@@ -308,7 +396,12 @@ export default function UploadModal({
   const isPdf =
     file?.type.includes("pdf") || file?.name.toLowerCase().endsWith(".pdf");
 
-  const step2Label = aiSuggestionsEnabled ? "Review" : "Upload";
+  const isLabReport = category === "lab_result" && !awaitingPdfAnalysis;
+  const step2Label = aiSuggestionsEnabled
+    ? isLabReport
+      ? "Analyze"
+      : "Review"
+    : "Upload";
   const stepDone = (n: number) => step > n || (n === 2 && uploadDone);
 
   const handleDialogClose: NonNullable<
@@ -591,7 +684,7 @@ export default function UploadModal({
                   </Box>
                 </Stack>
 
-                {aiSuggestionsEnabled && analyzing && (
+                {aiSuggestionsEnabled && !isLabReport && analyzing && (
                   <Stack spacing={1.5}>
                     <Stack
                       direction="row"
@@ -630,6 +723,7 @@ export default function UploadModal({
                 )}
 
                 {aiSuggestionsEnabled &&
+                  !isLabReport &&
                   suggestionsLoaded &&
                   !allResolved &&
                   suggestions.length > 0 && (
@@ -706,7 +800,7 @@ export default function UploadModal({
                     </Stack>
                   )}
 
-                {aiSuggestionsEnabled && suggestionsLoaded && allResolved && (
+                {aiSuggestionsEnabled && !isLabReport && suggestionsLoaded && allResolved && (
                   <Stack sx={{ alignItems: "center", py: 2 }}>
                     <Box
                       sx={{
@@ -739,8 +833,28 @@ export default function UploadModal({
                   </Stack>
                 )}
 
+                {aiSuggestionsEnabled && isLabReport && documentId && (
+                  <Stack spacing={2}>
+                    <LabAnalysisPanel
+                      patientId={patientId}
+                      documentId={documentId}
+                    />
+                    <Stack direction="row" sx={{ justifyContent: "flex-end" }}>
+                      <Button
+                        type="button"
+                        variant="contained"
+                        color="success"
+                        onClick={handleDone}
+                      >
+                        Done
+                      </Button>
+                    </Stack>
+                  </Stack>
+                )}
+
                 {((!aiSuggestionsEnabled && uploadDone) ||
                   (aiSuggestionsEnabled &&
+                    !isLabReport &&
                     suggestionsLoaded &&
                     !allResolved &&
                     suggestions.length === 0)) && (

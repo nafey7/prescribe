@@ -14,10 +14,14 @@ from app.ai.extraction_prompts import (
     EXTRACTION_TARGETS,
     EXTRACTION_USER_PROMPT,
 )
+from app.ai.document_analysis import PatientDocumentAnalysis, analyze_patient_pdf
 from app.ai.llm import get_llm
 from app.config import get_settings
+from app.repository import document as document_repo
 from app.repository import suggestion as suggestion_repo
 from app.document_text import extract_text_from_document
+from app.schemas.lab_analysis import LabReportAnalysis
+from app.service.lab_analysis import build_report_analysis, run_lab_analysis_for_document
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +52,68 @@ async def process_document_for_suggestions(
             patient_id, resolved_patient_id, document_id,
         )
 
-        file_bytes = await _fetch_document_bytes(db, doc)
-        if not file_bytes:
-            logger.warning("Could not fetch bytes for document %s", document_id)
+        if str(doc.get("content_type") or "") == "application/pdf":
+            await _process_pdf_with_openai(
+                db, doc, resolved_patient_id, document_id
+            )
             return
 
-        content_type = doc.get("content_type") or ""
-        text = await extract_text_from_document(file_bytes, content_type)
+        raw_document_analysis = doc.get("ai_document_analysis")
+        if raw_document_analysis:
+            analysis = PatientDocumentAnalysis.model_validate(raw_document_analysis)
+            if analysis.document_type == "prescription":
+                items = [
+                    {
+                        "category": "medication",
+                        "confidence": medication.confidence,
+                        "source_text": medication.source_text,
+                        "extracted_data": {
+                            "name": medication.name,
+                            "dosage": medication.dosage,
+                            "frequency": medication.frequency,
+                            "since": medication.since,
+                        },
+                    }
+                    for medication in analysis.medications
+                ]
+                if items:
+                    items = await _check_duplicates(db, resolved_patient_id, items)
+                    await suggestion_repo.create_suggestions(
+                        db,
+                        _build_suggestion_docs(
+                            resolved_patient_id, document_id, items
+                        ),
+                    )
+                return
+            if analysis.document_type == "other":
+                return
+
+        if category == "lab_result":
+            stored = doc.get("lab_analysis")
+            report = (
+                LabReportAnalysis.model_validate(stored) if stored else None
+            )
+            if report is None:
+                analysis_response = await run_lab_analysis_for_document(db, document_id)
+                report = analysis_response.analysis
+            if report is None:
+                return
+            item = _lab_analysis_to_item(report)
+            if item is not None:
+                suggestions = _build_suggestion_docs(
+                    resolved_patient_id, document_id, [item]
+                )
+                await suggestion_repo.create_suggestions(db, suggestions)
+            return
+
+        text = str(doc.get("extracted_text") or "").strip()
+        if not text:
+            file_bytes = await _fetch_document_bytes(db, doc)
+            if not file_bytes:
+                logger.warning("Could not fetch bytes for document %s", document_id)
+                return
+            content_type = doc.get("content_type") or ""
+            text = await extract_text_from_document(file_bytes, content_type)
         if not text or len(text.strip()) < 10:
             logger.info("No usable text extracted from document %s, skipping", document_id)
             return
@@ -77,6 +136,146 @@ async def process_document_for_suggestions(
         logger.error(
             "Extraction pipeline failed for document %s", document_id, exc_info=True
         )
+
+
+async def _process_pdf_with_openai(
+    db: AsyncIOMotorDatabase,
+    doc: dict,
+    patient_id: str,
+    document_id: str,
+) -> None:
+    """Classify and process a stored PDF after the upload response has returned."""
+    settings = get_settings()
+    if not settings.OPENAI_API_KEY:
+        await document_repo.update_document(
+            db,
+            document_id,
+            {
+                "analysis_status": "disabled",
+                "analysis_error": "OpenAI PDF analysis is not configured.",
+            },
+        )
+        return
+
+    await document_repo.update_document(
+        db,
+        document_id,
+        {"analysis_status": "processing", "analysis_error": ""},
+    )
+    try:
+        file_bytes = await _fetch_document_bytes(db, doc)
+        if not file_bytes:
+            raise ValueError("Could not read the stored PDF")
+
+        result = await analyze_patient_pdf(
+            file_bytes, str(doc.get("filename") or "document.pdf")
+        )
+        category = {
+            "prescription": "prescription",
+            "lab_report": "lab_result",
+            "other": "other",
+        }[result.document_type]
+        report: LabReportAnalysis | None = None
+        if result.document_type == "lab_report":
+            if result.lab_analysis is None:
+                raise ValueError("Lab report result did not contain lab analysis")
+            report = build_report_analysis(result.lab_analysis)
+
+        await document_repo.update_document(
+            db,
+            document_id,
+            {
+                "category": category,
+                "ai_document_analysis": result.model_dump(),
+                "lab_analysis": report.model_dump() if report else None,
+                "analysis_status": "processing",
+                "analysis_error": "",
+            },
+        )
+
+        items: list[dict] = []
+        if result.document_type == "prescription":
+            items = [
+                {
+                    "category": "medication",
+                    "confidence": medication.confidence,
+                    "source_text": medication.source_text,
+                    "extracted_data": {
+                        "name": medication.name,
+                        "dosage": medication.dosage,
+                        "frequency": medication.frequency,
+                        "since": medication.since,
+                    },
+                }
+                for medication in result.medications
+            ]
+            items = await _check_duplicates(db, patient_id, items)
+        elif report is not None:
+            item = _lab_analysis_to_item(report)
+            if item is not None:
+                items = [item]
+
+        if items:
+            await suggestion_repo.create_suggestions(
+                db, _build_suggestion_docs(patient_id, document_id, items)
+            )
+
+        await document_repo.update_document(
+            db,
+            document_id,
+            {
+                "analysis_status": "completed",
+                "analysis_error": "",
+                "analyzed_at": datetime.now(timezone.utc),
+            },
+        )
+    except Exception:
+        logger.error(
+            "Direct OpenAI PDF processing failed for document %s",
+            document_id,
+            exc_info=True,
+        )
+        await document_repo.update_document(
+            db,
+            document_id,
+            {
+                "analysis_status": "failed",
+                "analysis_error": "The PDF could not be analyzed by AI. Please try again.",
+                "analyzed_at": datetime.now(timezone.utc),
+            },
+        )
+
+
+def _lab_analysis_to_item(analysis: LabReportAnalysis) -> dict | None:
+    """Adapt the durable analysis to the existing review-suggestion contract."""
+    if not analysis.metrics:
+        return None
+    results = [
+        {
+            "name": metric.name,
+            "value": " ".join(part for part in [metric.value, metric.unit] if part),
+            "status": metric.status,
+            "reference_range": metric.reference_range,
+        }
+        for metric in analysis.metrics
+    ]
+    excerpts = [metric.source_text for metric in analysis.metrics if metric.source_text]
+    confidence = (
+        "low"
+        if any(metric.confidence == "low" for metric in analysis.metrics)
+        else "medium"
+        if any(metric.confidence == "medium" for metric in analysis.metrics)
+        else "high"
+    )
+    return {
+        "category": "lab_result",
+        "confidence": confidence,
+        "source_text": " | ".join(excerpts)[:1_000],
+        "extracted_data": {
+            "date": analysis.report_date or "",
+            "results": results,
+        },
+    }
 
 
 async def _fetch_document_bytes(db: AsyncIOMotorDatabase, doc: dict) -> bytes | None:

@@ -15,8 +15,10 @@ from app.schemas.document import (
     DocumentUpdateRequest,
     DocumentUploadResponse,
 )
+from app.schemas.lab_analysis import LabAnalysisResponse
 from app.service import document as document_service
 from app.service.ai_suggestions import process_document_for_suggestions
+from app.service import lab_analysis as lab_analysis_service
 
 router = APIRouter()
 
@@ -47,7 +49,7 @@ async def upload_document(
     if settings.AI_SUGGESTIONS_ENABLED:
         background_tasks.add_task(
             process_document_for_suggestions,
-            db, patient_id, result.document_id, category,
+            db, patient_id, result.document_id, result.category,
         )
 
     return result
@@ -83,6 +85,51 @@ async def get_document_metadata(
     elif not auth_bypass_allowed():
         raise HTTPException(status_code=401, detail="Authentication required")
     return await document_service.get_document_metadata(db, document_id, patient_id)
+
+
+@router.get(
+    "/{patient_id}/documents/{document_id}/analysis",
+    response_model=LabAnalysisResponse,
+)
+async def get_document_lab_analysis(
+    patient_id: str,
+    document_id: str,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+):
+    db = get_database()
+    if actor is not None:
+        await assert_jwt_patient_can_access_patient_path(db, actor, patient_id)
+    elif not auth_bypass_allowed():
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return await lab_analysis_service.get_lab_analysis(db, patient_id, document_id)
+
+
+@router.post(
+    "/{patient_id}/documents/{document_id}/analysis",
+    response_model=LabAnalysisResponse,
+    status_code=202,
+)
+async def retry_document_lab_analysis(
+    patient_id: str,
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    actor: CurrentUser | None = Depends(resolve_actor_user),
+):
+    settings = get_settings()
+    if not settings.AI_SUGGESTIONS_ENABLED:
+        raise HTTPException(status_code=503, detail="AI document analysis is disabled")
+    db = get_database()
+    if actor is not None:
+        await assert_jwt_patient_can_access_patient_path(db, actor, patient_id)
+    elif not auth_bypass_allowed():
+        raise HTTPException(status_code=401, detail="Authentication required")
+    response = await lab_analysis_service.queue_lab_analysis(
+        db, patient_id, document_id
+    )
+    background_tasks.add_task(
+        lab_analysis_service.run_lab_analysis_for_document, db, document_id
+    )
+    return response
 
 
 @router.get("/{patient_id}/documents/{document_id}")

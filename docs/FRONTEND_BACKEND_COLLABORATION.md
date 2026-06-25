@@ -44,10 +44,12 @@ Protected routes expect **`Authorization: Bearer <access_token>`** when `AUTH_RE
 | `GET` | `/api/patients/{patient_id}` | Bearer (**patient**, own profile) or dev bypass | `PatientProfileResponse` | Get profile by `user_id` (UUID) or `patient_slug` |
 | `GET` | `/api/patients/{patient_id}/medical-history` | Bearer (**patient**, own) or dev bypass | `MedicalHistoryResponse` | Aggregated dashboard: profile + parsed Markdown (`medications`, labs, timeline) + recent `documents` rows when present |
 | `PUT` | `/api/patients/{patient_id}` | `PatientProfileUpdate` (JSON) + auth as above | `PatientProfileResponse` | Update profile (same id rules as GET) |
-| `POST` | `/api/patients/{patient_id}/documents` | Multipart: `file`, `category`, `description` | `DocumentUploadResponse` (201) | Upload PDF/image to GridFS + metadata; readable text is extracted and bounded for scoped AI document retrieval |
+| `POST` | `/api/patients/{patient_id}/documents` | Multipart: `file`, `category`, `description` | `DocumentUploadResponse` (201) | Stores the upload immediately. PDF responses are initially `queued`; a background task sends the stored PDF directly to OpenAI, resolves its category, and persists prescription extraction or lab analysis. The modal polls metadata for completion. Local OCR is not used. |
 | `GET` | `/api/patients/{patient_id}/documents` | Query: `category`, `page`, `page_size` | `DocumentListResponse` | Paginated document list (optional category filter) |
 | `GET` | `/api/patients/{patient_id}/documents/{document_id}` | — | Binary stream | Download/view file (`Content-Type`, `Content-Disposition: inline`) |
-| `GET` | `/api/patients/{patient_id}/documents/{document_id}/metadata` | — | `DocumentMetadata` | JSON metadata only |
+| `GET` | `/api/patients/{patient_id}/documents/{document_id}/metadata` | — | `DocumentMetadata` | JSON metadata only; stale lab-analysis jobs are recovered before response |
+| `GET` | `/api/patients/{patient_id}/documents/{document_id}/analysis` | — | `LabAnalysisResponse` | Patient-owned lab analysis lifecycle/result; recovers stale in-progress jobs; **400** for non-lab documents |
+| `POST` | `/api/patients/{patient_id}/documents/{document_id}/analysis` | — | `LabAnalysisResponse` (202) | Re-extract the stored file and regenerate lab analysis in the background, including completed reports; **503** when AI document processing is disabled |
 | `PUT` | `/api/patients/{patient_id}/documents/{document_id}` | `DocumentUpdateRequest` (JSON) | `DocumentMetadata` | Update category, description, tags |
 | `DELETE` | `/api/patients/{patient_id}/documents/{document_id}` | — | 204 | Delete GridFS file and metadata |
 | `POST` | `/api/doctors` | `DoctorProfileCreate` (JSON) | `DoctorProfileResponse` (201) | Register doctor profile in `users` (`role: doctor`); 409 if email exists |
@@ -163,9 +165,13 @@ Public config snapshot the SPA reads at boot. Snake_case on the wire; `FeatureFl
 }
 ```
 
-- `ai_suggestions_enabled` — from `Settings.AI_SUGGESTIONS_ENABLED`; gates the AI document suggestions UI.
+- `ai_suggestions_enabled` — from `Settings.AI_SUGGESTIONS_ENABLED`; gates AI document suggestions and the lab-report analyzer.
 - `auth_relaxed` — mirrors backend `auth_bypass_allowed()`: `true` only when `AUTH_REQUIRED=false` **and** `ENVIRONMENT in {local, test}`; enables the dev identity picker and legacy `X-Patient-Id` / `X-Doctor-Id` headers without JWT.
 - `allow_doctor_self_signup` — from `Settings.ALLOW_DOCTOR_SELF_SIGNUP`; when `false`, `POST /api/auth/signup` with `role: "doctor"` returns **422** and the landing page hides the Doctor signup tab.
+
+### Lab analysis contract
+
+Lab reports use a durable `analysis_status`: `not_requested`, `disabled`, `queued`, `processing`, `completed`, or `failed` (`not_applicable` for non-lab documents). A completed `LabAnalysisResponse.analysis` contains `summary`, `normal_summary`, `abnormal_summary`, `next_steps`, an optional report date, internal classified metrics, limitations, derived status counts, and an educational disclaimer. Stale `queued` or `processing` jobs are recovered on document list, metadata, or analysis reads: if a valid lab analysis was already saved, the status is completed; otherwise the status becomes failed so the frontend can show retry. The frontend presents the three prose fields instead of one card per metric. Metric status remains one of `critical`, `high`, `low`, `abnormal`, `normal`, or `unknown`; critical is reserved for an explicit critical/panic flag in the uploaded report.
 
 ### `GET /api/config/ai-provider` and `POST /api/config/ai-provider`
 

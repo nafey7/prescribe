@@ -8,7 +8,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import {
   fetchConnectedPatientDocumentBlob,
-  getConnectedPatientDocumentUrl,
 } from "../../api/doctors";
 import CategoryFilter from "../../components/documents/CategoryFilter";
 import DocumentCard from "../../components/documents/DocumentCard";
@@ -95,14 +94,15 @@ export default function DoctorPatientDocumentsPage() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const previewUrl =
-    previewDoc && currentDoctorId && patientId
-      ? getConnectedPatientDocumentUrl(
-          currentDoctorId,
-          patientId,
-          previewDoc.document_id
-        )
-      : undefined;
+  const previewBlobLoader = useMemo(() => {
+    if (!previewDoc || !currentDoctorId || !patientId) return undefined;
+    return () =>
+      fetchConnectedPatientDocumentBlob(
+        currentDoctorId,
+        patientId,
+        previewDoc.document_id
+      );
+  }, [currentDoctorId, patientId, previewDoc]);
 
   if (!currentDoctorId) {
     return (
@@ -221,7 +221,7 @@ export default function DoctorPatientDocumentsPage() {
           patientId={patientId}
           doc={previewDoc}
           onClose={closePreview}
-          fileUrlOverride={previewUrl}
+          fetchBlobOverride={previewBlobLoader}
         />
       )}
     </>
