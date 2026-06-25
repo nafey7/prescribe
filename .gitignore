@@ -18,6 +18,7 @@ venv/
 node_modules/
 dist/
 .cache/
+.expo/
 *.tsbuildinfo
 
 # Environment
