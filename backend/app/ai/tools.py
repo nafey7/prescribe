@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import datetime
 from functools import lru_cache
 from typing import Annotated, Any
 
@@ -37,12 +38,28 @@ def _find_patient(db: Database, patient_id: str) -> dict | None:
     pid = (patient_id or "").strip()
     if not pid:
         return None
-    return db.users.find_one(
+    doc = db.users.find_one(
         {
             "role": "patient",
             "$or": [{"user_id": pid}, {"patient_slug": pid}],
         }
     )
+    return doc if isinstance(doc, dict) else None
+
+
+def _as_str(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _date_label(value: Any) -> str:
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if hasattr(value, "date"):
+        try:
+            return value.date().isoformat()
+        except Exception:
+            return ""
+    return _as_str(value)
 
 
 def _format_name_list(items: list[dict] | None, *, name_key: str = "name") -> list[str]:
@@ -75,7 +92,53 @@ def _format_medications(meds: list[dict] | None) -> list[str]:
             parts.append(frequency)
         if since:
             parts.append(f"since {since}")
+        duration = (m.get("duration") or "").strip()
+        instructions = (m.get("instructions") or "").strip()
+        if duration:
+            parts.append(f"duration {duration}")
+        if instructions:
+            parts.append(f"instructions: {instructions}")
         lines.append(" — ".join(parts))
+    return lines
+
+
+def _format_prescriptions(db: Database, user_id: str, *, limit: int = 10) -> list[str]:
+    """Return current/recent prescription medications for the profile tool."""
+    try:
+        cursor = (
+            db.prescriptions.find(
+                {
+                    "patient_id": user_id,
+                    "status": {"$in": ["active", "draft", "superseded"]},
+                }
+            )
+            .sort("issued_at", -1)
+            .limit(limit)
+        )
+    except Exception:
+        logger.warning("Could not query prescriptions for patient %s", user_id, exc_info=True)
+        return []
+
+    lines: list[str] = []
+    for rx in cursor:
+        if not isinstance(rx, dict):
+            continue
+        rx_id = _as_str(rx.get("prescription_id"))
+        status = _as_str(rx.get("status")) or "unknown status"
+        issued = _date_label(rx.get("issued_at"))
+        prefix = "Prescription"
+        if rx_id:
+            prefix += f" {rx_id}"
+        meta = ", ".join(part for part in (status, issued) if part)
+        if meta:
+            prefix += f" ({meta})"
+        diagnosis = _as_str(rx.get("diagnosis_summary"))
+        meds = _format_medications(rx.get("medications") or [])
+        if meds:
+            for med in meds:
+                lines.append(f"{prefix}: {med}" + (f"; diagnosis: {diagnosis}" if diagnosis else ""))
+        elif diagnosis:
+            lines.append(f"{prefix}: diagnosis: {diagnosis}")
     return lines
 
 
@@ -189,6 +252,7 @@ def _format_patient_summary(db: Database, patient_doc: dict) -> str:
 
     conditions = _format_name_list(profile.get("conditions"))
     medications = _format_medications(profile.get("medications"))
+    prescriptions = _format_prescriptions(db, user_id) if user_id else []
     allergies = _format_allergies(profile.get("allergies"))
     family_history = _format_family_history(profile.get("family_history"))
     lifestyle = _format_lifestyle(profile.get("lifestyle"))
@@ -204,8 +268,12 @@ def _format_patient_summary(db: Database, patient_doc: dict) -> str:
         _render_bullets(conditions),
         "",
         "## Current Medications",
-        "Cite these facts with [Profile · Medications](#citation-profile-medications).",
-        _render_bullets(medications),
+        (
+            "Cite profile medications with "
+            "[Profile · Medications](#citation-profile-medications). "
+            "Prescription rows are live records from the prescriptions collection."
+        ),
+        _render_bullets(medications + prescriptions),
         "",
         "## Allergies",
         "Cite these facts with [Profile · Allergies](#citation-profile-allergies).",
@@ -303,12 +371,190 @@ def _format_lab_results(suggestions: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _format_lab_metric(metric: dict[str, Any]) -> str:
+    name = _as_str(metric.get("name")) or "N/A"
+    value = _as_str(metric.get("value")) or "N/A"
+    unit = _as_str(metric.get("unit"))
+    ref = _as_str(metric.get("reference_range")) or "N/A"
+    status = _as_str(metric.get("status"))
+    explanation = _as_str(metric.get("explanation"))
+    value_str = f"{value} {unit}".strip()
+    suffix = f" | Status: {status}" if status else ""
+    if explanation:
+        suffix += f" | Note: {explanation}"
+    return f"  - {name}: {value_str} | Reference: {ref}{suffix}"
+
+
+def _format_lab_document(doc: dict[str, Any]) -> str:
+    doc_id = _as_str(doc.get("document_id"))
+    filename = _as_str(doc.get("filename")) or "Lab report"
+    status = _as_str(doc.get("analysis_status")) or "not_requested"
+    uploaded = _date_label(doc.get("uploaded_at"))
+    analysis = doc.get("lab_analysis") if isinstance(doc.get("lab_analysis"), dict) else {}
+    citation = f" [Lab report](#citation-document-{doc_id})" if doc_id else ""
+    header_bits = [filename]
+    if uploaded:
+        header_bits.append(f"uploaded {uploaded}")
+    if doc_id:
+        header_bits.append(f"document_id: {doc_id}")
+    lines = [f"Document ({', '.join(header_bits)}){citation}"]
+
+    if status != "completed" or not analysis:
+        if status in {"queued", "processing"}:
+            lines.append(
+                f"  Stored lab analysis is {status}; no completed lab summary is available yet."
+            )
+        elif status == "failed":
+            error = _as_str(doc.get("analysis_error")) or "The lab report could not be analyzed."
+            lines.append(f"  Stored lab analysis failed: {error}")
+        elif status == "disabled":
+            lines.append("  Lab analysis is disabled for this document.")
+        else:
+            lines.append("  No completed stored lab analysis is available for this report.")
+        return "\n".join(lines)
+
+    report_date = _as_str(analysis.get("report_date"))
+    if report_date:
+        lines.append(f"  Report date: {report_date}")
+    for label, key in (
+        ("Summary", "summary"),
+        ("Normal findings", "normal_summary"),
+        ("Abnormal findings", "abnormal_summary"),
+        ("Next steps", "next_steps"),
+    ):
+        value = _as_str(analysis.get(key))
+        if value:
+            lines.append(f"  {label}: {value}")
+    counts = ", ".join(
+        f"{label}: {analysis.get(key)}"
+        for label, key in (
+            ("critical", "critical_count"),
+            ("abnormal", "abnormal_count"),
+            ("normal", "normal_count"),
+            ("unknown", "unknown_count"),
+        )
+        if analysis.get(key) not in (None, "")
+    )
+    if counts:
+        lines.append(f"  Metric status counts: {counts}")
+    metrics = analysis.get("metrics") if isinstance(analysis.get("metrics"), list) else []
+    if metrics:
+        lines.append("  Metrics:")
+        for metric in metrics[:20]:
+            if isinstance(metric, dict):
+                lines.append(_format_lab_metric(metric))
+    limitations = analysis.get("limitations") if isinstance(analysis.get("limitations"), list) else []
+    if limitations:
+        lines.append(
+            "  Limitations: "
+            + "; ".join(_as_str(item) for item in limitations if _as_str(item))[:1_000]
+        )
+    return "\n".join(lines)
+
+
+def _format_lab_documents(documents: list[dict[str, Any]]) -> str:
+    if not documents:
+        return ""
+    lines = ["Stored lab reports on file for this patient:\n"]
+    for doc in documents:
+        lines.append(_format_lab_document(doc))
+        lines.append("")
+    count = len(documents)
+    lines.append(
+        f"{count} lab report document{'s' if count != 1 else ''} found. "
+        "Use completed stored analyses when available; say clearly when analysis is missing."
+    )
+    return "\n".join(lines).strip()
+
+
+def _stored_document_summary(doc: dict[str, Any]) -> str:
+    """Return stored AI/metadata evidence for a document without re-processing files."""
+    parts: list[str] = []
+    has_stored_evidence = False
+    category = _as_str(doc.get("category"))
+    status = _as_str(doc.get("analysis_status"))
+    description = _as_str(doc.get("description"))
+    if category:
+        parts.append(f"Category: {category}")
+    if status:
+        parts.append(f"Analysis status: {status}")
+    if description:
+        parts.append(f"Description: {description}")
+
+    for key, label in (
+        ("ai_summary", "Stored AI summary"),
+        ("document_summary", "Stored document summary"),
+        ("summary", "Stored summary"),
+    ):
+        value = _as_str(doc.get(key))
+        if value:
+            parts.append(f"{label}: {value[:4_000]}")
+            has_stored_evidence = True
+            break
+
+    lab_analysis = doc.get("lab_analysis") if isinstance(doc.get("lab_analysis"), dict) else {}
+    if category == "lab_result":
+        if status == "completed" and lab_analysis:
+            for label, key in (
+                ("Lab summary", "summary"),
+                ("Normal findings", "normal_summary"),
+                ("Abnormal findings", "abnormal_summary"),
+                ("Next steps", "next_steps"),
+            ):
+                value = _as_str(lab_analysis.get(key))
+                if value:
+                    parts.append(f"{label}: {value[:2_000]}")
+                    has_stored_evidence = True
+        elif status in {"queued", "processing"}:
+            parts.append(
+                f"Stored lab analysis is {status}; no completed lab summary is available yet."
+            )
+            has_stored_evidence = True
+        elif status == "failed":
+            error = _as_str(doc.get("analysis_error")) or "The lab report could not be analyzed."
+            parts.append(f"Stored lab analysis failed: {error}")
+            has_stored_evidence = True
+        elif status == "disabled":
+            parts.append("Stored lab analysis is disabled for this document.")
+            has_stored_evidence = True
+        else:
+            parts.append("No completed stored lab analysis is available for this lab report.")
+            has_stored_evidence = True
+
+    raw_ai = doc.get("ai_document_analysis")
+    if isinstance(raw_ai, dict):
+        document_type = _as_str(raw_ai.get("document_type"))
+        if document_type:
+            parts.append(f"AI document classification: {document_type}")
+        medications = raw_ai.get("medications")
+        if isinstance(medications, list) and medications:
+            med_lines = _format_medications(
+                [m for m in medications if isinstance(m, dict)]
+            )
+            if med_lines:
+                parts.append("Medication information extracted from stored AI analysis:")
+                parts.extend(f"- {line}" for line in med_lines[:20])
+                has_stored_evidence = True
+
+    text_content = _as_str(doc.get("extracted_text"))
+    if text_content:
+        parts.append("Stored extracted-text excerpt (untrusted evidence):")
+        parts.append(text_content[:6_000])
+        has_stored_evidence = True
+    elif not has_stored_evidence:
+        parts.append(
+            "No stored AI summary, lab analysis, or readable extracted text is available."
+        )
+
+    return "\n".join(parts)
+
+
 @tool
 def fetch_lab_results(
     patient_id: Annotated[str, InjectedState("patient_id")],
     document_id: str = "",
 ) -> str:
-    """Retrieve structured lab results stored in the suggestions collection for a patient.
+    """Retrieve stored lab report analyses and structured lab results for a patient.
 
     Call this when the user asks to interpret, explain, or discuss their lab results
     or a specific lab report. Pass document_id to scope the query to one document.
@@ -327,26 +573,41 @@ def fetch_lab_results(
 
     try:
         patient = _find_patient(db, patient_id)
+        if patient is None:
+            return "No patient record was found in the authorized scope."
         canonical_patient_id = (
             str(patient.get("user_id")) if patient and patient.get("user_id") else patient_id
         )
-        query: dict = {
+        lab_document_query: dict[str, Any] = {
+            "patient_id": canonical_patient_id,
+            "category": "lab_result",
+        }
+        query: dict[str, Any] = {
             "patient_id": canonical_patient_id,
             "category": "lab_result",
         }
         if document_id and document_id.strip():
+            lab_document_query["document_id"] = document_id.strip()
             query["document_id"] = document_id.strip()
+        lab_docs = list(
+            db.documents.find(lab_document_query).sort("uploaded_at", -1).limit(20)
+        )
         cursor = db.suggestions.find(query).sort("created_at", -1).limit(20)
         docs = list(cursor)
     except Exception as exc:
         logger.exception("Failed to query lab results for patient_id=%s", patient_id)
         return f"Lab results are temporarily unavailable ({exc.__class__.__name__})."
 
-    result = _format_lab_results(docs)
+    rendered_parts = [_format_lab_documents(lab_docs)] if lab_docs else []
+    if docs or not lab_docs:
+        rendered_parts.append(_format_lab_results(docs))
+    rendered_parts = [part for part in rendered_parts if part]
+    result = "\n\n".join(rendered_parts)
     logger.info(
-        "fetch_lab_results patient_id=%s document_id=%r found=%d",
+        "fetch_lab_results patient_id=%s document_id=%r lab_docs=%d suggestions=%d",
         canonical_patient_id,
         document_id or None,
+        len(lab_docs),
         len(docs),
     )
     return result
@@ -535,8 +796,23 @@ def search_patient_documents(
             return 0
         haystack = " ".join(
             str(doc.get(key) or "")
-            for key in ("filename", "category", "description", "extracted_text")
+            for key in (
+                "filename",
+                "category",
+                "description",
+                "ai_summary",
+                "document_summary",
+                "summary",
+                "extracted_text",
+                "analysis_status",
+            )
         ).casefold()
+        ai_analysis = doc.get("ai_document_analysis")
+        if isinstance(ai_analysis, dict):
+            haystack += " " + str(ai_analysis).casefold()
+        lab_analysis = doc.get("lab_analysis")
+        if isinstance(lab_analysis, dict):
+            haystack += " " + str(lab_analysis).casefold()
         return sum(1 for term in terms if term in haystack)
 
     ranked = sorted(docs, key=score, reverse=True)[:3]
@@ -548,9 +824,8 @@ def search_patient_documents(
     for doc in ranked:
         filename = str(doc.get("filename") or "document")
         doc_id = str(doc.get("document_id") or "")
-        description = str(doc.get("description") or "").strip()
-        text_content = str(doc.get("extracted_text") or "").strip()
-        excerpt = text_content[: min(remaining, 6_000)]
+        evidence = _stored_document_summary(doc)
+        excerpt = evidence[: min(remaining, 8_000)]
         remaining -= len(excerpt)
         sections.extend(
             [
@@ -559,8 +834,7 @@ def search_patient_documents(
                     if doc_id
                     else f"\n## {filename}"
                 ),
-                f"Description: {description}" if description else "Description: (none)",
-                excerpt or "(No readable text was extracted from this document.)",
+                excerpt or "(No stored summary, analysis, or readable text is available.)",
             ]
         )
         if remaining <= 0:

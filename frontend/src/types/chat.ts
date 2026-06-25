@@ -6,6 +6,8 @@ export type ThinkingPhase =
   | "thinking"
   | "web_search"
   | "records"
+  | "lab_results"
+  | "documents"
   | "tool"
   | "meal_plan"
   | "fitness_plan"

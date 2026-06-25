@@ -253,6 +253,16 @@ _TOOL_THINKING_UI: dict[str, tuple[str, str]] = {
     "submit_differential_diagnosis": ("Building differential...", "differential"),
 }
 
+_TOOL_ANALYZING_UI: dict[str, tuple[str, str]] = {
+    "search_patient_records": ("Analyzing patient records...", "records"),
+    "fetch_lab_results": ("Analyzing lab results...", "lab_results"),
+    "search_patient_documents": ("Analyzing patient documents...", "documents"),
+    "web_search": ("Analyzing web results...", "web_search"),
+    "submit_meal_plan": ("Finalizing meal plan...", "meal_plan"),
+    "submit_fitness_plan": ("Finalizing fitness plan...", "fitness_plan"),
+    "submit_differential_diagnosis": ("Finalizing differential...", "differential"),
+}
+
 
 async def stream_medical_agent(
     message: str,
@@ -301,6 +311,7 @@ async def stream_medical_agent(
     captured_meal_plan: MealPlanPayload | None = None
     captured_fitness_plan: FitnessPlanPayload | None = None
     captured_differential: DifferentialDiagnosisPayload | None = None
+    active_tool_name: str | None = None
 
     try:
         async for event in graph.astream_events(input_state, config, version="v2"):
@@ -308,6 +319,7 @@ async def stream_medical_agent(
 
             if kind == "on_tool_start":
                 name = event.get("name", "tool")
+                active_tool_name = str(name)
                 if name == "submit_meal_plan":
                     tool_input = event["data"].get("input", {})
                     if isinstance(tool_input, dict):
@@ -369,9 +381,15 @@ async def stream_medical_agent(
                 }
 
             elif kind == "on_tool_end":
+                name = str(event.get("name") or active_tool_name or "")
+                if name in _TOOL_ANALYZING_UI:
+                    status, phase = _TOOL_ANALYZING_UI[name]
+                else:
+                    status, phase = ("Analyzing results...", "thinking")
+                active_tool_name = None
                 yield {
                     "event": "thinking",
-                    "data": {"status": "Analyzing results...", "phase": "thinking"},
+                    "data": {"status": status, "phase": phase},
                 }
 
             elif kind == "on_chat_model_stream":

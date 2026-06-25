@@ -64,6 +64,8 @@ export async function consumeSseStream(
               const phase: ThinkingPhase | undefined =
                 rawPhase === "web_search" ||
                 rawPhase === "records" ||
+                rawPhase === "lab_results" ||
+                rawPhase === "documents" ||
                 rawPhase === "tool" ||
                 rawPhase === "thinking" ||
                 rawPhase === "meal_plan" ||

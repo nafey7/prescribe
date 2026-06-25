@@ -75,6 +75,8 @@ class TestFetchLabResultsTool:
     def test_returns_formatted_results(self):
         docs = [_make_suggestion()]
         mock_db = MagicMock()
+        mock_db.users.find_one.return_value = {"user_id": "pat-001"}
+        mock_db.documents.find.return_value = self._make_cursor([])
         mock_db.suggestions.find.return_value = self._make_cursor(docs)
 
         with patch("app.ai.tools._get_sync_db", return_value=mock_db):
@@ -87,6 +89,8 @@ class TestFetchLabResultsTool:
         docs_a = [_make_suggestion(document_id="doc-001")]
         docs_b = [_make_suggestion(document_id="doc-002")]
         mock_db = MagicMock()
+        mock_db.users.find_one.return_value = {"user_id": "pat-001"}
+        mock_db.documents.find.return_value = self._make_cursor([])
 
         def fake_find(query):
             doc_id = query.get("document_id")
@@ -112,12 +116,92 @@ class TestFetchLabResultsTool:
 
     def test_no_suggestions_returns_notice(self):
         mock_db = MagicMock()
+        mock_db.users.find_one.return_value = {"user_id": "pat-001"}
+        mock_db.documents.find.return_value = self._make_cursor([])
         mock_db.suggestions.find.return_value = self._make_cursor([])
 
         with patch("app.ai.tools._get_sync_db", return_value=mock_db):
             result = fetch_lab_results.invoke({"patient_id": "pat-001"})
 
         assert "No lab results have been extracted" in result
+
+    def test_formats_completed_stored_lab_analysis(self):
+        mock_db = MagicMock()
+        mock_db.users.find_one.return_value = {"user_id": "pat-001"}
+        mock_db.documents.find.return_value = self._make_cursor(
+            [
+                {
+                    "patient_id": "pat-001",
+                    "document_id": "lab-1",
+                    "filename": "cbc.pdf",
+                    "category": "lab_result",
+                    "analysis_status": "completed",
+                    "lab_analysis": {
+                        "summary": "CBC includes one low value.",
+                        "normal_summary": "Platelets are normal.",
+                        "abnormal_summary": "Hemoglobin is low.",
+                        "next_steps": "Review with a clinician.",
+                        "critical_count": 0,
+                        "abnormal_count": 1,
+                        "normal_count": 1,
+                        "unknown_count": 0,
+                        "metrics": [
+                            {
+                                "name": "Hemoglobin",
+                                "value": "10.8",
+                                "unit": "g/dL",
+                                "reference_range": "12-16",
+                                "status": "low",
+                            }
+                        ],
+                    },
+                }
+            ]
+        )
+        mock_db.suggestions.find.return_value = self._make_cursor([])
+
+        with patch("app.ai.tools._get_sync_db", return_value=mock_db):
+            result = fetch_lab_results.invoke({"patient_id": "pat-001"})
+
+        assert "Stored lab reports on file" in result
+        assert "CBC includes one low value" in result
+        assert "Hemoglobin" in result
+        assert "#citation-document-lab-1" in result
+        assert "No lab results have been extracted" not in result
+
+    def test_reports_pending_lab_analysis_clearly(self):
+        mock_db = MagicMock()
+        mock_db.users.find_one.return_value = {"user_id": "pat-001"}
+        mock_db.documents.find.return_value = self._make_cursor(
+            [
+                {
+                    "patient_id": "pat-001",
+                    "document_id": "lab-queued",
+                    "filename": "queued.pdf",
+                    "category": "lab_result",
+                    "analysis_status": "processing",
+                    "lab_analysis": {},
+                }
+            ]
+        )
+        mock_db.suggestions.find.return_value = self._make_cursor([])
+
+        with patch("app.ai.tools._get_sync_db", return_value=mock_db):
+            result = fetch_lab_results.invoke({"patient_id": "pat-001"})
+
+        assert "processing" in result
+        assert "no completed lab summary is available yet" in result
+
+    def test_missing_patient_does_not_query_labs(self):
+        mock_db = MagicMock()
+        mock_db.users.find_one.return_value = None
+
+        with patch("app.ai.tools._get_sync_db", return_value=mock_db):
+            result = fetch_lab_results.invoke({"patient_id": "missing"})
+
+        assert "No patient record" in result
+        mock_db.documents.find.assert_not_called()
+        mock_db.suggestions.find.assert_not_called()
 
     def test_db_unavailable_returns_error_string(self):
         with patch("app.ai.tools._get_sync_db", side_effect=Exception("Connection refused")):

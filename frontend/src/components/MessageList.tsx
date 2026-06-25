@@ -28,13 +28,18 @@ function ThinkingIndicator({
   status?: string;
   phase?: ThinkingPhase;
 }) {
-  const isWebSearch = phase === "web_search";
-  const isDifferential = phase === "differential";
-  const primaryLabel = isWebSearch
-    ? "Searching the web..."
-    : isDifferential
-      ? "Building differential..."
-      : "Thinking...";
+  const primaryLabels: Record<ThinkingPhase, string> = {
+    thinking: "Thinking...",
+    web_search: "Searching the web...",
+    records: "Searching patient records...",
+    lab_results: "Fetching lab results...",
+    documents: "Searching patient documents...",
+    tool: "Using tool...",
+    meal_plan: "Structuring meal plan...",
+    fitness_plan: "Structuring fitness plan...",
+    differential: "Building differential...",
+  };
+  const primaryLabel = primaryLabels[phase] ?? primaryLabels.thinking;
   const showSubtitle = Boolean(status && status !== primaryLabel);
 
   return (

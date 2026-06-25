@@ -56,7 +56,7 @@ Three Docker Compose services: `frontend`, `backend`, `mongodb`.
 
 | Event | Data shape | When |
 |-------|-----------|------|
-| `thinking` | `{ status: string, phase?: string }` | Tool starts/ends, initial "Thinking..." (phases include `differential` when the differential tool is invoked) |
+| `thinking` | `{ status: string, phase?: string }` | Tool starts/ends and initial "Thinking..."; known phases are `thinking`, `records`, `lab_results`, `documents`, `web_search`, `meal_plan`, `fitness_plan`, `differential`, and generic `tool` |
 | `token` | `{ content: string }` | Each text chunk from the LLM |
 | `differential_diagnosis` | `{ differential_diagnosis: DifferentialDiagnosisPayload }` | After the LLM calls `submit_differential_diagnosis` and the payload validates. Parallel to the meal-plan / fitness-plan `done`-bundled payloads, but emitted as a discrete event so the card can render before `done`. |
 | `done` | `{ chat_id, message_id, message_type, citations, meal_plan?, fitness_plan?, differential_diagnosis? }` | Stream complete, message and its resolved citation sources persisted |
@@ -85,9 +85,9 @@ _should_continue?
 
 | Tool | Purpose |
 |------|---------|
-| `search_patient_records` | Reads patient profile (conditions, medications, allergies, demographics) from `users` collection |
-| `fetch_lab_results` | Reads structured lab values from `suggestions` collection (`category="lab_result"`) for a given patient and optional document ID |
-| `search_patient_documents` | Reads bounded text extracted from the authorized patient's uploaded PDFs/images; document contents are explicitly treated as untrusted data |
+| `search_patient_records` | Reads patient profile (conditions, profile medications, allergies, demographics) from `users` plus recent/current medication rows from `prescriptions` |
+| `fetch_lab_results` | Reads stored lab-report analyses from the authorized patient's `documents` rows, with legacy `suggestions` lab values as fallback; optional document ID scopes to one report |
+| `search_patient_documents` | Reads stored summaries, lab analyses, prescription classifications, and bounded extracted text from authorized uploaded documents; document contents are explicitly treated as untrusted data |
 | `web_search` | DuckDuckGo search for time-sensitive or general medical knowledge; obvious patient identifiers are blocked before outbound requests |
 | `submit_meal_plan` | Emits a structured meal plan payload for the frontend renderer |
 | `submit_fitness_plan` | Emits a structured fitness plan payload for the frontend renderer |
@@ -138,7 +138,7 @@ Patient records live entirely in MongoDB. The `search_patient_records` tool:
 
 1. Receives the authorized `patient_id` from LangGraph runtime state, not from model-generated arguments
 2. Resolves it against the `users` collection (`role: patient`) via `user_id` or `patient_slug`
-3. Formats the `patient_profile` (demographics, conditions, medications, allergies, family history, lifestyle) plus the five most recent entries from the `documents` collection into a structured text summary with exact citation handles
+3. Formats the `patient_profile` (demographics, conditions, medications, allergies, family history, lifestyle), recent/current `prescriptions` medication rows, plus the five most recent entries from the `documents` collection into a structured text summary with exact citation handles where the frontend can resolve them
 4. Returns a "no record found" message if neither lookup hits
 
 No filesystem dependency, no restart required to pick up new or edited patients — it's a live read every turn.
@@ -146,6 +146,8 @@ No filesystem dependency, no restart required to pick up new or edited patients 
 Tesseract OCR code is retained behind `OCR_ENABLED` for a future local image-processing path and is off by default. The current PDF upload flow does not invoke local OCR or PyPDF text extraction: it sends the PDF bytes directly to OpenAI as a Responses API `input_file`. OpenAI supplies both PDF text and rendered page images to the vision-capable model, allowing it to inspect scans, tables, columns, charts, and other page layout. The request uses `store=false` and returns a validated structured result. Non-PDF images remain uploadable, but with OCR disabled they do not enter AI extraction.
 
 The upload request stores the PDF in GridFS and returns immediately with processing status `queued`; OpenAI work runs as a background task and the upload modal polls document metadata. One structured OpenAI call then classifies the PDF as `prescription`, `lab_report`, or `other` and returns only the branch-specific payload. Prescriptions return medicine name/dosage/frequency/date/source fields and enter the existing accept/reject suggestion flow. Lab reports return source-grounded metrics plus prose paragraphs for normal findings, abnormal findings, and cautious next steps; these are persisted as the durable lab analysis. Per-metric data remains internal for range validation and downstream suggestions but is not rendered as individual patient-facing cards. Document list, metadata, and analysis reads recover abandoned `queued` or `processing` lab jobs into `completed` when a valid summary exists, or `failed` when the background task was interrupted before saving one. A retry resends the stored GridFS PDF directly to OpenAI.
+
+Chat retrieval tools never re-process uploaded files. They use already-stored `lab_analysis`, `ai_document_analysis`, summary fields, and bounded `extracted_text` from MongoDB. If a lab report is queued, processing, failed, disabled, or has no completed stored analysis, the tool output says so explicitly so the model can avoid guessing.
 
 ### Pre-visit brief evidence flow
 

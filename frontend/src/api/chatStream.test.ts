@@ -119,6 +119,30 @@ describe("consumeSseStream", () => {
     });
   });
 
+  it("recognises patient data tool thinking phases", async () => {
+    const onThinking = vi.fn();
+    const res = sseResponse(
+      [
+        'event: thinking\ndata: {"status":"Fetching lab results...","phase":"lab_results"}\n\n',
+        'event: thinking\ndata: {"status":"Searching patient documents...","phase":"documents"}\n\n',
+      ].join("")
+    );
+    await consumeSseStream(res, {
+      onThinking,
+      onToken: () => {},
+      onDone: () => {},
+      onError: () => {},
+    });
+    expect(onThinking).toHaveBeenNthCalledWith(1, {
+      status: "Fetching lab results...",
+      phase: "lab_results",
+    });
+    expect(onThinking).toHaveBeenNthCalledWith(2, {
+      status: "Searching patient documents...",
+      phase: "documents",
+    });
+  });
+
   it("dispatches differential_diagnosis event before done and includes payload in done", async () => {
     const onDifferentialDiagnosis = vi.fn();
     const onDone = vi.fn();
