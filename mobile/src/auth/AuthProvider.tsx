@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -31,6 +32,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const isMountedRef = useRef(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const applySession = useCallback(async (session: AuthSessionResponse) => {
     await storeTokens(session);
+    if (!isMountedRef.current) return;
     setAccessToken(session.access_token);
     setRefreshToken(session.refresh_token);
     setUser(session.user);
@@ -46,25 +49,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearSession = useCallback(async () => {
     await clearStoredTokens();
+    if (!isMountedRef.current) return;
     setAccessToken(null);
     setRefreshToken(null);
     setUser(null);
     setStatus("unauthenticated");
   }, []);
 
-  const loadMe = useCallback(async (token: string) => {
+  const loadMe = useCallback(async (token: string, shouldApply: () => boolean = () => true) => {
     const me = await apiRequest<MeResponse>("/auth/me", { accessToken: token });
+    if (!isMountedRef.current || !shouldApply()) return;
     setUser(me);
     setAccessToken(token);
     setStatus("authenticated");
   }, []);
 
-  const refreshSession = useCallback(async (token: string) => {
+  const refreshSession = useCallback(async (token: string, shouldApply: () => boolean = () => true) => {
     const tokenPair = await apiRequest<TokenPair>("/auth/refresh", {
       method: "POST",
       body: JSON.stringify({ refresh_token: token }),
     });
     await storeTokens(tokenPair);
+    if (!isMountedRef.current || !shouldApply()) return tokenPair.access_token;
     setAccessToken(tokenPair.access_token);
     setRefreshToken(tokenPair.refresh_token);
     return tokenPair.access_token;
@@ -72,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    isMountedRef.current = true;
 
     async function bootstrap() {
       const stored = await getStoredTokens();
@@ -84,17 +91,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         if (stored.accessToken) {
-          await loadMe(stored.accessToken);
+          await loadMe(stored.accessToken, () => !cancelled);
           return;
         }
 
         if (stored.refreshToken) {
-          const nextAccessToken = await refreshSession(stored.refreshToken);
-          await loadMe(nextAccessToken);
+          const nextAccessToken = await refreshSession(stored.refreshToken, () => !cancelled);
+          await loadMe(nextAccessToken, () => !cancelled);
           return;
         }
       } catch {
-        await clearSession();
+        if (!cancelled) {
+          await clearSession();
+        }
       }
     }
 
@@ -102,12 +111,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      isMountedRef.current = false;
     };
   }, [clearSession, loadMe, refreshSession]);
 
   const login = useCallback(
     async (input: LoginInput) => {
-      setStatus("loading");
       try {
         const session = await apiRequest<AuthSessionResponse>("/auth/login", {
           method: "POST",
@@ -115,16 +124,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         await applySession(session);
       } catch (error) {
-        setStatus(user ? "authenticated" : "unauthenticated");
         throw error;
       }
     },
-    [applySession, user]
+    [applySession]
   );
 
   const signup = useCallback(
     async (input: SignupInput) => {
-      setStatus("loading");
       try {
         const session = await apiRequest<AuthSessionResponse>("/auth/signup", {
           method: "POST",
@@ -132,11 +139,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         await applySession(session);
       } catch (error) {
-        setStatus(user ? "authenticated" : "unauthenticated");
         throw error;
       }
     },
-    [applySession, user]
+    [applySession]
   );
 
   const logout = useCallback(async () => {

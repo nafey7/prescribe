@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -15,6 +16,7 @@ import { theme } from "../../../theme/theme";
 import { Screen } from "../../../ui/Screen";
 
 type AuthMode = "signin" | "signup";
+type AuthField = "firstName" | "lastName" | "email" | "password" | "confirmPassword";
 
 const initialForm = {
   firstName: "",
@@ -26,6 +28,13 @@ const initialForm = {
 
 export function AuthScreen() {
   const { login, signup } = useAuth();
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const isMountedRef = useRef(true);
+  const scrollTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const panelOffsetY = useRef(0);
+  const errorOffsetY = useRef(0);
+  const formOffsetY = useRef(0);
+  const fieldOffsets = useRef<Partial<Record<AuthField, number>>>({});
   const [mode, setMode] = useState<AuthMode>("signin");
   const [form, setForm] = useState(initialForm);
   const [isSubmitting, setSubmitting] = useState(false);
@@ -45,9 +54,52 @@ export function AuthScreen() {
     );
   }, [form, isSignup]);
 
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+      scrollTimeoutsRef.current.forEach(clearTimeout);
+      scrollTimeoutsRef.current = [];
+    };
+  }, []);
+
   const updateField = (field: keyof typeof form) => (value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
     setError(null);
+  };
+
+  const recordFieldOffset = (field: AuthField) => (event: LayoutChangeEvent) => {
+    fieldOffsets.current[field] = event.nativeEvent.layout.y;
+  };
+
+  const scrollToField = (field: AuthField) => {
+    const fieldOffsetY = fieldOffsets.current[field];
+    if (typeof fieldOffsetY !== "number") return;
+
+    const delay = Platform.OS === "ios" ? 120 : 80;
+    const timeout = setTimeout(() => {
+      if (!isMountedRef.current) return;
+      const y = panelOffsetY.current + formOffsetY.current + fieldOffsetY;
+      scrollViewRef.current?.scrollTo({
+        animated: true,
+        y: Math.max(y - 28, 0),
+      });
+    }, delay);
+    scrollTimeoutsRef.current.push(timeout);
+  };
+
+  const scrollToError = () => {
+    const delay = Platform.OS === "ios" ? 120 : 80;
+    const timeout = setTimeout(() => {
+      if (!isMountedRef.current) return;
+      const y = panelOffsetY.current + errorOffsetY.current;
+      scrollViewRef.current?.scrollTo({
+        animated: true,
+        y: Math.max(y - 20, 0),
+      });
+    }, delay);
+    scrollTimeoutsRef.current.push(timeout);
   };
 
   const submit = async () => {
@@ -73,24 +125,36 @@ export function AuthScreen() {
         });
       }
     } catch (err) {
-      setError(getAuthError(err));
+      if (!isMountedRef.current) return;
+      setError(getAuthError(err, mode));
+      scrollToError();
     } finally {
-      setSubmitting(false);
+      if (isMountedRef.current) {
+        setSubmitting(false);
+      }
     }
   };
 
   return (
     <Screen padded={false}>
       <KeyboardAvoidingView
-        behavior={Platform.select({ ios: "padding", default: undefined })}
+        behavior={Platform.select({ ios: "padding", android: "height", default: undefined })}
         style={styles.keyboard}
       >
         <ScrollView
+          ref={scrollViewRef}
+          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
           contentContainerStyle={styles.content}
+          keyboardDismissMode={Platform.select({ ios: "interactive", default: "on-drag" })}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.panel}>
+          <View
+            onLayout={(event) => {
+              panelOffsetY.current = event.nativeEvent.layout.y;
+            }}
+            style={styles.panel}
+          >
             <View style={styles.brandBar}>
               <View style={styles.brandMark}>
                 <Text style={styles.brandMarkText}>P</Text>
@@ -130,68 +194,108 @@ export function AuthScreen() {
               />
             </View>
 
-            <View style={styles.form}>
+            {error ? (
+              <View
+                accessibilityLiveRegion="polite"
+                accessibilityRole="alert"
+                onLayout={(event) => {
+                  errorOffsetY.current = event.nativeEvent.layout.y;
+                  scrollToError();
+                }}
+                style={styles.errorBox}
+              >
+                <Text variant="labelLarge" style={styles.errorTitle}>
+                  {isSignup ? "Account issue" : "Sign-in issue"}
+                </Text>
+                <Text variant="bodySmall" style={styles.errorText}>
+                  {error}
+                </Text>
+              </View>
+            ) : null}
+
+            <View
+              onLayout={(event) => {
+                formOffsetY.current = event.nativeEvent.layout.y;
+              }}
+              style={styles.form}
+            >
               {isSignup ? (
-                <View style={styles.nameRow}>
-                  <TextInput
-                    activeOutlineColor={theme.colors.primary}
-                    autoCapitalize="words"
-                    autoComplete="given-name"
-                    contentStyle={styles.inputContent}
-                    label="First name"
-                    mode="outlined"
-                    onChangeText={updateField("firstName")}
-                    outlineColor={theme.colors.outline}
-                    outlineStyle={styles.inputOutline}
-                    style={styles.nameInput}
-                    value={form.firstName}
-                  />
-                  <TextInput
-                    activeOutlineColor={theme.colors.primary}
-                    autoCapitalize="words"
-                    autoComplete="family-name"
-                    contentStyle={styles.inputContent}
-                    label="Last name"
-                    mode="outlined"
-                    onChangeText={updateField("lastName")}
-                    outlineColor={theme.colors.outline}
-                    outlineStyle={styles.inputOutline}
-                    style={styles.nameInput}
-                    value={form.lastName}
-                  />
-                </View>
+                <>
+                  <View onLayout={recordFieldOffset("firstName")}>
+                    <TextInput
+                      activeOutlineColor={theme.colors.primary}
+                      autoCapitalize="words"
+                      autoComplete="given-name"
+                      contentStyle={styles.inputContent}
+                      label="First name"
+                      mode="outlined"
+                      onChangeText={updateField("firstName")}
+                      onFocus={() => scrollToField("firstName")}
+                      outlineColor={theme.colors.outline}
+                      outlineStyle={styles.inputOutline}
+                      returnKeyType="next"
+                      style={styles.input}
+                      value={form.firstName}
+                    />
+                  </View>
+                  <View onLayout={recordFieldOffset("lastName")}>
+                    <TextInput
+                      activeOutlineColor={theme.colors.primary}
+                      autoCapitalize="words"
+                      autoComplete="family-name"
+                      contentStyle={styles.inputContent}
+                      label="Last name"
+                      mode="outlined"
+                      onChangeText={updateField("lastName")}
+                      onFocus={() => scrollToField("lastName")}
+                      outlineColor={theme.colors.outline}
+                      outlineStyle={styles.inputOutline}
+                      returnKeyType="next"
+                      style={styles.input}
+                      value={form.lastName}
+                    />
+                  </View>
+                </>
               ) : null}
 
-              <TextInput
-                activeOutlineColor={theme.colors.primary}
-                autoCapitalize="none"
-                autoComplete="email"
-                contentStyle={styles.inputContent}
-                keyboardType="email-address"
-                label="Email"
-                mode="outlined"
-                onChangeText={updateField("email")}
-                outlineColor={theme.colors.outline}
-                outlineStyle={styles.inputOutline}
-                style={styles.input}
-                textContentType="emailAddress"
-                value={form.email}
-              />
+              <View onLayout={recordFieldOffset("email")}>
+                <TextInput
+                  activeOutlineColor={theme.colors.primary}
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  contentStyle={styles.inputContent}
+                  keyboardType="email-address"
+                  label="Email"
+                  mode="outlined"
+                  onChangeText={updateField("email")}
+                  onFocus={() => scrollToField("email")}
+                  outlineColor={theme.colors.outline}
+                  outlineStyle={styles.inputOutline}
+                  returnKeyType="next"
+                  style={styles.input}
+                  textContentType="emailAddress"
+                  value={form.email}
+                />
+              </View>
 
-              <TextInput
-                activeOutlineColor={theme.colors.primary}
-                autoComplete={isSignup ? "new-password" : "password"}
-                contentStyle={styles.inputContent}
-                label="Password"
-                mode="outlined"
-                onChangeText={updateField("password")}
-                outlineColor={theme.colors.outline}
-                outlineStyle={styles.inputOutline}
-                secureTextEntry
-                style={styles.input}
-                textContentType={isSignup ? "newPassword" : "password"}
-                value={form.password}
-              />
+              <View onLayout={recordFieldOffset("password")}>
+                <TextInput
+                  activeOutlineColor={theme.colors.primary}
+                  autoComplete={isSignup ? "new-password" : "password"}
+                  contentStyle={styles.inputContent}
+                  label="Password"
+                  mode="outlined"
+                  onChangeText={updateField("password")}
+                  onFocus={() => scrollToField("password")}
+                  outlineColor={theme.colors.outline}
+                  outlineStyle={styles.inputOutline}
+                  returnKeyType={isSignup ? "next" : "done"}
+                  secureTextEntry
+                  style={styles.input}
+                  textContentType={isSignup ? "newPassword" : "password"}
+                  value={form.password}
+                />
+              </View>
 
               {isSignup ? (
                 <HelperText padding="none" style={styles.helperText} type="info">
@@ -200,20 +304,24 @@ export function AuthScreen() {
               ) : null}
 
               {isSignup ? (
-                <TextInput
-                  activeOutlineColor={theme.colors.primary}
-                  autoComplete="new-password"
-                  contentStyle={styles.inputContent}
-                  label="Confirm password"
-                  mode="outlined"
-                  onChangeText={updateField("confirmPassword")}
-                  outlineColor={theme.colors.outline}
-                  outlineStyle={styles.inputOutline}
-                  secureTextEntry
-                  style={styles.input}
-                  textContentType="newPassword"
-                  value={form.confirmPassword}
-                />
+                <View onLayout={recordFieldOffset("confirmPassword")}>
+                  <TextInput
+                    activeOutlineColor={theme.colors.primary}
+                    autoComplete="new-password"
+                    contentStyle={styles.inputContent}
+                    label="Confirm password"
+                    mode="outlined"
+                    onChangeText={updateField("confirmPassword")}
+                    onFocus={() => scrollToField("confirmPassword")}
+                    outlineColor={theme.colors.outline}
+                    outlineStyle={styles.inputOutline}
+                    returnKeyType="done"
+                    secureTextEntry
+                    style={styles.input}
+                    textContentType="newPassword"
+                    value={form.confirmPassword}
+                  />
+                </View>
               ) : null}
 
               {isSignup && form.confirmPassword ? (
@@ -228,18 +336,9 @@ export function AuthScreen() {
                 </HelperText>
               ) : null}
 
-              {error ? (
-                <View style={styles.errorBox}>
-                  <Text variant="bodySmall" style={styles.errorText}>
-                    {error}
-                  </Text>
-                </View>
-              ) : null}
-
               <Button
                 contentStyle={styles.submitContent}
                 disabled={!canSubmit || isSubmitting}
-                loading={isSubmitting}
                 mode="contained"
                 onPress={submit}
                 style={styles.submitButton}
@@ -277,7 +376,11 @@ function AuthModeButton({ active, label, onPress }: AuthModeButtonProps) {
   );
 }
 
-function getAuthError(error: unknown) {
+function getAuthError(error: unknown, mode: AuthMode) {
+  if (mode === "signin" && error instanceof ApiError && error.status === 401) {
+    return "Incorrect email or password.";
+  }
+
   if (error instanceof ApiError) return error.message;
   if (error instanceof Error) return error.message;
   return "Something went wrong. Please try again.";
@@ -372,14 +475,6 @@ const styles = StyleSheet.create({
     gap: 13,
     marginTop: 24,
   },
-  nameRow: {
-    flexDirection: "column",
-    gap: 13,
-  },
-  nameInput: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-  },
   input: {
     backgroundColor: theme.colors.surface,
   },
@@ -396,15 +491,23 @@ const styles = StyleSheet.create({
     marginTop: -6,
   },
   errorBox: {
-    backgroundColor: theme.colors.errorContainer,
-    borderColor: "rgba(220, 38, 38, 0.2)",
-    borderRadius: 14,
+    backgroundColor: theme.colors.surface,
+    borderColor: "rgba(220, 38, 38, 0.22)",
+    borderLeftColor: theme.colors.error,
+    borderLeftWidth: 3,
+    borderRadius: 12,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    gap: 3,
+    marginTop: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+  },
+  errorTitle: {
+    color: theme.colors.error,
+    fontWeight: "700",
   },
   errorText: {
-    color: theme.colors.onErrorContainer,
+    color: theme.colors.onSurface,
     lineHeight: 20,
   },
   submitButton: {

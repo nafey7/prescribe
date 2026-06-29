@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View, type ViewStyle } from "react-native";
+import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import { theme } from "../theme/theme";
 
 type ScreenProps = {
   centered?: boolean;
@@ -13,6 +12,7 @@ type ScreenProps = {
 
 export function Screen({ centered = false, children, padded = true, style }: ScreenProps) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
 
   return (
     <View
@@ -21,6 +21,7 @@ export function Screen({ centered = false, children, padded = true, style }: Scr
         padded && styles.padded,
         centered && styles.centered,
         {
+          backgroundColor: theme.colors.background,
           paddingTop: insets.top,
           paddingBottom: Math.max(insets.bottom, padded ? 24 : 0),
         },
@@ -36,7 +37,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     gap: 20,
-    backgroundColor: theme.colors.background,
   },
   padded: {
     paddingHorizontal: 24,
