@@ -1,6 +1,6 @@
 # Documentation Map
 
-Master index for all `prescribe-v2` documentation. Use the reading paths below to find the right docs for your task.
+Master index for all `prescribe` documentation. Use the reading paths below to find the right docs for your task.
 
 ## Reading paths by role
 

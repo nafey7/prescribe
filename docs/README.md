@@ -1,6 +1,6 @@
 # Documentation Hub
 
-This directory contains the reference documentation for `prescribe-v2`. For AI agents, start at the root [`CLAUDE.md`](../CLAUDE.md) instead — it provides reading order and domain routing.
+This directory contains the reference documentation for `prescribe`. For AI agents, start at the root [`CLAUDE.md`](../CLAUDE.md) instead — it provides reading order and domain routing.
 
 ## Quick links
 

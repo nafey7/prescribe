@@ -1,4 +1,4 @@
-# Competitor landscape — prescribe-v2 (Medical AI Chat)
+# Competitor landscape — prescribe (Medical AI Chat)
 
 **Project summary:** React + Vite frontend, FastAPI + LangGraph backend, MongoDB for patient profiles and chat. The product positions an LLM to answer symptom-related questions using structured patient context (conditions, medications, allergies, documents). Educational prototype; not a regulated medical device.
 

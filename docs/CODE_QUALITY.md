@@ -1,6 +1,6 @@
 # Code Quality
 
-Layering rules, type safety, validation conventions, and documentation maintenance expectations for `prescribe-v2`.
+Layering rules, type safety, validation conventions, and documentation maintenance expectations for `prescribe`.
 
 ## Layering rules
 

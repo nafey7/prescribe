@@ -1,6 +1,6 @@
 # Local Development
 
-Setup, Docker workflow, local dev commands, and troubleshooting for `prescribe-v2`.
+Setup, Docker workflow, local dev commands, and troubleshooting for `prescribe`.
 
 ## Prerequisites
 
@@ -11,7 +11,7 @@ Setup, Docker workflow, local dev commands, and troubleshooting for `prescribe-v
 ## Initial setup
 
 ```bash
-cd prescribe-v2
+cd prescribe
 
 # Copy environment template
 cp .env.example .env

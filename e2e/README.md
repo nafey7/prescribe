@@ -1,6 +1,6 @@
 # e2e
 
-Playwright end-to-end suite for `prescribe-v2`. Drives the real Docker stack.
+Playwright end-to-end suite for `prescribe`. Drives the real Docker stack.
 
 ## Quick start
 

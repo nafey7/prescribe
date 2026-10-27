@@ -1,6 +1,6 @@
 # Testing
 
-Test strategy, commands, and conventions for `prescribe-v2`.
+Test strategy, commands, and conventions for `prescribe`.
 
 ## Backend tests
 

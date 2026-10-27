@@ -1,4 +1,4 @@
-# CLAUDE.md — AI Navigation for prescribe-v2
+# CLAUDE.md — AI Navigation for prescribe
 
 This file is the primary entry point for AI agents and contributors working in this repository. Read this first, then follow links to area-specific guides and deep docs.
 
@@ -108,7 +108,7 @@ Do not assume `pip install` or `npm install` only on the host affects behavior i
 ## Project structure (overview)
 
 ```
-prescribe-v2/
+prescribe/
 ├── backend/          # FastAPI + LangGraph + MongoDB
 ├── frontend/         # React + Vite + MUI
 ├── e2e/              # Playwright end-to-end suite (drives the live Docker stack)

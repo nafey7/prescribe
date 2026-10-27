@@ -1,6 +1,6 @@
 # Architecture
 
-System design and data flow for `prescribe-v2`. This is the canonical reference for how the pieces fit together.
+System design and data flow for `prescribe`. This is the canonical reference for how the pieces fit together.
 
 ## System overview
 

@@ -19,14 +19,14 @@ class Settings(BaseSettings):
     CHAT_MODEL_OPENAI: str = "gpt-4o-mini"
     # OpenAI Responses API model used for direct PDF understanding.
     DOCUMENT_MODEL_OPENAI: str = "gpt-4o-mini"
-    CHAT_MODEL_GOOGLE: str = "gemini-2.5-flash"
+    CHAT_MODEL_GOOGLE: str = "gemini-3.8-flash"
     CHAT_CONTEXT_MAX_TOKENS: int = 24000
     AI_RUN_TIMEOUT_SECONDS: float = 120.0
 
     # Short thread titles from the first user message
     CHAT_TITLE_MODEL_OPENAI: str = "gpt-4o-mini"
     # Use the same Google model as the main chat flow (newer API keys often reject gemini-1.5-* on v1beta).
-    CHAT_TITLE_MODEL_GOOGLE: str = "gemini-2.5-flash"
+    CHAT_TITLE_MODEL_GOOGLE: str = "gemini-3.8-flash"
 
     AI_SUGGESTIONS_ENABLED: bool = True
     # Selectable PDF text extraction remains available when this is off. This

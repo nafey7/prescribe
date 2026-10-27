@@ -2,7 +2,7 @@
   "name": "prescribe-e2e",
   "version": "0.0.0",
   "private": true,
-  "description": "Playwright end-to-end tests for prescribe-v2. See ../docs/TESTING.md for details.",
+  "description": "Playwright end-to-end tests for prescribe. See ../docs/TESTING.md for details.",
   "scripts": {
     "test": "node --env-file=.env ./node_modules/.bin/playwright test",
     "test:headed": "node --env-file=.env ./node_modules/.bin/playwright test --headed",

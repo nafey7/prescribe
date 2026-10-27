@@ -8,6 +8,8 @@ A medical AI chat application that reads each patient's structured profile from 
 
 ## Screenshots
 
+<img src="docs/screenshots/patient-ai-chat.jpg" alt="Medical AI chat: the agent answers a symptom question from the patient's own medications and conditions, with source tags" width="100%">
+
 <img src="docs/screenshots/patient-dashboard.jpg" alt="Patient portal: conditions, allergies and current medications" width="100%">
 
 <p>
@@ -61,7 +63,7 @@ LangGraph:  START → agent ←→ tools → END
 
 ```bash
 # 1. Clone / navigate to project
-cd prescribe-v2
+cd prescribe
 
 # 2. Configure environment
 cp .env.example .env
@@ -126,7 +128,7 @@ New patients are created through the registration API or seed scripts — there 
 ## Project Structure
 
 ```
-prescribe-v2/
+prescribe/
 ├── docker-compose.yml          # Orchestrates 3 services
 ├── .env.example                # Environment template
 ├── backend/
