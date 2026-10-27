@@ -6,6 +6,15 @@ A medical AI chat application that reads each patient's structured profile from 
 
 > **Disclaimer:** This is an educational prototype. It does not provide real medical advice. Always consult a qualified healthcare professional.
 
+## Screenshots
+
+<img src="docs/screenshots/patient-dashboard.jpg" alt="Patient portal: conditions, allergies and current medications" width="100%">
+
+<p>
+  <img src="docs/screenshots/doctor-patients.jpg" alt="Doctor portal: list of connected patients" width="49%">
+  <img src="docs/screenshots/doctor-patient-record.jpg" alt="Doctor portal: a patient's record with a Generate AI brief button" width="49%">
+</p>
+
 > **For AI agents:** Start with [`CLAUDE.md`](CLAUDE.md) for navigation. For detailed reference docs, see [`docs/`](docs/README.md).
 
 ---
